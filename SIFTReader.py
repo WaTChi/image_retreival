@@ -1,13 +1,10 @@
 #!/usr/bin/python
 
+from config import *
 import numpy as np
 import pickle
 import os
 import shutil
-
-LOCAL_CACHING = True
-CACHE_PATH = os.path.expanduser('~/cache')
-IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d
 
 NUM_DIMENSIONS = 128
 ROW = np.dtype([('image', np.uint16), ('features', np.uint8, (NUM_DIMENSIONS,))])
