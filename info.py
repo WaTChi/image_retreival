@@ -5,7 +5,6 @@ import earthMine
 import math
 SIFTREGEXSTR = r'.*sift.txt$'
 IMGREGEXSTR = r'.*.jpg$'
-
   
 def moveLocation(lat1, lon1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
