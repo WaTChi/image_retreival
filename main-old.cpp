@@ -335,7 +335,7 @@ int alg(string celldir, string cell, string qdir, string qfile,
 	int nn = 1;
 	flann::Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
 	flann::Matrix<float> dists(new float[query.rows * nn], query.rows, nn);
-	index->knnSearch(query, indices, dists, nn, flann::SearchParams(2048));
+	index->knnSearch(query, indices, dists, nn, flann::SearchParams(128));
 	//votes
 	map<string, float> counts;
 	map<string, int> sums;

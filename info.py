@@ -6,6 +6,23 @@ import math
 SIFTREGEXSTR = r'.*sift.txt$'
 IMGREGEXSTR = r'.*.jpg$'
 
+  
+def moveLocation(lat1, lon1, d, bearingDegrees):
+    """Returns a ddLocation that is d meters from view1
+       along a great circle heading along the bearing"""
+
+    R = 6371e3 #Earth's radius in meters
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+
+    bearing = math.radians(bearingDegrees)
+    lat2 = math.asin(math.sin(lat1)*math.cos(d/R) \
+                     + math.cos(lat1)*math.sin(d/R)*math.cos(bearing))
+    lon2 = lon1 + \
+           math.atan2(math.sin(bearing)*math.sin(d/R)*math.cos(lat1),
+                      math.cos(d/R) - math.sin(lat1)*math.sin(lat2))
+    return math.degrees(lat2), math.degrees(lon2)
+
 def getInfoCoord(path):
     """gets coordinates from .info file. makes assumption about format of file"""
     if os.path.exists(path):

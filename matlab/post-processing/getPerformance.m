@@ -22,6 +22,8 @@ function [results] = getPerformance(filter,comb_method,query_num)
 %   results:  	Structure containing the details of post-processing
 %       - type 'help ppStruct' for details about its contents
 
+addpath('.\..\util\')
+
 file = ['.\',comb_method,'\query',num2str(query_num),'_results.mat'];
 try
     load(file)
@@ -31,8 +33,6 @@ catch e
 end
 
 if strcmp(filter,'upto10')
-    
-    results
     
     % Iterate through each query to get its performance
     nq = results.numqueries; % number of queries
@@ -62,8 +62,14 @@ if strcmp(filter,'upto10')
                 candScores = candScores(1:N);
             end
             
-            minScore(k,N) = min(candScores);
-            [maxScore(k,N),winnerIdx] = max(candScores);
+            av=1;
+            as=1.7;
+            mxs = max(candScores);
+            mxv = max(candVotes);
+            combScores = ( av*(candVotes/mxv) + as*(candScores/mxs) )...
+                / (av+as);
+            minScore(k,N) = min(combScores);
+            [maxScore(k,N),winnerIdx] = max(combScores);
             winnerIdx = min(winnerIdx);
             winner(k,N) = candFiles(winnerIdx);
             

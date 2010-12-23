@@ -1,2 +1,4 @@
 *.pyc
 .svn
+matlab/query2
+matlab/post-processing

@@ -1,6 +1,6 @@
-function plotPerformance(filter,comb_method,query_num,fignum)
+function results = plotPerformance(filter,comb_method,query_num,fignum)
 
-% plotPerformance(filter,comb_method,query_num)
+% results = plotPerformance(filter,comb_method,query_num,fignum)
 % 
 % First coded 9 Dec 2010 by Aaron Hallquist
 % Latest revision 9 Dec 2010 by Aaron Hallquist
@@ -16,8 +16,13 @@ function plotPerformance(filter,comb_method,query_num,fignum)
 %           'vote-comb':    Sums vote results across multiple cells
 %   query_num:      Integer choosing the query set to use
 %   figum:          Integer choosing where to begin the figures
+% 
+% OUTPUT
+%   results:        Structure containing post-processing data
 
-% Defaults values
+addpath('.\..\util\')
+
+% Default values
 if nargin<4
     fignum=0;
 end
@@ -31,8 +36,9 @@ catch e
     results = post_process(filter,comb_method,query_num);
 end
 
+getResults = true;
 % Evaluate performance if necessary
-if ~isfield(results,'performance')
+if getResults || ~isfield(results,'performance')
     disp('Performance not yet evaluated. Running this now...')
     results = getPerformance(filter,comb_method,query_num);
 end
@@ -43,15 +49,15 @@ if strcmp(filter,'upto10')
     gNum = results.performance.gNum;
     yNum = results.performance.yNum;
     figure(fignum+2)
-    hold on
+    hold off
     bar(1:10,gNum+yNum,'FaceColor','y')
+    hold on
     bar(1:10,gNum,'FaceColor','g')
     axis([0.5 10.5 0 nq])
     title('Post-processing performance on top N')
     xlabel('Top N')
     ylabel('Number of successful matches; Y=possible, G=actual')
-    bestIdx=5;
-    %[~,bestIdx] = max(gNum); bestIdx = min(bestIdx);
+    [~,bestIdx] = max(gNum); bestIdx = min(bestIdx);
 elseif strcmp(filter,'above1')
     nq = results.numqueries;
     gNum = results.performance.gNum;
@@ -69,8 +75,9 @@ rIdx = results.performance.rQuery{bestIdx,2};
 minScore = results.performance.minScore(:,bestIdx);
 maxScore = results.performance.maxScore(:,bestIdx);
 figure(fignum+1)
-hold on
+hold off
 bar(gIdx,maxScore(gIdx),'FaceColor','g')
+hold on
 bar(gIdx,minScore(gIdx),'FaceColor','w','EdgeColor','w')
 bar(yIdx,maxScore(yIdx),'FaceColor','y')
 bar(yIdx,minScore(yIdx),'FaceColor','w','EdgeColor','w')

@@ -45,7 +45,11 @@ results.numqueries = nq;
 
 % Get and store the ground truth files
 results.gtruth = cell(nq,1);
-[gtIdx,gtFile] = parseGT('GYRBO',gtDir);
+if query_num==3
+    [gtIdx,gtFile] = parseGT('GYRBO',gtDir);
+else
+    [gtIdx,gtFile] = parseGT('A',gtDir);
+end
 for k=1:nq
     idx = find(gtIdx==results.num(k));
     results.gtruth{k} = gtFile( gtIdx(idx,2) : gtIdx(idx,3) );
