@@ -20,10 +20,11 @@ class Query:
     self.params = params
 
   def run(self):
-    dataset, mapping = npy_cached_load(self.cellpath)
-    queryset = FEATURE_VIEW(load_file(self.qpath))
+    records, mapping = npy_cached_load(self.cellpath)
+    query = load_file(self.qpath)
+    queryset = FEATURE_VIEW(query)
     flann = pyflann.FLANN()
-    params = flann.build_index(dataset, kwargs=self.params)
+    params = flann.build_index(FEATURE_VIEW(records), kwargs=self.params)
     INFO(params)
     results, dists = flann.nn_index(queryset, self.params['nn'], checks=self.params['checks'])
     INFO(results)
