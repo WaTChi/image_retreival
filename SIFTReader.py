@@ -12,9 +12,6 @@ FEATURE_VIEW = lambda dataset: dataset.getfield(ROW['features'], 2)
 IMAGE_VIEW = lambda dataset: dataset.getfield(ROW['image'], 0)
 IS_SIFT = lambda filename: 'sift.txt' in filename
 
-def INFO(x):
-  print 'INFO: ' + str(x)
-
 def sift_iterator(siftname):
   """Returns feature values in chunks of arbitrary size."""
   with open(siftname) as data:
@@ -38,6 +35,14 @@ def write_features_to_ndarray(siftname, offset, dataset, key):
       step = 0
       offset += 1
   return offset
+
+def load_file(siftname):
+  """Loads single sift file into numpy array."""
+  with open(siftname) as f:
+    num_features = int(f.readline().split()[0])
+  dataset = np.ndarray((num_features, 1), dtype=ROW)
+  write_features_to_ndarray(siftname, 0, dataset, 0)
+  return dataset
 
 def npy_save_sift_directory(directory, outname):
   """Writes all sift features found in a directory to a file.
@@ -102,14 +107,14 @@ def npy_cached_load(directory, map_only=False):
     npy_save_sift_directory(directory, outname)
     data_out = findfile(directory, outname + '.npy')
     map_out = findfile(directory, outname + '.map')
-  record = {'mapping': pickle.load(open(map_out))}
-  if not map_only:
-    record['data'] = np.load(data_out)
-  return record
+  mapping = pickle.load(open(map_out))
+  if map_only:
+    return mapping
+  return np.load(data_out), mapping
 
 if __name__ == '__main__':
   from sys import argv
-  data = npy_cached_load(argv[1])
-  INFO('loaded %d features from %d images' % (len(data['data']), len(data['mapping'])))
+  data, mapping= npy_cached_load(argv[1])
+  INFO('loaded %d features from %d images' % (len(data), len(mapping)))
 
 # vim: et sw=2

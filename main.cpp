@@ -15,6 +15,8 @@
 #include <fstream>
 #include <map>
 
+using namespace std;
+
 /*
  * input
  * 	dir:	full path to directory containing sift files
