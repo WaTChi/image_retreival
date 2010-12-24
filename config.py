@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 LOCAL_CACHING = True
 CACHE_PATH = os.path.expanduser('~/cache')
@@ -8,4 +9,4 @@ if not os.path.exists(CACHE_PATH):
     os.mkdir(CACHE_PATH)
 
 def INFO(x):
-  print 'INFO: ' + str(x)
+  print datetime.today().strftime("%l:%M:%S - ") + str(x)

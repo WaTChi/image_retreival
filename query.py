@@ -3,19 +3,28 @@
 from config import *
 from SIFTReader import *
 import pyflann
-import numpy as np
 import os
 
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
   'trees': 1,
-  'checks': 128,
+  'checks': 1024,
   'num_neighbors': 1,
+  'log_level': 'info',
+# for convenience; not a flann build parameter
   'dist_threshold': 70000,
+  'distance_type': 'euclidean',
 }
 
-def str_params(params):
-  return ','.join(sorted(['%s=%s' % (k,v) for k,v in params.iteritems()]))
+# I'm not actually sure if the distance function affects
+# index compatibility. Someone check please?
+def indextype(params):
+  alg = params['algorithm']
+  dtype = params['distance_type']
+  distname = '' if dtype == 'euclidean' else ('-%s' % dtype)
+  if alg == 'kdtree':
+    return 'kdtree%d%s' % (params['trees'], distname)
+  return '%s%s' % (alg, distname)
 
 class Query:
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT):
@@ -23,21 +32,8 @@ class Query:
     self.cellpath = celldir + cell
     self.outfile = outfile
     self.params = params
+    pyflann.set_distance_type(params['distance_type'])
     self.flann = pyflann.FLANN()
-
-  def _build_index(self):
-    iname = getcellid(self.cellpath) + '-' + self.params['algorithm'] + str(self.params.get('trees', '')) + '.uint8.index'
-    index = getfile(self.cellpath, iname)
-    dataset, mapping, keyset = npy_cached_load(self.cellpath)
-    if os.path.exists(index):
-      INFO('loading index %s' % iname)
-      self.flann.load_index(index, dataset)
-      return mapping, keyset
-    INFO('creating %s' % iname)
-    INFO(self.flann.build_index(dataset, algorithm=self.params['algorithm'], trees=self.params.get('trees', 0)))
-    for out in getdests(self.cellpath, iname):
-      self.flann.save_index(out)
-    return mapping, keyset
 
   def run(self):
     mapping, keyset = self._build_index()
@@ -54,10 +50,24 @@ class Query:
           counts[k] = 1
     votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
     total = 0
-    with open(self.outfile + '.test', 'w') as f:
+    with open(self.outfile, 'w') as f:
       for tally in votes:
         f.write("%d\t%s\n" % tally)
         total += tally[0]
     INFO('put %d/%d votes into %d bins' % (total, len(results), len(votes)))
+
+  def _build_index(self):
+    iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
+    index = getfile(self.cellpath, iname)
+    dataset, mapping, keyset = npy_cached_load(self.cellpath)
+    if os.path.exists(index):
+      INFO('loading index %s' % iname)
+      self.flann.load_index(index, dataset)
+      return mapping, keyset
+    INFO('creating %s' % iname)
+    INFO(self.flann.build_index(dataset, **self.params))
+    for out in getdests(self.cellpath, iname):
+      self.flann.save_index(out)
+    return mapping, keyset
 
 # vim: et sw=2
