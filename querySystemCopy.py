@@ -305,7 +305,7 @@ dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/3
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'Research/collected_images/query/query1/')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(query1)/matchescells(g=100,r=d=236.6),query1,kdtree1,threshold=70k,searchparam=128')
+    matchdir = os.path.join(maindir, 'Research/results(query1)/matchescells(g=100,r=d=236.6),query1,kdtree1,threshold=70k,searchparam=1024')
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
