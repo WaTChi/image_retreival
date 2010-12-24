@@ -9,6 +9,10 @@ import shutil
 NUM_DIMENSIONS = 128
 IS_SIFT = lambda filename: 'sift.txt' in filename
 
+# 'r' to enable numpy mmap loading
+# it's marginally faster but may cause indexing to stall (?)
+MMAP_MODE = None
+
 def sift_iterator(siftname):
   """Returns feature values in chunks of arbitrary size."""
   with open(siftname) as data:
@@ -106,7 +110,7 @@ def npy_cached_load(directory):
     INFO('finding sift files')
     npy_save_sift_directory(directory, cellid)
   mapping = pickle.load(open(map_out))
-  return np.load(data_out, mmap_mode='r'), mapping, np.load(key_out, mmap_mode='r')
+  return np.load(data_out, mmap_mode=MMAP_MODE), mapping, np.load(key_out, mmap_mode=MMAP_MODE)
 
 if __name__ == '__main__':
   from sys import argv
