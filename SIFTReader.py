@@ -95,7 +95,7 @@ def getfile(directory, name):
 def getcellid(directory):
   return os.path.basename(directory)
 
-def npy_cached_load(directory, map_only=False):
+def npy_cached_load(directory):
   """Efficiently loads a matrix of sift features and reverse lookup table
      for a directory of sift files."""
   cellid = getcellid(directory)
@@ -106,9 +106,7 @@ def npy_cached_load(directory, map_only=False):
     INFO('finding sift files')
     npy_save_sift_directory(directory, cellid)
   mapping = pickle.load(open(map_out))
-  if map_only:
-    return mapping, np.load(key_out)
-  return np.load(data_out), mapping, np.load(key_out)
+  return np.load(data_out, mmap_mode='r'), mapping, np.load(key_out, mmap_mode='r')
 
 if __name__ == '__main__':
   from sys import argv
