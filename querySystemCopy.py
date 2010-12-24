@@ -86,8 +86,9 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
             print "querying cell: {0}, distance: {1} with:{2}".format(cell, actualdist, querysift)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
-        query = Query(dbdir, cell, querydir, querysift, outputFilePath)
-        query.run()
+        if not os.path.exists(outputFilePath):
+            query = Query(dbdir, cell, querydir, querysift, outputFilePath)
+            query.run()
         if copy_top_n_percell > 0:
             outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
