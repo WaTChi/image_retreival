@@ -72,6 +72,7 @@ class Query:
       INFO("index load took %f seconds" % (time.time() - s))
       return mapping, keyset
     INFO('creating %s' % iname)
+    start = time.time()
     INFO(self.flann.build_index(dataset, **self.params))
     INFO("index creation took %f seconds" % (time.time() - start))
     for out in getdests(self.cellpath, iname):
