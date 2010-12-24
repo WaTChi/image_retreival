@@ -2,6 +2,7 @@
 
 from config import *
 from SIFTReader import *
+import time
 import pyflann
 import os
 
@@ -38,10 +39,11 @@ class Query:
   def run(self):
     start = time.time()
     mapping, keyset = self._build_index()
-    INFO("running query")
     queryset = load_file(self.qpath)
     counts = {} # map from sift index to counts
+    qtime = time.time()
     results, dists = self.flann.nn_index(queryset, **self.params)
+    INFO("query took %f seconds" % (time.time() - qtime))
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
         k = keyset[results[i]][0]
@@ -59,17 +61,19 @@ class Query:
     INFO('put %d/%d votes into %d bins' % (total, len(results), len(votes)))
 
   def _build_index(self):
+    start = time.time()
     iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
     index = getfile(self.cellpath, iname)
-    start = time.time()
     dataset, mapping, keyset = npy_cached_load(self.cellpath)
-    INFO("load took %f seconds" % (start - time.time()) )
+    INFO("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
-      INFO('loading index %s' % iname)
+      s = time.time()
       self.flann.load_index(index, dataset)
+      INFO("index load took %f seconds" % (time.time() - s))
       return mapping, keyset
     INFO('creating %s' % iname)
     INFO(self.flann.build_index(dataset, **self.params))
+    INFO("index creation took %f seconds" % (time.time() - start))
     for out in getdests(self.cellpath, iname):
       self.flann.save_index(out)
     return mapping, keyset
