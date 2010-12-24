@@ -112,7 +112,7 @@ def npy_cached_load(directory, map_only=False):
 
 if __name__ == '__main__':
   from sys import argv
-  data, mapping= npy_cached_load(argv[1])
+  data, mapping, keyset = npy_cached_load(argv[1])
   INFO('loaded %d features from %d images' % (len(data), len(mapping)))
 
 # vim: et sw=2
