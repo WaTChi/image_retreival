@@ -8,8 +8,8 @@ import os
 
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
-  'trees': 1,
-  'checks': 1024,
+  'trees': 4,
+  'checks': 2048,
   'num_neighbors': 1,
   'log_level': 'info',
 # for convenience; not a flann build parameter

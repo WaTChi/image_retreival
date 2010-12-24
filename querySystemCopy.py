@@ -74,34 +74,6 @@ def write_scores(querysift, ranked_matches, outdir):
         outfile.write(matchedimg)
         outfile.write('\n')
 
-def query(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, copy_top_n_percell=0):
-    lat, lon = info.getQuerySIFTCoord(querysift)
-    closest_cells = util.getclosestcells(lat, lon, dbdir)
-    outputFilePaths = []
-    cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
-    if verbosity > 0:
-        print "checking query: {0} \t against {1} \t cells".format(querysift, len(cells_in_range))
-    for cell, dist in cells_in_range:
-        if verbosity > 1:
-            print "querying cell: {0}, distance: {1} with:{2}".format(cell, dist, querysift)
-        outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(dist)  + ".res")
-        outputFilePaths.append(outputFilePath)
-        if  not os.path.exists(outputFilePath):
-            query = Query(dbdir, cell, querydir, querysift, outputFilePath)
-            query.run()
-        if copy_top_n_percell > 0:
-            outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(dist))
-            copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
-#    combined = combine_until_dup(outputFilePaths, 1000)
-    combined = combine_topn_votes(outputFilePaths, float('inf'))
-#    combined = filter_in_range(combined, querysift)
-#    write_scores(querysift, combined, "/media/data/combined")
-    [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
-    if copytopmatch:
-        match = g or y or r or b or o
-        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, match)
-    return [g, y, r, b, o]
-
 def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, copy_top_n_percell=0):
     lat, lon = info.getQuerySIFTCoord(querysift)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
@@ -127,7 +99,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
 #    combined = combine_until_dup(outputFilePaths, 1000)
     combined = combine_topn_votes(outputFilePaths, float('inf'))
-    combined = filter_in_range(combined, querysift)
+#    combined = filter_in_range(combined, querysift)
 #    write_scores(querysift, combined, "/media/data/combined")
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
     if copytopmatch:
@@ -196,7 +168,7 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
     b = 0
     o = 0
     for entry in dupCountLst[0:topnres]:
-        g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
+#        g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
         g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
         y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
         r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
@@ -343,7 +315,7 @@ dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/3
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'Research/collected_images/query/query3/')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(query3)/matchescells(g=100,r=d=236.6),query3,kdtree1,threshold=70k,searchparam=1024,pyflann')
+    matchdir = os.path.join(maindir, 'Research/results(query3)/matchescells(g=100,r=d=236.6),query3,kdtree4,threshold=70k,searchparam=2048,pyflann')
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
