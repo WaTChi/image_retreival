@@ -7,9 +7,6 @@ import os
 import shutil
 
 NUM_DIMENSIONS = 128
-ROW = np.dtype([('image', np.uint16), ('features', np.uint8, (NUM_DIMENSIONS,))])
-FEATURE_VIEW = lambda dataset: dataset.getfield(ROW['features'], 2)
-IMAGE_VIEW = lambda dataset: dataset.getfield(ROW['image'], 0)
 IS_SIFT = lambda filename: 'sift.txt' in filename
 
 def sift_iterator(siftname):
@@ -22,17 +19,18 @@ def sift_iterator(siftname):
         continue
       yield np.fromstring(line, sep=' ', dtype=np.uint8)
 
-def write_features_to_ndarray(siftname, offset, dataset, key):
+def write_features_to_ndarray(siftname, offset, dataset, key=None, keyset=None):
   """Adds features from a sift file to a dataset.
      Returns the new offset into the matrix."""
-  dataset[offset][0][0] = key
   step = 0
   for chunk in sift_iterator(siftname):
     # copy chunk into array
-    dataset[offset][0][1][step:step+len(chunk)] = chunk
+    dataset[offset][step:step+len(chunk)] = chunk
     step += len(chunk)
     if step >= NUM_DIMENSIONS:
       step = 0
+      if key is not None:
+        keyset[offset] = key
       offset += 1
   return offset
 
@@ -40,11 +38,11 @@ def load_file(siftname):
   """Loads single sift file into numpy array."""
   with open(siftname) as f:
     num_features = int(f.readline().split()[0])
-  dataset = np.ndarray((num_features, 1), dtype=ROW)
-  write_features_to_ndarray(siftname, 0, dataset, 0)
+  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
+  write_features_to_ndarray(siftname, 0, dataset)
   return dataset
 
-def npy_save_sift_directory(directory, outname):
+def npy_save_sift_directory(directory, cellid):
   """Writes all sift features found in a directory to a file.
      Also builds a reverse lookup table."""
   num_features = 0
@@ -54,36 +52,39 @@ def npy_save_sift_directory(directory, outname):
       with open(os.path.join(directory, name)) as f:
         num_features += int(f.readline().split()[0])
   lookup_table = {}
-  dataset = np.ndarray((num_features, 1), dtype=ROW)
+  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
+  keyset = np.ndarray((num_features, 1), dtype=np.uint16)
   offset = 0
   key = 0
   lookup_table = {}
   # now begin the actual read
   for name in os.listdir(directory):
     if IS_SIFT(name):
-      offset = write_features_to_ndarray(os.path.join(directory, name), offset, dataset, key)
+      offset = write_features_to_ndarray(os.path.join(directory, name), offset, dataset, key, keyset)
       lookup_table[key] = name
+      if key % 200 == 0:
+        INFO('%d/%d features read' % (offset, num_features))
       key += 1
-      INFO('%d/%d features read' % (offset, num_features))
-  for dest in getdests(directory, outname + '.npy'):
+  for dest in getdests(directory, cellid + '-features.npy'):
     np.save(dest, dataset)
-  for dest in getdests(directory, outname + '.map'):
+  for dest in getdests(directory, cellid + '-keys.npy'):
+    np.save(dest, keyset)
+  for dest in getdests(directory, cellid + '-map.p'):
     pickle.dump(lookup_table, open(dest, 'w'))
 
 def getdests(directory, name):
-  default = os.path.join(directory, name)
+  default = os.path.join(os.path.dirname(directory), name)
   if IS_REMOTE(directory):
     INFO('copying %s to local cache' % name)
     local = os.path.join(CACHE_PATH, name)
     return [default, local]
   return [default]
 
-def findfile(directory, name):
-  default = os.path.join(directory, name)
+def getfile(directory, name):
+  default = os.path.join(os.path.dirname(directory), name)
   if IS_REMOTE(directory):
     local = os.path.join(CACHE_PATH, name)
     if os.path.exists(local):
-      INFO('using local copy of %s' % name)
       return local
     elif os.path.exists(default):
       INFO('copying %s to local cache' % name)
@@ -91,26 +92,23 @@ def findfile(directory, name):
       return local
   return default
 
+def getcellid(directory):
+  return os.path.basename(directory)
+
 def npy_cached_load(directory, map_only=False):
   """Efficiently loads a matrix of sift features and reverse lookup table
      for a directory of sift files."""
-  names = []
-  for name in os.listdir(directory):
-    if IS_SIFT(name):
-      names.append(name)
-  names.sort()
-  outname = 'data-' + hex(hash(tuple(names)))[2:]
-  data_out = findfile(directory, outname + '.npy')
-  map_out = findfile(directory, outname + '.map')
-  if not os.path.exists(data_out) or not os.path.exists(map_out):
+  cellid = getcellid(directory)
+  data_out = getfile(directory, cellid + '-features.npy')
+  key_out = getfile(directory, cellid + '-keys.npy')
+  map_out = getfile(directory, cellid + '-map.p')
+  if not os.path.exists(data_out) or not os.path.exists(map_out) or not os.path.exists(key_out):
     INFO('finding sift files')
-    npy_save_sift_directory(directory, outname)
-    data_out = findfile(directory, outname + '.npy')
-    map_out = findfile(directory, outname + '.map')
+    npy_save_sift_directory(directory, cellid)
   mapping = pickle.load(open(map_out))
   if map_only:
-    return mapping
-  return np.load(data_out), mapping
+    return mapping, np.load(key_out)
+  return np.load(data_out), mapping, np.load(key_out)
 
 if __name__ == '__main__':
   from sys import argv
