@@ -95,7 +95,8 @@ def getfile(directory, name):
       return local
     elif os.path.exists(default):
       INFO('copying %s to local cache' % name)
-      shutil.copyfile(default, local)
+      shutil.copyfile(default, local + '.tmp')
+      os.rename(local + '.tmp', local)
       return local
   return default
 
