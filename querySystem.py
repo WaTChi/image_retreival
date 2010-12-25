@@ -175,7 +175,7 @@ def combine_topn_votes(outputFilePaths, topn):
     dupCount = {}
     for outputFilePath in outputFilePaths:
         for score, img in get_top_results(outputFilePath, topn):
-            dupCount[img] = dupCount.get(img, 0) + int(score)
+            dupCount[img] = dupCount.get(img, 0) + float(score)
     dupCountLst = dupCount.items()
 #    dupCountLst.sort(key=lambda x: x[1])
 #    dupCountLst.reverse()

@@ -5,8 +5,9 @@ import subprocess
 import sys
 import time
 
+from config import *
 import info
-from query import Query
+import query
 import query1GroundTruth
 import groundtruthB
 import groundtruthG
@@ -94,8 +95,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
         if not os.path.exists(outputFilePath):
-            query = Query(dbdir, cell, querydir, querysift, outputFilePath)
-            query.run()
+            query.Query(dbdir, cell, querydir, querysift, outputFilePath).run()
         if copy_top_n_percell > 0:
             outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
@@ -321,7 +321,7 @@ dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/3
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,kdtree1,threshold=70k,searchparam=1024' % (QUERY, QUERY))
+    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(query.PARAMS_DEFAULT)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
@@ -330,5 +330,5 @@ if __name__ == "__main__":
         dbdir = sys.argv[2]
         matchdir = sys.argv[3]
     topnresults = 1
-    print "\t top 1 result"
+    INFO("matchdir=%s" % matchdir)
     characterize(querydir, dbdir, matchdir, ncells, copytopmatch)

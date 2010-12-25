@@ -58,6 +58,12 @@ def getSIFTCoord(fname):
 def getSIFTAngle(fname):
     """gets angle based on JPG file name. makes assumption about format of filename"""
     return int(fname[-12:-8])
+def siftdistance(a, b):
+  lat1, lon1 = getSIFTCoord(a)
+  lat2, lon2 = getSIFTCoord(b)
+  if lat1 == lat2 and lon1 == lon2:
+    return 0
+  return distance(lat1, lon1, lat2, lon2)
 def distance(lat1, lon1, lat2, lon2):
     """Gets distance between locations using spherical law of cosines"""
     R = 6371e3

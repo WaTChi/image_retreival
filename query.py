@@ -18,13 +18,6 @@ PARAMS_DEFAULT = {
   'vote_method': 'highest',
 }
 
-def siftdistance(a, b):
-  lat1, lon1 = info.getSIFTCoord(a)
-  lat2, lon2 = info.getSIFTCoord(b)
-  if lat1 == lat2 and lon1 == lon2:
-    return 0
-  return info.distance(lat1, lon1, lat2, lon2)
-
 # I'm not actually sure if the distance function affects
 # index compatibility. Someone check please?
 def indextype(params):
@@ -34,6 +27,9 @@ def indextype(params):
   if alg == 'kdtree':
     return 'kdtree%d%s' % (params['trees'], distname)
   return '%s%s' % (alg, distname)
+
+def searchtype(params):
+  return '%s,threshold=%dk,searchparam=%d' % (indextype(params), params['dist_threshold']/1000, params['checks'])
 
 class Query:
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT):
@@ -88,7 +84,7 @@ class Query:
     w = {} # weight by exponential dropoff of distance
     for source_index in counts:
       for test_index in counts:
-        dist = siftdistance(mapping[source_index], mapping[test_index])
+        dist = info.siftdistance(mapping[source_index], mapping[test_index])
         # 1.10^-dist gives 40% at 10 meters, 15% at 20 meters
         # 100 is infinitely steep dropoff
         w[test_index] = w.get(test_index, 0.0) + counts[source_index]*(1.10**(-dist))

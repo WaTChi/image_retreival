@@ -55,7 +55,6 @@ def npy_save_sift_directory(directory, cellid):
     if IS_SIFT(name):
       with open(os.path.join(directory, name)) as f:
         num_features += int(f.readline().split()[0])
-  lookup_table = {}
   dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
   keyset = np.ndarray((num_features, 1), dtype=np.uint16)
   offset = 0
