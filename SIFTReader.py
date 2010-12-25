@@ -10,7 +10,7 @@ NUM_DIMENSIONS = 128
 IS_SIFT = lambda filename: 'sift.txt' in filename
 
 # 'r' to enable numpy mmap loading
-# it's marginally faster but may cause indexing to stall (?)
+# it's marginally faster but occasionally hangs flann in 'D' state??
 MMAP_MODE = None
 
 def sift_iterator(siftname):
@@ -70,11 +70,14 @@ def npy_save_sift_directory(directory, cellid):
         INFO('%d/%d features read' % (offset, num_features))
       key += 1
   for dest in getdests(directory, cellid + '-features.npy'):
-    np.save(dest, dataset)
+    np.save(dest + '.tmp', dataset)
+    os.rename(dest + '.tmp', dest)
   for dest in getdests(directory, cellid + '-keys.npy'):
-    np.save(dest, keyset)
+    np.save(dest + '.tmp', keyset)
+    os.rename(dest + '.tmp', dest)
   for dest in getdests(directory, cellid + '-map.p'):
-    pickle.dump(lookup_table, open(dest, 'w'))
+    pickle.dump(lookup_table, open(dest + '.tmp', 'w'))
+    os.rename(dest + '.tmp', dest)
 
 def getdests(directory, name):
   default = os.path.join(os.path.dirname(directory), name)

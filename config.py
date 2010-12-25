@@ -10,3 +10,9 @@ if not os.path.exists(CACHE_PATH):
 
 def INFO(x):
   print datetime.today().strftime("%l:%M:%S - ") + str(x)
+
+def INFO_TIMING(x):
+#  INFO(x)
+  pass
+
+# vim: et sw=2

@@ -15,6 +15,8 @@ import groundtruthR
 import groundtruthY
 import util
 
+QUERY = 'query3'
+
 def parse_result_line(line):
     score = line.split('\t')[0]
     img = line.split('\t')[1].split('sift')[0]
@@ -154,7 +156,7 @@ def combine_topn_votes(outputFilePaths, topn):
     dupCount = {}
     for outputFilePath in outputFilePaths:
         for score, img in get_top_results(outputFilePath, topn):
-            dupCount[img] = dupCount.get(img, 0) + int(score)
+            dupCount[img] = dupCount.get(img, 0) + float(score)
     dupCountLst = dupCount.items()
 #    dupCountLst.sort(key=lambda x: x[1])
 #    dupCountLst.reverse()
@@ -168,12 +170,16 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
     b = 0
     o = 0
     for entry in dupCountLst[0:topnres]:
-#        g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
-        g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
-        y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
-        r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
-        b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
-        o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        if QUERY == 'query1':
+            g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
+        elif QUERY == 'query3':
+            g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
+            y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
+            r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
+            b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
+            o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        else:
+            assert False
 
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
     
@@ -313,9 +319,9 @@ resultsdir = '/home/ericl/topmatches'
 maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'Research/collected_images/query/query3/')
+    querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(query3)/matchescells(g=100,r=d=236.6),query3,kdtree4,threshold=70k,searchparam=2048,pyflann')
+    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,kdtree1,threshold=70k,searchparam=1024' % (QUERY, QUERY))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
