@@ -9,6 +9,16 @@ import threading
 import numpy as np
 import os
 
+PARAMS_TEST = {
+  'algorithm': 'kdtree',
+  'trees': 1,
+  'checks': 512,
+  'dist_threshold': 70000,
+  'distance_type': 'euclidean',
+  'num_neighbors': 1,
+  'vote_method': 'highest',
+}
+
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
   'trees': 1,
@@ -20,16 +30,6 @@ PARAMS_DEFAULT = {
   'num_neighbors': 1,
 # highest, weighted, revote_exact, exp_dropoff
   'vote_method': 'highest',
-}
-
-PARAMS_TEST = {
-  'algorithm': 'kdtree',
-  'trees': 1,
-  'checks': 1024,
-  'dist_threshold': 70000,
-  'distance_type': 'euclidean',
-  'num_neighbors': 10,
-  'vote_method': 'weighted',
 }
 
 # I'm not actually sure if the distance function affects
@@ -45,9 +45,10 @@ def indextype(params):
 def searchtype(params):
   return '%s,threshold=%dk,searchparam=%d' % (indextype(params), params['dist_threshold']/1000, params['checks'])
 
-def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=4):
+def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=8):
   semaphore = threading.Semaphore(num_threads)
   threads = []
+  INFO("running queries with %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
     if not os.path.exists(outputFilePath):
       thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
