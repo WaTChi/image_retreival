@@ -1,7 +1,6 @@
 import os
 import os.path
 import shutil
-import subprocess
 import sys
 import time
 
@@ -77,7 +76,7 @@ def write_scores(querysift, ranked_matches, outdir):
         outfile.write(matchedimg)
         outfile.write('\n')
 
-def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, copy_top_n_percell=0):
+def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, params, copy_top_n_percell=0):
     lat, lon = info.getQuerySIFTCoord(querysift)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     outputFilePaths = []
@@ -94,8 +93,15 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
             print "querying cell: {0}, distance: {1} with:{2}".format(cell, actualdist, querysift)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
-        if not os.path.exists(outputFilePath):
-            query.Query(dbdir, cell, querydir, querysift, outputFilePath).run()
+    # start query
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    # end query
+    for cell, dist in cells_in_range:
+        latcell, loncell = cell.split(',')
+        latcell = float(latcell)
+        loncell = float(loncell)
+        actualdist = info.distance(latquery, lonquery, latcell, loncell)
+        outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         if copy_top_n_percell > 0:
             outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
@@ -190,15 +196,13 @@ def skew_location(querysift, radius):
     corner = info.moveLocation(center[0], center[1], (2**.5)*radius, -45)
     for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
-        a=''
         for j in range(length+1):
             point = info.moveLocation(row[0],row[1], j, 90)
             if info.distance(center[0],center[1], point[0], point[1]) <= radius:
-                #newquerysift = querysift.split(',')[0]+','+str(point[0])+','+str(point[1])+'sift.txt'
                 points.append(point)
     return points
     
-def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch):
+def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
@@ -215,7 +219,7 @@ def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch):
     count = 0
     for queryfile in files:
             count += 1
-            [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch)
+            [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, params)
             if g:
                 g_count += 1
                 if verbosity > 0:
@@ -317,11 +321,12 @@ verbosity = 1
 copytopmatch = True
 resultsdir = '/home/ericl/topmatches'
 maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
+params = query.PARAMS_TEST
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(query.PARAMS_DEFAULT)))
+    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
@@ -331,4 +336,4 @@ if __name__ == "__main__":
         matchdir = sys.argv[3]
     topnresults = 1
     INFO("matchdir=%s" % matchdir)
-    characterize(querydir, dbdir, matchdir, ncells, copytopmatch)
+    characterize(querydir, dbdir, matchdir, ncells, copytopmatch, params)
