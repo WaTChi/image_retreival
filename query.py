@@ -2,6 +2,7 @@
 
 from config import *
 from SIFTReader import *
+from multiprocessing import cpu_count
 import info
 import time
 import pyflann
@@ -45,7 +46,7 @@ def indextype(params):
 def searchtype(params):
   return '%s,threshold=%dk,searchparam=%d' % (indextype(params), params['dist_threshold']/1000, params['checks'])
 
-def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=8):
+def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
   INFO("running queries with %d threads" % num_threads)
