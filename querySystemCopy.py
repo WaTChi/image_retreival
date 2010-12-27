@@ -15,7 +15,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query1'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -323,8 +323,8 @@ resultsdir = '/home/ericl/topmatches'
 maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
 params = query.PARAMS_DEFAULT.copy()
 params.update({
-  'checks': 512,
-  'num_neighbors': 1,
+  'checks': 1024,
+  'distance_type': 'euclidean',
   'vote_method': 'highest',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")

@@ -19,7 +19,7 @@ PARAMS_DEFAULT = {
   'distance_type': 'euclidean',
 # use >1 for weighted
   'num_neighbors': 1,
-# highest, weighted, revote_exact, exp_dropoff
+# highest, weighted, revote_exact, location
   'vote_method': 'highest',
 }
 
@@ -34,7 +34,8 @@ def indextype(params):
   return '%s%s' % (alg, distname)
 
 def searchtype(params):
-  return '%s,threshold=%dk,searchparam=%d' % (indextype(params), params['dist_threshold']/1000, params['checks'])
+  vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']
+  return '%s,threshold=%dk,searchparam=%d%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], vote_method)
 
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
@@ -83,7 +84,7 @@ class Query(threading.Thread):
     return {
       'highest': self._vote_highest,
       'weighted': self._vote_weighted,
-      'exp_dropoff': self._vote_exp_dropoff,
+      'location': self._vote_location,
       'revote_exact': self._vote_revote_exact,
     }[self.params['vote_method']](queryset, mapping, keyset, results, dists)
 
@@ -97,27 +98,14 @@ class Query(threading.Thread):
     return votes
 
   def extract(self, dataset, keyset, indices):
-    """
-      dataset[i] = <feature vector>
-      keyset[i] = j
-      indices is list of j
-      we want to return
-        sdataset[k] = <feature vector>
-        skeyset[k] = j
-    """
+    "returns set of features from images in indices"
     indices = set(indices)
-    count = 0
-    for i,j in enumerate(keyset):
-      if j in indices:
-        count += 1
-    sdataset = np.ndarray((count, 128), np.uint8)
-    skeyset = np.ndarray((count, 1), np.uint16)
-    count = 0
-    for i,j in enumerate(keyset):
-      if j in indices:
-        sdataset[count] = dataset[i]
-        skeyset[count] = j
-        count += 1
+    condition = np.ndarray(len(keyset), np.bool)
+    condition ^= condition # initialize to false
+    for i in indices:
+      condition |= (keyset.reshape(-1) == i)
+    sdataset = np.compress(condition, dataset, axis=0)
+    skeyset = np.compress(condition, keyset, axis=0)
     return sdataset, skeyset
 
   def _vote_revote_exact(self, queryset, mapping, keyset, results, dists):
@@ -127,10 +115,10 @@ class Query(threading.Thread):
         k = keyset[results[i]][0]
         counts[k] = 1.0 + counts.get(k, 0.0)
     # list of (votes, index_of_image)
-    top_ten = sorted([(counts[index], index) for index in counts], reverse=True)[:10]
-    sdataset, skeyset = self.extract(dataset, keyset, [i for (v, i) in top_ten])
-    results, dists = self.flann.nn(sdataset, queryset, 10, algorithm='linear')
-    votes = self._vote_weighted(queryset, mapping, skeyset, results, dists)
+    top_ten = sorted([(counts[index], index) for index in counts], reverse=True)[:5]
+    sdataset, skeyset = self.extract(self.dataset, keyset, [i for (v, i) in top_ten])
+    results, dists = self.flann.nn(sdataset, queryset, 1, algorithm='linear')
+    votes = self._vote_highest(queryset, mapping, skeyset, results, dists)
     return votes
 
   def _vote_weighted(self, queryset, mapping, keyset, results, dists):
@@ -138,22 +126,25 @@ class Query(threading.Thread):
        requires more than 1 nearest neighbor for results.
        Note that each image gets 1 vote max."""
     k = 10.0
+    accept, reject = 0, 0
     counts = {} # map from sift index to counts
     for i, dist_array in enumerate(dists):
       best = dist_array[0]
       marked = set()
-      if best < self.params['dist_threshold']:
-        for j, dist in enumerate(dist_array):
+      for j, dist in enumerate(dist_array):
+        if dist < self.params['dist_threshold']:
           image = keyset[results[i][j]][0]
           if image not in marked:
-            counts[image] = 1.0*(dist/best)^-k + counts.get(k, 0.0)
+            counts[image] = 1.0*(dist/best)**-k + counts.get(image, 0.0)
             marked.add(image)
+          accept += 1
+        else:
+          reject += 1
+    INFO('threw away %d/%d votes' % (reject, accept + reject))
     votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
     return votes
 
-
-  def _vote_exp_dropoff(self, queryset, mapping, keyset, results, dists):
-    "idea is that we vote based on location, not the images"
+  def _vote_location(self, queryset, mapping, keyset, results, dists):
     TOP_N = 10 # O(N^2)
     counts = {} # map from sift index to counts
     for i, dist in enumerate(dists):
@@ -177,6 +168,7 @@ class Query(threading.Thread):
     iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
     index = getfile(self.cellpath, iname)
     dataset, mapping, keyset = npy_cached_load(self.cellpath)
+    self.dataset = dataset
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
       s = time.time()
