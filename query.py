@@ -10,16 +10,6 @@ import threading
 import numpy as np
 import os
 
-PARAMS_TEST = {
-  'algorithm': 'kdtree',
-  'trees': 1,
-  'checks': 512,
-  'dist_threshold': 70000,
-  'distance_type': 'euclidean',
-  'num_neighbors': 1,
-  'vote_method': 'highest',
-}
-
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
   'trees': 1,

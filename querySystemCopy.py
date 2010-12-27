@@ -321,7 +321,12 @@ verbosity = 1
 copytopmatch = True
 resultsdir = '/home/ericl/topmatches'
 maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
-params = query.PARAMS_TEST
+params = query.PARAMS_DEFAULT.copy()
+params.update({
+  'checks': 512,
+  'num_neighbors': 1,
+  'vote_method': 'highest',
+})
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
