@@ -100,8 +100,7 @@ class Query(threading.Thread):
   def extract(self, dataset, keyset, indices):
     "returns set of features from images in indices"
     indices = set(indices)
-    condition = np.ndarray(len(keyset), np.bool)
-    condition ^= condition # initialize to false
+    condition = np.zeros(len(keyset), np.bool)
     for i in indices:
       condition |= (keyset.reshape(-1) == i)
     sdataset = np.compress(condition, dataset, axis=0)
