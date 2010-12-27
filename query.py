@@ -138,7 +138,19 @@ class Query(threading.Thread):
        requires more than 1 nearest neighbor for results.
        Note that each image gets 1 vote max."""
     k = 10.0
-    pass # TODO
+    counts = {} # map from sift index to counts
+    for i, dist_array in enumerate(dists):
+      best = dist_array[0]
+      marked = set()
+      if best < self.params['dist_threshold']:
+        for j, dist in enumerate(dist_array):
+          image = keyset[results[i][j]][0]
+          if image not in marked:
+            counts[image] = 1.0*(dist/best)^-k + counts.get(k, 0.0)
+            marked.add(image)
+    votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
+    return votes
+
 
   def _vote_exp_dropoff(self, queryset, mapping, keyset, results, dists):
     "idea is that we vote based on location, not the images"
