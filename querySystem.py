@@ -1,7 +1,6 @@
 import os
 import os.path
 import shutil
-import subprocess
 import sys
 import time
 
@@ -13,6 +12,9 @@ import groundtruthY
 import info
 import query2Groundtruth
 import util
+import query
+
+HOME = os.path.expanduser('~')
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -71,7 +73,7 @@ def write_scores(querysift, ranked_matches, outdir):
         outfile.write(matchedimg)
         outfile.write('\n')
 
-def query(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, copy_top_n_percell=0):
+def query0(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, params, copy_top_n_percell=0):
     lat, lon = info.getQuerySIFTCoord(querysift)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     outputFilePaths = []
@@ -83,10 +85,17 @@ def query(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch
             print "querying cell: {0}, distance: {1} with:{2}".format(cell, dist, querysift)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(dist)  + ".res")
         outputFilePaths.append(outputFilePath)
-        if  not os.path.exists(outputFilePath):
-            subprocess.call(["/home/zhangz/workspace/Palantir/Debug/Palantir.thresh70,sparam1024,kd4", dbdir, cell, querydir, querysift, outputFilePath])
+    # start query
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    # end query
+    for cell, dist in cells_in_range:
+        latcell, loncell = cell.split(',')
+        latcell = float(latcell)
+        loncell = float(loncell)
+        actualdist = info.distance(latquery, lonquery, latcell, loncell)
+        outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         if copy_top_n_percell > 0:
-            outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(dist))
+            outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
 #    combined = combine_until_dup(outputFilePaths, 1000)
     combined = combine_topn_votes(outputFilePaths, float('inf'))
@@ -98,7 +107,7 @@ def query(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch
         copy_top_match(querydir, querysift.split('sift.txt')[0], combined, match)
     return [g, y, r, b, o]
 
-def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, closest_cells, copy_top_n_percell=0):
+def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, closest_cells, params, copy_top_n_percell=0):
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
     latquery, lonquery = info.getQuerySIFTCoord(querysift)
@@ -113,8 +122,15 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
             print "querying cell: {0}, distance: {1} with:{2}".format(cell, actualdist, querysift)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
-        if  not os.path.exists(outputFilePath):
-            subprocess.call(["/home/zhangz/workspace/Palantir/Debug/Palantir.thresh70,sparam1024,kd4", dbdir, cell, querydir, querysift, outputFilePath])
+    # start query
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    # end query
+    for cell, dist in cells_in_range:
+        latcell, loncell = cell.split(',')
+        latcell = float(latcell)
+        loncell = float(loncell)
+        actualdist = info.distance(latquery, lonquery, latcell, loncell)
+        outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         if copy_top_n_percell > 0:
             outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
@@ -213,7 +229,7 @@ def skew_location(querysift, radius):
                 points.append(point)
     return points
     
-def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch):
+def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
@@ -230,7 +246,7 @@ def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch):
     count = 0
     for queryfile in files:
             count += 1
-            [g, y, r, b, o] = query(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch)
+            [g, y, r, b, o] = query0(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, params)
             if g:
                 g_count += 1
                 if verbosity > 0:
@@ -262,7 +278,7 @@ def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch):
     match_rate = float(total_count) / count
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
-def characterizeFuzzy(querydir, dbdir, mainOutputDir, n, copytopmatch):
+def characterizeFuzzy(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
@@ -282,7 +298,7 @@ def characterizeFuzzy(querydir, dbdir, mainOutputDir, n, copytopmatch):
         for newlat, newlon in skew_location(queryfile, ambiguity):
             closest_cells = util.getclosestcells(newlat, newlon, dbdir)
             count += 1
-            [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, closest_cells)
+            [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, closest_cells, params)
             if g:
                 g_count += 1
                 if verbosity > 0:
@@ -314,7 +330,7 @@ def characterizeFuzzy(querydir, dbdir, mainOutputDir, n, copytopmatch):
     match_rate = float(total_count) / count
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
-def get_num_imgs_in_range(range, celldir, querydir='/home/zhangz/.gvfs/data on 128.32.43.40/query3/'):
+def get_num_imgs_in_range(range, celldir, querydir=HOME + '/.gvfs/data on 128.32.43.40/query3/'):
     queries = util.getSiftFileNames(querydir)
     total_in_range=0
     for querysift in queries:
@@ -329,15 +345,22 @@ ambiguity = 50
 matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
-verbosity = 0
+verbosity = 2
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
-maindir = "/home/zhangz/.gvfs/data on 128.32.43.40"
+maindir = HOME + "/.gvfs/data on 128.32.43.40"
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
+params = query.PARAMS_DEFAULT.copy()
+params.update({
+  'checks': 1024,
+  'algorithm': 'kdtree',
+  'trees': 4,
+  'vote_method': 'highest',
+})
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'query3/')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(query3)/matchescells(g=100,r=d=236.6),query3,kdtree4,threshold=70k,searchparam=1024')
+    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
@@ -352,7 +375,7 @@ if __name__ == "__main__":
         for n2 in [1]:
             topnresults = n2
             print "\t top {0} results".format(n2)
-            characterizeFuzzy(querydir, dbdir, matchdir, ncells, copytopmatch)
+            characterizeFuzzy(querydir, dbdir, matchdir, ncells, copytopmatch, params)
             
 
 #def combine_until_dup(outputFilePaths, topn):

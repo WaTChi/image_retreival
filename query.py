@@ -40,9 +40,12 @@ def searchtype(params):
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
-  INFO("running queries with %d threads" % num_threads)
+  ok = False
   for cell, outputFilePath in zip(cells, outputFilePaths):
     if not os.path.exists(outputFilePath):
+      if not ok:
+        INFO("running queries with %d threads" % num_threads)
+        ok = True
       thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
       threads.append(thread)
       thread.start()
