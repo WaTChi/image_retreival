@@ -75,14 +75,11 @@ def npy_save_sift_directory(directory, cellid):
         INFO('%d/%d features read' % (offset, num_features))
       key += 1
   for dest in getdests(directory, cellid + '-features.npy'):
-    np.save(dest + '.tmp', dataset)
-    os.rename(dest + '.tmp', dest)
+    save_atomic(lambda d: np.save(d, dataset), dest)
   for dest in getdests(directory, cellid + '-keys.npy'):
-    np.save(dest + '.tmp', keyset)
-    os.rename(dest + '.tmp', dest)
+    save_atomic(lambda d: np.save(d, keyset), dest)
   for dest in getdests(directory, cellid + '-map.p'):
-    pickle.dump(lookup_table, open(dest + '.tmp', 'w'))
-    os.rename(dest + '.tmp', dest)
+    save_atomic(lambda d: pickle.dump(lookup_table, open(d, 'w')), dest)
 
 def getdests(directory, name):
   default = os.path.join(os.path.dirname(directory), name)
@@ -100,8 +97,7 @@ def getfile(directory, name):
       return local
     elif os.path.exists(default):
       INFO('copying %s to local cache' % name)
-      shutil.copyfile(default, local + '.tmp')
-      os.rename(local + '.tmp', local)
+      save_atomic(lambda d: shutil.copyfile(default, d), local)
       return local
   return default
 

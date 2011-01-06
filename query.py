@@ -189,8 +189,7 @@ class Query(threading.Thread):
     INFO(self.flann.build_index(dataset, **self.params))
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
     for out in getdests(self.cellpath, iname):
-      self.flann.save_index(out + '.tmp')
-      os.rename(out + '.tmp', out)
+      save_atomic(lambda d: self.flann.save_index(d), out)
     return mapping, keyset
 
 # vim: et sw=2
