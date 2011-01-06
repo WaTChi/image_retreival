@@ -1,4 +1,11 @@
 #!/usr/bin/python
+#
+# Finds nearest neighbors of a set of features in a database.
+# Use Query(...).run() for a single query
+# or
+# run_parallel(...) to query multiple cells in parallel
+#
+# AUTHOR: Eric Liang
 
 from config import *
 from SIFTReader import *

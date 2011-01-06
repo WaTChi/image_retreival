@@ -322,6 +322,8 @@ def characterizeFuzzy(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
             else:
                 if verbosity > 0:
                     print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        print "g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+
     end = time.time()
     elapsed = end - start
     if verbosity > 0:
@@ -345,7 +347,7 @@ ambiguity = 50
 matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
-verbosity = 2
+verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/.gvfs/data on 128.32.43.40"
@@ -358,9 +360,10 @@ params.update({
   'vote_method': 'highest',
 })
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'query3/')
+    querydir = os.path.join(maindir, 'query3tm')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
     matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params)))
+    print matchdir
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
@@ -368,7 +371,7 @@ if __name__ == "__main__":
         querydir = sys.argv[1]
         dbdir = sys.argv[2]
         matchdir = sys.argv[3]
-    for n in [75,65,55,45,35,25]:
+    for n in [75]:
         ambiguity = n
         print "ambiguity:{0}".format(n)
         #get_num_imgs_in_range(ambiguity+matchdistance, dbdir)
