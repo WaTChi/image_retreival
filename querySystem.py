@@ -360,7 +360,7 @@ params.update({
   'vote_method': 'highest',
 })
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'query3tm')
+    querydir = os.path.join(maindir, 'query3tm/')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
     matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params)))
     print matchdir

@@ -6,7 +6,9 @@ CACHE_PATH = os.path.expanduser('~/cache')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d
 
 def save_atomic(save_f, dest):
-  tmp = '~' + dest
+  a = os.path.dirname(dest)
+  b = os.path.basename(dest)
+  tmp = os.path.join(a, '~' + b)
   save_f(tmp)
   os.rename(tmp, dest)
 
