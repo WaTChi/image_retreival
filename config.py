@@ -1,4 +1,5 @@
 import os
+import random
 from datetime import datetime
 
 LOCAL_CACHING = True
@@ -8,9 +9,13 @@ IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d
 def save_atomic(save_f, dest):
   a = os.path.dirname(dest)
   b = os.path.basename(dest)
-  tmp = os.path.join(a, '~' + b)
-  save_f(tmp)
-  os.rename(tmp, dest)
+  tmp = os.path.join(a, '~%d' % random.randint(1e4,1e5) + b)
+  try:
+    save_f(tmp)
+    os.rename(tmp, dest)
+  finally:
+    if os.path.exists(tmp):
+      os.unlink(tmp)
 
 if not os.path.exists(CACHE_PATH):
     os.mkdir(CACHE_PATH)
