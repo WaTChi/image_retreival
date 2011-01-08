@@ -5,8 +5,6 @@
 # or
 # run_parallel(...) to query multiple cells in parallel
 #
-# AUTHOR: Eric Liang
-#
 
 from config import *
 from SIFTReader import *

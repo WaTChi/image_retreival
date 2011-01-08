@@ -97,11 +97,14 @@ class TaggedImage:
       draw.text(coord, str(tag))
     self.image.save(output, 'jpg')
 
-if __name__ == '__main__':
-  db = TagCollection('tags.csv')
-  img = TaggedImage('test.jpg', 'test.info', db)
+def _test():
+  db = TagCollection('testdata/tags.csv')
+  img = TaggedImage('testdata/test.jpg', 'testdata/test.info', db)
   for tag in img.get_frustrum():
     print dict(tag)
   print list(img.get_tag_points())
+
+if __name__ == '__main__':
+  _test()
 
 # vim: et sw=2
