@@ -1,11 +1,15 @@
+#!/usr/bin/env python
+# all angles are as in unit circle; unit degrees
+
 from info import distance
+import earthMine
 import Image, ImageDraw
-import json
 import numpy.linalg as linalg
 import numpy as np
 import math
 
-# all angles are as in unit circle; unit degrees
+def frozen(dictionary):
+  return tuple(sorted(dictionary.iteritems()))
 
 class TagCollection:
   def __init__(self, taglist):
@@ -13,31 +17,34 @@ class TagCollection:
     for line in open(taglist):
       line = line.split(',')
       tag = {
-        'lat': line[0],
-        'lon': line[1],
-        'alt': line[2],
+        'lat': float(line[0]),
+        'lon': float(line[1]),
+        'alt': float(line[2]),
+        'name': line[3],
       }
       key = None
-      for elem in line[3:]
+      for elem in line[4:]:
         if key is None:
           key = elem
         else:
-          tag[key] = elem
+          tag[key] = elem.strip()
           key = None
-    self.tags.append(tag)
+      self.tags.append(frozen(tag))
 
-  def select_frustrum(self, lat, lon, yaw, max_angle=90, max_radius=50):
+  def select_frustrum(self, lat, lon, yaw, fov=60, radius=50):
     contained = []
-    for tag in tags:
-      lat2 = tag['lat']
-      lon2 = tag['lon']
+    for tag in self.tags:
+      t = dict(tag)
+      lat2 = t['lat']
+      lon2 = t['lon']
       dist = distance(lat, lon, lat2, lon2)
-      if dist > max_radius:
+      if dist > radius:
         continue
-      v1 = (math.cos(math.radians(yaw)), math.sin(math.radians(yaw)))
-      v2 = (lon,lat)/linalg.norm((lon2-lon, lat2-lat))
+      v1 = (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)))
+      v2 = (lon2-lon, lat2-lat)/linalg.norm((lon2-lon, lat2-lat))
       degrees = math.acos(np.dot(v1,v2))*180/math.pi
-      if degrees > max_angle:
+      assert degrees > 0
+      if degrees > fov/2:
         continue
       contained.append(tag)
     return contained
@@ -46,17 +53,18 @@ class TaggedImage:
   def __init__(self, image, info, db):
     self.db = db
     with open(info) as f:
-      self.info = json.JSONDecoder().decode(f.read())
+      self.info = eval(f.read())
     self.image = Image.open(image)
 
   def get_frustrum(self):
-    return self.db.select_frustrum(self.info['lat'], self.info['lon'], self.info['yaw'])
+    return self.db.select_frustrum(self.info['view-location']['lat'], self.info['view-location']['lon'], self.info['view-direction']['yaw'])
 
   def get_distance(self, tag, pixel):
-    conn = ddObject()
+    return 0 # XXX
+    conn = earthMine.ddObject()
     viewId = self.info['id']
-    viewPixels = [ddViewPixel(pixel[0], pixel[1]))]
-    response = conn.getLocationsForViewPixels(viewID, viewPixels)
+    viewPixels = [earthMine.ddViewPixel(pixel[0], pixel[1])]
+    response = conn.getLocationsForViewPixels(viewId, viewPixels)
     loc = response[pixel]
     return distance(loc[0], loc[1], tag['lat'], tag['lon'])
 
@@ -69,25 +77,31 @@ class TaggedImage:
     "Returns collection of (tag, pixel) pairs"
     DIST_THRESHOLD = 1.0 # meters
     possible_tags = self.get_frustrum()
-    tag_positions = {}
+    tag_positions = dict([(tag, []) for tag in possible_tags])
     for pixel in self.get_pixels():
       for tag in possible_tags:
         dist = self.get_distance(tag, pixel)
         if dist < DIST_THRESHOLD:
-          tag_positions[tag] = (dist, pixel)
+          tag_positions[tag].append((dist, pixel))
     for tag in tag_positions:
       places = tag_positions[tag]
       if places:
-        yield (tag, min(places)[1])
+        t = dict(tag)
+        t['mapped_coord'] = min(places)[1]
+        yield t
 
   def save(self, output):
     points = self.get_tag_points()
-    output = ImageDraw.Draw(self.image)
+    draw = ImageDraw.Draw(self.image)
     for tag, coord in points:
       draw.text(coord, str(tag))
     self.image.save(output, 'jpg')
 
 if __name__ == '__main__':
-  pass # TODO test image
+  db = TagCollection('tags.csv')
+  img = TaggedImage('test.jpg', 'test.info', db)
+  for tag in img.get_frustrum():
+    print dict(tag)
+  print list(img.get_tag_points())
 
 # vim: et sw=2
