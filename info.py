@@ -61,11 +61,11 @@ def getSIFTAngle(fname):
 def siftdistance(a, b):
   lat1, lon1 = getSIFTCoord(a)
   lat2, lon2 = getSIFTCoord(b)
-  if lat1 == lat2 and lon1 == lon2:
-    return 0
   return distance(lat1, lon1, lat2, lon2)
 def distance(lat1, lon1, lat2, lon2):
     """Gets distance between locations using spherical law of cosines"""
+    if lat1 == lat2 and lon1 == lon2:
+        return 0
     R = 6371e3
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
