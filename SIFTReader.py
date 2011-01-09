@@ -51,14 +51,13 @@ def load_file(siftname):
   write_features_to_ndarray(siftname, 0, dataset)
   return dataset
 
-def load_file_lossy(siftname, ratio, maxfeats=1000):
-  """Simulates quantization compression of SIFT vectors."""
+def load_file_lossy(siftname, ratio):
+  """Simulates quantization compression of SIFT vectors. Ratio should be power of 2"""
   dataset = load_file(siftname)
   assert ratio == int(ratio) and ratio >= 1
   if ratio != 1:
-    dataset = dataset/ratio*ratio
-  if maxfeats and len(dataset) > maxfeats:
-    dataset = np.random.permutation(dataset)[:maxfeats]
+    unit = 256/2**(8/ratio)
+    dataset = dataset/unit*unit + unit/2
   return dataset
 
 def npy_save_sift_directory(directory, cellid):

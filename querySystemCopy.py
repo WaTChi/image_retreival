@@ -15,7 +15,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query1'
+QUERY = 'query3'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -94,7 +94,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, 2)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -178,7 +178,7 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
     for entry in dupCountLst[0:topnres]:
         if QUERY == 'query1':
             g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
-        elif QUERY == 'query3':
+        elif QUERY == 'query3' or QUERY == 'queryeric':
             g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
             y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
             r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
@@ -319,16 +319,15 @@ ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
 copytopmatch = True
-resultsdir = '/home/ericl/topmatches'
-maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
+resultsdir = os.path.expanduser('~/topmatches')
+maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 512,
   'trees': 1,
-  'distance_type': 'hik',
+  'distance_type': 'euclidean',
   'vote_method': 'highest',
-  'compression_ratio': 16,
-  'confstring': 'lim1000',
+  'confstring': '',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
