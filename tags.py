@@ -179,8 +179,12 @@ class TaggedImage:
     INFO("improved dist by %f (%d%%)" % (worst - place[0], 100*(worst-place[0])/worst))
     return place
 
-  def get_tag_points(self):
-    "Returns collection of (tag, pixel) pairs"
+  def map_tags_camera(self):
+    "Returns (tag, (dist, pixel)) pairs using camera transform."
+    pass # TODO implement camera transform
+
+  def map_tags_earthmine(self):
+    "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
     THRESHOLD = 10.0
     possible_tags = self.get_frustrum()
     locs = self.get_pixel_locations(list(self.get_pixels()))
@@ -202,7 +206,7 @@ class TaggedImage:
 
   def draw(self, points, output):
     draw = ImageDraw.Draw(self.image)
-    for tag, (dist, coord) in points:
+    for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
       size = int(200.0/distance(tag.lat, tag.lon, self.info['view-location']['lat'], self.info['view-location']['lon']))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
@@ -210,33 +214,37 @@ class TaggedImage:
       off_x = -size*2
       off_y = -size*(len(tag)+1)
       # start black container
-      top_left = (coord[0] + off_x - 3, coord[1] + off_y - 1)
+      top_left = (point[0] + off_x - 3, point[1] + off_y - 1)
       w = 10
       for line in tag:
         w = max(w, draw.textsize(line, font)[0])
-      bottom_right = (coord[0] + off_x + w + 3, coord[1] + off_y + size*len(tag) + 3)
+      bottom_right = (point[0] + off_x + w + 3, point[1] + off_y + size*len(tag) + 3)
       img = self.image.copy()
       draw2 = ImageDraw.Draw(img)
       draw2.rectangle([top_left, bottom_right], fill='#000')
-      draw2.ellipse((coord[0]-size,coord[1]-size,coord[0]+size,coord[1]+size), fill='#000')
+      draw2.ellipse((point[0]-size,point[1]-size,point[0]+size,point[1]+size), fill='#000')
       self.image = Image.blend(self.image, img, 0.75)
       draw = ImageDraw.Draw(self.image)
       # end black container
-      draw.ellipse((coord[0]-size/2,coord[1]-size/2,coord[0]+size/2,coord[1]+size/2), fill=color)
+      draw.ellipse((point[0]-size/2,point[1]-size/2,point[0]+size/2,point[1]+size/2), fill=color)
       for line in tag:
-        draw.text((coord[0] + off_x, coord[1] + off_y), line, fill=color, font=font)
+        draw.text((point[0] + off_x, point[1] + off_y), line, fill=color, font=font)
         off_y += size
       INFO('mapping tag at %f meters error' % dist)
     self.image.save(output, 'png')
     INFO("saved to %s" % output)
 
 def _test():
-  name = 'x2'
   db = TagCollection('testdata/tags.csv')
-  img = TaggedImage('testdata/%s.jpg' % name, 'testdata/%s.info' % name, db)
-  points = img.get_tag_points()
-  img.draw(points, 'testdata/output-%s.png' % name)
-#  img.visualize_point_cloud('testdata/cloud.npy', 'testdata/cloud.png')
+  import os
+  idir = 'testdata/input'
+  odir = 'testdata/output'
+  for f in os.listdir(idir):
+    if '.jpg' in f:
+      jpg = os.path.join(idir, f)
+      img = TaggedImage(jpg, jpg[:-4] + '.info', db)
+      points = img.map_tags_earthmine()
+      img.draw(points, os.path.join(odir, f[:-4] + '.png'))
 
 if __name__ == '__main__':
   _test()
