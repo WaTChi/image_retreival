@@ -25,6 +25,7 @@ class Tag:
     else:
       self.business = False
     self.kv = tuple(sorted(kv.iteritems()))
+    self.filteredlen = None
 
   def distance(self, d2):
     x1, y1, z1 = self.lat, self.lon, self.alt
@@ -65,7 +66,9 @@ class Tag:
         yield str(tag[k])
 
   def __len__(self):
-    return len(self.filteritems())
+    if self.filteredlen is None:
+      self.filteredlen = len(self.filteritems())
+    return self.filteredlen
 
 class TagCollection:
   """Parses EarthMine's tag export format."""
@@ -202,20 +205,33 @@ class TaggedImage:
     for tag, (dist, coord) in points:
       color = self.colordist(dist, 10.0)
       size = int(200.0/distance(tag.lat, tag.lon, self.info['view-location']['lat'], self.info['view-location']['lon']))
+      fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
+      font = ImageFont.truetype(fontPath, size)
       off_x = -size*2
       off_y = -size*(len(tag)+1)
+      # start black container
+      top_left = (coord[0] + off_x - 3, coord[1] + off_y - 1)
+      w = 10
+      for line in tag:
+        w = max(w, draw.textsize(line, font)[0])
+      bottom_right = (coord[0] + off_x + w + 3, coord[1] + off_y + size*len(tag) + 3)
+      img = self.image.copy()
+      draw2 = ImageDraw.Draw(img)
+      draw2.rectangle([top_left, bottom_right], fill='#000')
+      draw2.ellipse((coord[0]-size,coord[1]-size,coord[0]+size,coord[1]+size), fill='#000')
+      self.image = Image.blend(self.image, img, 0.75)
+      draw = ImageDraw.Draw(self.image)
+      # end black container
       draw.ellipse((coord[0]-size/2,coord[1]-size/2,coord[0]+size/2,coord[1]+size/2), fill=color)
       for line in tag:
-        fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
-        sans = ImageFont.truetype(fontPath, size)
-        draw.text((coord[0] + off_x, coord[1] + off_y), line, fill=color, font=sans)
+        draw.text((coord[0] + off_x, coord[1] + off_y), line, fill=color, font=font)
         off_y += size
       INFO('mapping tag at %f meters error' % dist)
     self.image.save(output, 'png')
     INFO("saved to %s" % output)
 
 def _test():
-  name = 'x5'
+  name = 'x2'
   db = TagCollection('testdata/tags.csv')
   img = TaggedImage('testdata/%s.jpg' % name, 'testdata/%s.info' % name, db)
   points = img.get_tag_points()
