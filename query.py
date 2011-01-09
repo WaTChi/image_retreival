@@ -27,6 +27,10 @@ PARAMS_DEFAULT = {
   'num_neighbors': 1,
 # highest, weighted, revote_exact, location
   'vote_method': 'highest',
+# degree of quantization of query features
+  'compression_ratio': 1,
+# custom configuration notation
+  'confstring': '',
 }
 
 # I'm not actually sure if the distance function affects
@@ -41,7 +45,13 @@ def indextype(params):
 
 def searchtype(params):
   vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']
-  return '%s,threshold=%dk,searchparam=%d%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], vote_method)
+  conf = ''
+  comp = ''
+  if params['compression_ratio'] != 1:
+    comp = ',lossy%s' % params['compression_ratio']
+  if params['confstring']:
+    conf = ',%s' % params['confstring']
+  return '%s,threshold=%dk,searchparam=%d%s%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], vote_method,comp,conf)
 
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
@@ -74,7 +84,7 @@ class Query(threading.Thread):
       self.barrier.acquire()
     start = time.time()
     mapping, keyset = self._build_index()
-    queryset = load_file(self.qpath)
+    queryset = load_file_lossy(self.qpath, self.params['compression_ratio'])
     qtime = time.time()
     results, dists = self.flann.nn_index(queryset, **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))

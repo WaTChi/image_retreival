@@ -358,6 +358,7 @@ params.update({
   'algorithm': 'kdtree',
   'trees': 4,
   'vote_method': 'highest',
+  'confstring': '',
 })
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'query3tm/')

@@ -15,7 +15,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query1'
+QUERY = 'query3'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -94,7 +94,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, 2)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -327,6 +327,8 @@ params.update({
   'trees': 1,
   'distance_type': 'euclidean',
   'vote_method': 'highest',
+  'compression_ratio': 1,
+  'confstring': '',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
