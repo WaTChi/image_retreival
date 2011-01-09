@@ -15,7 +15,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query1'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -325,10 +325,10 @@ params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 512,
   'trees': 1,
-  'distance_type': 'euclidean',
+  'distance_type': 'hik',
   'vote_method': 'highest',
-  'compression_ratio': 1,
-  'confstring': '',
+  'compression_ratio': 16,
+  'confstring': 'lim1000',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
