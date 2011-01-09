@@ -91,7 +91,7 @@ class TagCollection:
           key = None
       self.tags.append(Tag(tag))
 
-  def select_frustrum(self, lat, lon, yaw, fov=120, radius=100):
+  def select_frustum(self, lat, lon, yaw, fov=120, radius=100):
     contained = []
     for tag in self.tags:
       dist = distance(lat, lon, tag.lat, tag.lon)
@@ -117,8 +117,8 @@ class TaggedImage:
       self.info = eval(f.read())
     self.image = Image.open(image)
 
-  def get_frustrum(self):
-    return self.db.select_frustrum(self.info['view-location']['lat'], self.info['view-location']['lon'], self.info['view-direction']['yaw'])
+  def get_frustum(self):
+    return self.db.select_frustum(self.info['view-location']['lat'], self.info['view-location']['lon'], self.info['view-direction']['yaw'])
 
   def get_pixel_locations(self, pixels):
     """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
@@ -186,7 +186,7 @@ class TaggedImage:
   def map_tags_earthmine(self):
     "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
     THRESHOLD = 10.0
-    possible_tags = self.get_frustrum()
+    possible_tags = self.get_frustum()
     locs = self.get_pixel_locations(list(self.get_pixels()))
     mapping = dict([(tag, (999999, None)) for tag in possible_tags])
     for pixel in self.get_pixels():
