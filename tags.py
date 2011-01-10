@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # all angles are as in unit circle; unit degrees
 
-from info import distance
+from info import distance, relative
 from config import *
 import earthMine
 import Image, ImageDraw, ImageFont
 import numpy.linalg as linalg
 import colorsys
 import numpy as np
+from numpy import matrix, sin, cos
 import math
 
 class Tag:
@@ -27,10 +28,14 @@ class Tag:
     self.kv = tuple(sorted(kv.iteritems()))
     self.filteredlen = None
 
-  def distance(self, d2):
+  def xydistance(self, d2):
     x1, y1, z1 = self.lat, self.lon, self.alt
     x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
     xydist = distance(x1, y1, x2, y2)
+    return xydist
+
+  def distance(self, d2):
+    xydist = self.xydistance(x1, y1, x2, y2)
     vert = abs(z1-z2)
     return math.sqrt(xydist**2 + vert**2)
 
@@ -91,7 +96,7 @@ class TagCollection:
           key = None
       self.tags.append(Tag(tag))
 
-  def select_frustum(self, lat, lon, yaw, fov=120, radius=100):
+  def select_frustum(self, lat, lon, yaw, fov=90, radius=100):
     contained = []
     for tag in self.tags:
       dist = distance(lat, lon, tag.lat, tag.lon)
@@ -115,20 +120,27 @@ class TaggedImage:
     self.db = db
     with open(info) as f:
       self.info = eval(f.read())
+    self.lat = self.info['view-location']['lat']
+    self.lon = self.info['view-location']['lon']
+    self.alt = self.info['view-location']['alt']
+    self.yaw = self.info['view-direction']['yaw']
+    self.pitch = self.info['view-direction']['pitch']
+    self.roll = 0
+    self.field_of_view = self.info['field-of-view']
+    self.viewId = self.info['id']
     self.image = Image.open(image)
 
   def get_frustum(self):
-    return self.db.select_frustum(self.info['view-location']['lat'], self.info['view-location']['lon'], self.info['view-direction']['yaw'])
+    return self.db.select_frustum(self.lat, self.lon, self.yaw)
 
   def get_pixel_locations(self, pixels):
     """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
     INFO('fetching %d pixels' % len(pixels))
     conn = earthMine.ddObject()
-    viewId = self.info['id']
     viewPixels = [earthMine.ddViewPixel(p[0], p[1]) for p in pixels]
     locs = {}
     while viewPixels:
-      response = conn.getLocationsForViewPixels(viewId, viewPixels[:490])
+      response = conn.getLocationsForViewPixels(self.viewId, viewPixels[:490])
       viewPixels = viewPixels[490:] # limit for api
       INFO('%d pixels more' % len(viewPixels))
       for pixel, loc in response:
@@ -154,7 +166,7 @@ class TaggedImage:
     for x,y in cloud:
       d = cloud[x,y]
       lat, lon = d['lat'], d['lon']
-      pixels[x,y] = self.colordist(distance(lat, lon, self.info['view-location']['lat'], self.info['view-location']['lon']))
+      pixels[x,y] = self.colordist(distance(lat, lon, self.lat, self.lon))
     img = Image.blend(img, self.image, 0.5)
     img.save(output, 'png')
 
@@ -181,7 +193,35 @@ class TaggedImage:
 
   def map_tags_camera(self):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
-    pass # TODO implement camera transform
+
+    THRESHOLD = 40.0 # meters
+    tags = []
+    possible_tags = self.get_frustum()
+    def constrain(pixel):
+      "constrains pixel to image dimensions"
+      return max(0, min(self.image.size[0], pixel[0])), max(0, min(self.image.size[1], pixel[1]))
+
+    for tag in possible_tags:
+      pz, px = relative(self.lat, self.lon, tag.lat, tag.lon)
+      height = tag.alt - self.alt - 2.0 # height of sensor?
+      focal_length = 0.9 * self.image.size[0] # TODO measure
+      p = np.matrix([px, height, pz]).transpose()
+      x, y, z = self.pitch, -(self.yaw+180)*math.pi/180, self.roll
+      A = matrix(((1, 0, 0), (0, cos(x), -sin(x)), (0, sin(x), cos(x))))
+      B = matrix(((cos(y), 0, sin(y)), (0, 1, 0), (-sin(y), 0, cos(y))))
+      C = matrix(((cos(z), -sin(z), 0), (sin(z), cos(z), 0), (0, 0, 1)))
+      d = (A*B*C*p)
+      proj_coord = d*focal_length/d[2].item()
+      pixel = int(self.image.size[0]/2 + proj_coord[0].item()), int(self.image.size[1]/2 + proj_coord[1].item())
+      tags.append((tag, (0, constrain(pixel))))
+    # add some distance debugging info from earthmine
+    debugtags = []
+    locs = self.get_pixel_locations(map(lambda t: t[1][1], tags))
+    for (tag, (nulldist, pixel)) in tags:
+      dist = tag.xydistance(locs.get(pixel, {'lat': 9999, 'lon': 9999, 'alt': 9999}))
+      if dist < THRESHOLD:
+        debugtags.append((tag, (dist, pixel)))
+    return debugtags
 
   def map_tags_earthmine(self):
     "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
@@ -206,11 +246,12 @@ class TaggedImage:
 
   def draw(self, points, output):
     draw = ImageDraw.Draw(self.image)
+    MIN_SIZE = 2
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
-      size = int(200.0/distance(tag.lat, tag.lon, self.info['view-location']['lat'], self.info['view-location']['lon']))
+      size = int(200.0/distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
-      font = ImageFont.truetype(fontPath, size)
+      font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2
       off_y = -size*(len(tag)+1)
       # start black container
@@ -218,7 +259,7 @@ class TaggedImage:
       w = 10
       for line in tag:
         w = max(w, draw.textsize(line, font)[0])
-      bottom_right = (point[0] + off_x + w + 3, point[1] + off_y + size*len(tag) + 3)
+      bottom_right = (point[0] + off_x + w + 3, point[1] + off_y + max(size, MIN_SIZE)*len(tag) + 3)
       img = self.image.copy()
       draw2 = ImageDraw.Draw(img)
       draw2.rectangle([top_left, bottom_right], fill='#000')
@@ -229,7 +270,7 @@ class TaggedImage:
       draw.ellipse((point[0]-size/2,point[1]-size/2,point[0]+size/2,point[1]+size/2), fill=color)
       for line in tag:
         draw.text((point[0] + off_x, point[1] + off_y), line, fill=color, font=font)
-        off_y += size
+        off_y += max(size, MIN_SIZE)
       INFO('mapping tag at %f meters error' % dist)
     self.image.save(output, 'png')
     INFO("saved to %s" % output)
@@ -243,8 +284,16 @@ def _test():
     if '.jpg' in f:
       jpg = os.path.join(idir, f)
       img = TaggedImage(jpg, jpg[:-4] + '.info', db)
-      points = img.map_tags_earthmine()
+      points = img.map_tags_camera()
       img.draw(points, os.path.join(odir, f[:-4] + '.png'))
+
+def _test2():
+  db = TagCollection('testdata/tags.csv')
+  name = 'a'
+  jpg = 'testdata/%s.jpg' % name
+  img = TaggedImage(jpg, jpg[:-4] + '.info', db)
+  points = img.map_tags_camera()
+  img.draw(points, 'testdata/%s-out.png' % name)
 
 if __name__ == '__main__':
   _test()

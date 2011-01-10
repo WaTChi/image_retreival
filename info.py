@@ -1,7 +1,5 @@
 import os
 import shutil
-import re
-import earthMine
 import math
 SIFTREGEXSTR = r'.*sift.txt$'
 IMGREGEXSTR = r'.*.jpg$'
@@ -70,7 +68,7 @@ def relative(lat1, lon1, lat2, lon2):
         return 0
     dx = distance(lat1, lon1, lat2, lon1) * (-1 if lat2 < lat1 else 1)
     dy = distance(lat1, lon1, lat1, lon2) * (-1 if lon2 < lon1 else 1)
-    return dx,dy
+    return [dx,dy]
 
 def distance(lat1, lon1, lat2, lon2):
     """Gets distance between locations using spherical law of cosines"""
@@ -92,7 +90,6 @@ def moveCellsIf(path, lat, lon, radius):
     dirs = os.listdir(path)
     dirs = [ dir for dir in dirs if os.path.isdir(os.path.join(path,dir))]
     for dir in dirs:
-        l=len(os.listdir(os.path.join(path,dir)))
         # if l>100:
         lat2, lon2 = dir.split(',')
         lat2 = float(lat2)
