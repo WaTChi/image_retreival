@@ -35,8 +35,8 @@ class Tag:
     return xydist
 
   def distance(self, d2):
-    xydist = self.xydistance(x1, y1, x2, y2)
-    vert = abs(z1-z2)
+    xydist = self.xydistance(d2)
+    vert = abs(self.alt-d2['alt'])
     return math.sqrt(xydist**2 + vert**2)
 
   def __str__(self):
@@ -200,7 +200,7 @@ class TaggedImage:
 
     for tag in possible_tags:
       pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
-      py = tag.alt - self.alt - 2.0 # XXX adjust for height of sensor
+      py = tag.alt - self.alt + 3.0 # XXX adjust for height of sensor
       focal_length = 0.9 * self.image.size[0] # TODO measure
       x, y, z = geom.camera_transform(px, py, pz, self.pitch, -(self.yaw+180)*math.pi/180, self.roll)
       coord = geom.project2d(x, y, z, focal_length)
@@ -282,13 +282,13 @@ def _test():
 
 def _test2():
   db = TagCollection('testdata/tags.csv')
-  name = 'a'
+  name = 'x8'
   jpg = 'testdata/%s.jpg' % name
   img = TaggedImage(jpg, jpg[:-4] + '.info', db)
   points = img.map_tags_camera()
   img.draw(points, 'testdata/%s-out.png' % name)
 
 if __name__ == '__main__':
-  _test()
+  _test2()
 
 # vim: et sw=2
