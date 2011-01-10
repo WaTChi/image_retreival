@@ -61,15 +61,6 @@ def siftdistance(a, b):
   lat2, lon2 = getSIFTCoord(b)
   return distance(lat1, lon1, lat2, lon2)
 
-def relative(lat1, lon1, lat2, lon2):
-    """Returns lat2,lon2 relative to lat1,lon1 in meters.
-       Does not handle wraparound at 360."""
-    if lat1 == lat2 and lon1 == lon2:
-        return 0
-    dx = distance(lat1, lon1, lat2, lon1) * (-1 if lat2 < lat1 else 1)
-    dy = distance(lat1, lon1, lat1, lon2) * (-1 if lon2 < lon1 else 1)
-    return [dx,dy]
-
 def distance(lat1, lon1, lat2, lon2):
     """Gets distance between locations using spherical law of cosines"""
     if lat1 == lat2 and lon1 == lon2:

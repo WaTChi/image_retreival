@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # all angles are as in unit circle; unit degrees
 
-from info import distance, relative
 from config import *
-import earthMine
 import Image, ImageDraw, ImageFont
-import numpy.linalg as linalg
 import colorsys
-import numpy as np
-from numpy import matrix, sin, cos
+import earthMine
+import geom
+import info
 import math
+import numpy as np
+import numpy.linalg as linalg
 
 class Tag:
   """Representation of an EarthMine tag."""
@@ -31,7 +31,7 @@ class Tag:
   def xydistance(self, d2):
     x1, y1, z1 = self.lat, self.lon, self.alt
     x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
-    xydist = distance(x1, y1, x2, y2)
+    xydist = info.distance(x1, y1, x2, y2)
     return xydist
 
   def distance(self, d2):
@@ -99,7 +99,7 @@ class TagCollection:
   def select_frustum(self, lat, lon, yaw, fov=90, radius=100):
     contained = []
     for tag in self.tags:
-      dist = distance(lat, lon, tag.lat, tag.lon)
+      dist = info.distance(lat, lon, tag.lat, tag.lon)
       if dist > radius:
         continue
       v1 = (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)))
@@ -166,7 +166,7 @@ class TaggedImage:
     for x,y in cloud:
       d = cloud[x,y]
       lat, lon = d['lat'], d['lon']
-      pixels[x,y] = self.colordist(distance(lat, lon, self.lat, self.lon))
+      pixels[x,y] = self.colordist(info.distance(lat, lon, self.lat, self.lon))
     img = Image.blend(img, self.image, 0.5)
     img.save(output, 'png')
 
@@ -197,23 +197,16 @@ class TaggedImage:
     THRESHOLD = 40.0 # meters
     tags = []
     possible_tags = self.get_frustum()
-    def constrain(pixel):
-      "constrains pixel to image dimensions"
-      return max(0, min(self.image.size[0], pixel[0])), max(0, min(self.image.size[1], pixel[1]))
 
     for tag in possible_tags:
-      pz, px = relative(self.lat, self.lon, tag.lat, tag.lon)
-      height = tag.alt - self.alt - 2.0 # height of sensor?
+      pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
+      py = tag.alt - self.alt - 2.0 # XXX adjust for height of sensor
       focal_length = 0.9 * self.image.size[0] # TODO measure
-      p = np.matrix([px, height, pz]).transpose()
-      x, y, z = self.pitch, -(self.yaw+180)*math.pi/180, self.roll
-      A = matrix(((1, 0, 0), (0, cos(x), -sin(x)), (0, sin(x), cos(x))))
-      B = matrix(((cos(y), 0, sin(y)), (0, 1, 0), (-sin(y), 0, cos(y))))
-      C = matrix(((cos(z), -sin(z), 0), (sin(z), cos(z), 0), (0, 0, 1)))
-      d = (A*B*C*p)
-      proj_coord = d*focal_length/d[2].item()
-      pixel = int(self.image.size[0]/2 + proj_coord[0].item()), int(self.image.size[1]/2 + proj_coord[1].item())
-      tags.append((tag, (0, constrain(pixel))))
+      x, y, z = geom.camera_transform(px, py, pz, self.pitch, -(self.yaw+180)*math.pi/180, self.roll)
+      coord = geom.project2d(x, y, z, focal_length)
+      pixel = geom.center(coord, self.image.size)
+      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
+
     # add some distance debugging info from earthmine
     debugtags = []
     locs = self.get_pixel_locations(map(lambda t: t[1][1], tags))
@@ -249,7 +242,7 @@ class TaggedImage:
     MIN_SIZE = 2
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
-      size = int(200.0/distance(tag.lat, tag.lon, self.lat, self.lon))
+      size = int(200.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2
