@@ -113,36 +113,44 @@ class TagCollection:
 
 class TaggedImage:
   """Tags an EarthMine image."""
-  def __init__(self, image, info, db):
+  def __init__(self, image, infofile, db):
     """db is a TagCollection
        image an EarthMine jpg
-       info an EarthMine .info file"""
+       infofile an EarthMine .info file"""
     self.db = db
-    with open(info) as f:
+    with open(infofile) as f:
       self.info = eval(f.read())
     self.lat = self.info['view-location']['lat']
     self.lon = self.info['view-location']['lon']
     self.alt = self.info['view-location']['alt']
     self.yaw = self.info['view-direction']['yaw']
-    self.pitch = self.info['view-direction']['pitch']
     self.roll = 0
     self.field_of_view = self.info['field-of-view']
     self.viewId = self.info['id']
     self.image = Image.open(image)
+    center = geom.center((0,0), self.image.size)
+    cloc = self.get_pixel_location(center)
+    hyp = geom.distance3d(cloc, self.info['view-location'])
+    d_alt = cloc['alt'] - self.alt
+    self.pitch = np.arcsin(d_alt/hyp)
 
   def get_frustum(self):
     return self.db.select_frustum(self.lat, self.lon, self.yaw)
 
-  def get_pixel_locations(self, pixels):
+  def get_pixel_location(self, pixel):
+    """wrapper for get_pixel_locations"""
+    return self.get_pixel_locations([pixel], verbose=False).get(pixel, None)
+
+  def get_pixel_locations(self, pixels, verbose=True):
     """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
-    INFO('fetching %d pixels' % len(pixels))
+    verbose and INFO('fetching %d pixels' % len(pixels))
     conn = earthMine.ddObject()
     viewPixels = [earthMine.ddViewPixel(p[0], p[1]) for p in pixels]
     locs = {}
     while viewPixels:
       response = conn.getLocationsForViewPixels(self.viewId, viewPixels[:490])
       viewPixels = viewPixels[490:] # limit for api
-      INFO('%d pixels more' % len(viewPixels))
+      verbose and INFO('%d pixels more' % len(viewPixels))
       for pixel, loc in response:
         if loc: # has valid mapping
           locs[(pixel['x'], pixel['y'])] = loc
@@ -194,14 +202,14 @@ class TaggedImage:
   def map_tags_camera(self):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
 
-    THRESHOLD = 40.0 # meters
+    THRESHOLD = 20.0 # meters
     tags = []
     possible_tags = self.get_frustum()
 
     for tag in possible_tags:
       pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
-      py = tag.alt - self.alt + 3.0 # XXX adjust for height of sensor
-      focal_length = 0.9 * self.image.size[0] # TODO measure
+      py = tag.alt - self.alt;
+      focal_length = 0.8625 * self.image.size[0]
       x, y, z = geom.camera_transform(px, py, pz, self.pitch, -(self.yaw+180)*math.pi/180, self.roll)
       coord = geom.project2d(x, y, z, focal_length)
       pixel = geom.center(coord, self.image.size)
@@ -239,7 +247,8 @@ class TaggedImage:
 
   def draw(self, points, output):
     draw = ImageDraw.Draw(self.image)
-    MIN_SIZE = 2
+    MIN_SIZE = 1
+    points.sort(key=lambda p: p[1][0], reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
       size = int(200.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
@@ -257,6 +266,7 @@ class TaggedImage:
       draw2 = ImageDraw.Draw(img)
       draw2.rectangle([top_left, bottom_right], fill='#000')
       draw2.ellipse((point[0]-size,point[1]-size,point[0]+size,point[1]+size), fill='#000')
+
       self.image = Image.blend(self.image, img, 0.75)
       draw = ImageDraw.Draw(self.image)
       # end black container
@@ -273,22 +283,28 @@ def _test():
   import os
   idir = 'testdata/input'
   odir = 'testdata/output'
+  distlog = []
   for f in os.listdir(idir):
     if '.jpg' in f:
+      output = os.path.join(odir, f[:-4] + '.png')
       jpg = os.path.join(idir, f)
       img = TaggedImage(jpg, jpg[:-4] + '.info', db)
       points = img.map_tags_camera()
-      img.draw(points, os.path.join(odir, f[:-4] + '.png'))
+      for tag, (dist, point) in points:
+        distlog.append(dist)
+      img.draw(points, output)
+  for i in [1, 10, 50, 100, len(distlog)]:
+    INFO('top %d error is %f at %d samples' % (i, sum(sorted(distlog)[:i])/i, len(distlog)))
 
 def _test2():
   db = TagCollection('testdata/tags.csv')
-  name = 'x8'
+  name = 'a'
   jpg = 'testdata/%s.jpg' % name
   img = TaggedImage(jpg, jpg[:-4] + '.info', db)
   points = img.map_tags_camera()
   img.draw(points, 'testdata/%s-out.png' % name)
 
 if __name__ == '__main__':
-  _test2()
+  _test()
 
 # vim: et sw=2

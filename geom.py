@@ -1,7 +1,7 @@
 # place for geometric utility functions
 from info import distance
 import numpy as np
-from numpy import matrix, sin, cos
+from numpy import matrix, sin, cos, sqrt
 
 def lltom(lat1, lon1, lat2, lon2):
   """Returns lat2,lon2 relative to lat1,lon1 in meters.
@@ -35,5 +35,13 @@ def center(point, screen):
 def constrain(point, screen):
   """Translates point so that it is within the screen."""
   return max(0, min(screen[0], point[0])), max(0, min(screen[1], point[1]))
+
+def distance3d(d1, d2):
+  """Finds distance between {'lat': deg, 'lon': deg, 'alt': meters} points."""
+  x1, y1, z1 = d1['lat'], d1['lon'], d1['alt']
+  x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
+  xydist = distance(x1, y1, x2, y2)
+  vert = abs(d1['alt']-d2['alt'])
+  return sqrt(xydist**2 + vert**2)
 
 # vim: et sw=2
