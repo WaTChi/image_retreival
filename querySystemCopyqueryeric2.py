@@ -8,6 +8,7 @@ from config import *
 import info
 import query
 import query1GroundTruth
+import query2Groundtruth
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -15,7 +16,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query1-eric'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -176,9 +177,11 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
     b = 0
     o = 0
     for entry in dupCountLst[0:topnres]:
-        if QUERY == 'query1':
+        if QUERY == 'query1' or QUERY == 'query1-eric' or QUERY == 'query1-eric2' or QUERY == 'query1-test' or QUERY == 'query1-test2':
             g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
-        elif QUERY == 'query3' or QUERY == 'queryeric':
+        elif QUERY == 'query2' or QUERY == 'query2-eric':
+            g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
+        elif QUERY == 'query3' or QUERY == 'queryeric' or QUERY == 'queryeric2':
             g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
             y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
             r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
@@ -331,8 +334,7 @@ params.update({
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
-#    querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
-    querydir = os.path.join(maindir, '%s/' % QUERY)
+    querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
     matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:
