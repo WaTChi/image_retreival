@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# reads xml and image files from the android imageotag app
+# reads xml and image files from the android Imageotag app
 # (which includes tons of sensor data)
 
 from config import *
@@ -42,10 +42,11 @@ class TaggedImage(object):
     self.roll = float(self.data['orientation_z'])
 
   def getCanonicalName(self):
+    """Name in line with previous naming schemes."""
     return "%s,%3.5f,%3.5f.jpg" % (self.id, self.gps_lat, self.gps_lon)
 
   def __str__(self):
-    out = "%s.jpg" % self.id
+    out = self.getCanonicalName()
     out += "\n file: %s" % self.jpg
     out += "\n time: %s" % self.time
     out += "\n gps accuracy: %s" % self.gps_acc
@@ -60,9 +61,9 @@ class TaggedImage(object):
     out += "\n roll: %s" % self.roll
     return out
 
-class ImageotagReader:
+class AndroidReader:
   def __init__(self, basedir):
-    """Reads from basedir/xml, basedir/images"""
+    """Reads image data from basedir/xml, basedir/images"""
     self.basedir = basedir
     self.images = []
     xmldir = os.path.join(basedir, 'xml')
@@ -89,9 +90,9 @@ if __name__ == '__main__':
   if len(sys.argv) < 2 or not os.path.isdir(sys.argv[1]):
     print "Usage: %s <directory>" % sys.argv[0]
     exit()
-  reader = ImageotagReader(sys.argv[1])
+  reader = AndroidReader(sys.argv[1])
   for image in reader:
-    print image.getCanonicalName()
+    print image
   print reader
 
 # vim: et sw=2

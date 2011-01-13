@@ -10,7 +10,7 @@ import info
 import math
 import numpy as np
 import numpy.linalg as linalg
-from imageotag_reader import ImageotagReader
+from android import AndroidReader
 
 class Tag:
   """Representation of an EarthMine tag."""
@@ -112,17 +112,12 @@ class TagCollection:
       contained.append(tag)
     return contained
 
-class ImageSource:
-  """Should provide
-      self.image
-      self.focal_length
-      self.lat
-      self.lon
-      self.alt
-      self.pitch
-      self.yaw
-      self.roll
-  """
+class ImageInfo:
+  """Metadata source for image. Provides:
+      self.image self.focal_length
+      self.lat self.lon self.alt
+      self.pitch self.yaw self.roll"""
+
   def get_pixel_location(self, pixel):
     out = self.get_pixel_locations([pixel])
     if out is None:
@@ -133,8 +128,8 @@ class ImageSource:
     """Return None if not supported."""
     assert False, "NotImplemented"
 
-class ImageotagImageSource(ImageSource):
-  """for images from ImageotagReader"""
+class AndroidImageInfo(ImageInfo):
+  """for images from AndroidReader"""
   def __init__(self, image):
     self.__dict__.update(image.__dict__)
     self.image = Image.open(image.jpg)
@@ -147,7 +142,7 @@ class ImageotagImageSource(ImageSource):
   def get_pixel_locations(self, pixels):
     return None
 
-class EarthmineImageSource(ImageSource):
+class EarthmineImageInfo(ImageInfo):
   def __init__(self, image, infofile):
     with open(infofile) as f:
       self.info = eval(f.read())
@@ -309,7 +304,7 @@ def _test():
     if '.jpg' in f:
       output = os.path.join(odir, f[:-4] + '.png')
       jpg = os.path.join(idir, f)
-      source = EarthmineImageSource(jpg, jpg[:-4] + '.info')
+      source = EarthmineImageInfo(jpg, jpg[:-4] + '.info')
       img = TaggedImage(jpg, source, db)
       points = img.map_tags_camera()
       for tag, (dist, point) in points:
@@ -323,10 +318,10 @@ def _testq4():
   import os
   idir = 'testdata/query4'
   odir = 'testdata/q4_output'
-  reader = ImageotagReader(idir)
+  reader = AndroidReader(idir)
   for image in reader.images:
     output = os.path.join(odir, image.getCanonicalName().replace('.jpg', '.png'))
-    source = ImageotagImageSource(image)
+    source = AndroidImageInfo(image)
     img = TaggedImage(image.jpg, source, db)
     points = img.map_tags_camera()
     img.draw(points, output)
@@ -334,7 +329,7 @@ def _testq4():
 def _test2():
   db = TagCollection('testdata/tags.csv')
   jpg = 'testdata/input/37.8719888495,-122.269869743-0002.jpg'
-  source = EarthmineImageSource(jpg, jpg[:-4] + '.info')
+  source = EarthmineImageInfo(jpg, jpg[:-4] + '.info')
   img = TaggedImage(jpg, source, db)
   points = img.map_tags_camera()
   img.draw(points, 'testdata/out.png')
