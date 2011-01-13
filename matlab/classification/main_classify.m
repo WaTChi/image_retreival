@@ -3,10 +3,10 @@
 % Variables
 new_train = true;
 query_dir = '..........';
-method_dir = 'E:\Research\app\code\matlab\classification\NaiveBayes-Gaussian\';
+method_dir = 'E:\Research\app\code\matlab\classification\NaiveBayes-Gamma\';
 
 
-addpath 'E:\Research\app\code\matlab\classification\NaiveBayes-Gaussian\'
+addpath(method_dir)
 
 
 %------------------------------------------------------

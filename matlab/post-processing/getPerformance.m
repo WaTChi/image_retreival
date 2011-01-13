@@ -62,16 +62,20 @@ if strcmp(filter,'upto10')
                 candScores = candScores(1:N);
             end
             
-            av=1;
-            as=1.7;
+            av=0;
+            as=1.1;
             mxs = max(candScores);
             mxv = max(candVotes);
-            combScores = ( av*(candVotes/mxv) + as*(candScores/mxs) )...
+            combScores = ( av*(candVotes/mxv) + as*(candScores/mxs) ) ...
                 / (av+as);
             minScore(k,N) = min(combScores);
             [maxScore(k,N),winnerIdx] = max(combScores);
             winnerIdx = min(winnerIdx);
             winner(k,N) = candFiles(winnerIdx);
+            
+%             winner(k,N)
+%             gtFiles
+%             textMatch(winner(k,N),gtFiles)
             
             if textMatch(winner(k,N),gtFiles)
                 gQuery{N,1} = [gQuery{N,1}, results.num(k)];

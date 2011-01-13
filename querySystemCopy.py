@@ -323,7 +323,7 @@ resultsdir = '/home/ericl/topmatches'
 maindir = "/home/ericl/.gvfs/data on 128.32.43.40"
 params = query.PARAMS_DEFAULT.copy()
 params.update({
-  'checks': 512,
+  'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
   'vote_method': 'highest',

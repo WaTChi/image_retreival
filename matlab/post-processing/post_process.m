@@ -1,34 +1,43 @@
-function [results] = post_process(filter,comb_method,query_num)
+function [results] = post_process(query_set,method)
 
-% [results] = post_process(filter,comb_method,query_num)
+% [results] = post_process(query_set,method)
 % 
-% First coded 9 Dec 2010 by Aaron Hallquist
-% Latest revision 9 Dec 2010 by Aaron Hallquist
+% First coded 8 Jan 2011 by Aaron Hallquist
+% Latest revision 9 Jan 2011 by Aaron Hallquist
 % 
-% DESCRIPTION:
-%   This file takes in a combination method and query set number and runs
-%   post-processing on the flann vote results.
+% DESCRIPTION
+%   This function computes the post-processing results on the input query
+%   set with the given method parameters. The output is a results structure
+%   which is saved on the hard drive.
 % 
 % INPUTS
-%   filter:         String choosing filter for obtaining candidate images
-%   comb_method:    String choosing the combination method, one of...
-%           'no-comb':      Nearest cell only
-%           'dup-comb':     Finds duplicate images across multiple cells
-%           'vote-comb':    Sums vote results across multiple cells
-%   query_num:      Integer choosing the query set to use
+%   query_set:  Integer determining which query set to post process.
+%   method:     Structure detailing what method to use. Contents depend on
+%               the values of certain required fields, listed below:
+%       .fuzzy:     Boolean to use fuzzy reported locations
+%       .cell_dist: Maximum distance between location and cell center to
+%                   search that cell. If equal to zero, we use no
+%                   combination and only the nearest cell is searched
+%       .decision:  Decision method. Current modes supported...
+%       .rerank10:  Boolean to rerank 10 and analyze
+%               'linear':   Linear combination of votes and scores.
+%       - type 'help ppstruct' for additional fields used based on the
+%         values of the above fields
 % 
 % OUTPUTS
-%   results:  	Structure containing the details of post-processing
-%       - type 'help ppStruct' for details about its contents
+%   results:    Structure containing the details of post-processing
+%               - type 'help ppstruct' for information on the format of the
+%                 results structure (depends on the contents of method)
 
-% Fixed directories
-qDir = 'E:\Research\collected_images\query\';
-gtDir = 'E:\Research\app\code\matlab\ground-truth\';
+% Fixed directory
 dbDir = 'E:\Research\collected_images\earthmine-new,culled\37.871955,-122.270829\';
+gtDir = ['E:\Research\app\code\matlab\ground-truth\'];
 
-% Adjust directories based on inputs
-qDir = [qDir,'query',num2str(query_num),'\'];
-gtDir = [gtDir,'query',num2str(query_num),'\'];
+% Adjusted directories based on inputs
+qDir = ['E:\query',num2str(query_set),'\'];
+vDir = ['E:\Research\results(query',num2str(query_set), ...
+    ')\matchescells(g=100,r=d=236.6),query',num2str(query_set), ...
+    ',kdtree4,threshold=70k,searchparam=1024\'];
 
 % Post-processing code initialization
 run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
@@ -36,47 +45,160 @@ run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 % Code dependencies
 addpath('.\..\util\')
 
-% Initialize results structure
-results.directory = qDir;
-[ results.num , results.name , results.vote , results.cand ] = ...
-    getCand(filter,comb_method,query_num);
-nq = length(results.num); % number of queries
-results.numqueries = nq;
-
-% Get and store the ground truth files
-results.gtruth = cell(nq,1);
-if query_num==3
-    [gtIdx,gtFile] = parseGT('GYRBO',gtDir);
+% Load results structure
+if method.fuzzy && ~method.rerank10
+    results_file = ['.\',method.decision,'\query',num2str(query_set), ...
+        'fuzzy',num2str(dRound(method.cell_dist,0)),'_results.mat'];
+elseif method.fuzzy && method.rerank10
+    results_file = ['.\',method.decision,'\rerank\query',num2str(query_set), ...
+        'fuzzy',num2str(dRound(method.cell_dist,0)),'_results.mat'];
 else
-    [gtIdx,gtFile] = parseGT('A',gtDir);
+    results_file = ['.\',method.decision,'\query',num2str(query_set), ...
+        'exact',num2str(dRound(method.cell_dist,0)),'_results.mat'];
 end
-for k=1:nq
-    idx = find(gtIdx==results.num(k));
-    results.gtruth{k} = gtFile( gtIdx(idx,2) : gtIdx(idx,3) );
+try
+    load(results_file)
+catch
+    results = struct;
 end
 
-% compute the post-processing scores for the candidate images
-for k=1:nq
+% Get a list of queries
+query = dir(qDir);
+query = strvcat(query(3:end).name);
+query = unique(str2double(cellstr(query(:,5:8)))); % query numbers
+nq = length(query); % number of queries
+
+% Load query ratio scores
+scores_file = ['.\scores\query',num2str(query_set),'_scores.mat'];
+try
+    load(scores_file)
+catch
+    query_scores.scores = cell(nq,1);
+    query_scores.number = query;
+end
+
+% Post-processing | Main part
+if method.fuzzy && strcmp(method.decision,'linear')
     
-    disp(['Recombination on query ',num2str(k)])
+    % Initialize variables
+    wv = method.wv;
+    ws = method.ws;
+    cell_dist = method.cell_dist;
+    fuzzy_rad = 75;
+    filt_dist = 100;
+    N = 10; % maximum number of candidate images
+    nruns = length(wv);
     
-    querySift = [results.name{k},'sift.txt'];
-    [~,da] = vl_ubcread(strcat(qDir,querySift));
+    % Set up results structure and fields
+    if ~isfield(results,'wv')
+        results.wv = wv;
+        results.ws = ws;
+        results.match = zeros(nruns,N);
+        results.poss = zeros(nruns,N);
+        results.total = zeros(nruns,N);
+    else % check for results already done
+        alreadydone = [];
+        for k=1:length(results.wv)
+            idxv = find(wv==results.wv(k));
+            idxs = find(ws==results.ws(k));
+            idx = intersect(idxv,idxs);
+            alreadydone = [alreadydone,idx];
+        end
+        if ~isempty(alreadydone)
+            disp('Some data points have already been computed.')
+            wv(alreadydone) = [];
+            ws(alreadydone) = [];
+            nruns = length(wv);
+        end
+        results.wv(1,end+1:end+nruns) = wv;
+        results.ws(1,end+1:end+nruns) = ws;
+        results.match(end+1:end+nruns,:) = zeros(nruns,N);
+        results.poss(end+1:end+nruns,:) = zeros(nruns,N);
+        results.total(end+1:end+nruns,:) = zeros(nruns,N);
+    end
+    match = zeros(nruns,N);
+    poss = zeros(nruns,N);
+    total = zeros(nruns,N);
     
-    candFiles = results.cand.files{k};
-    nc = length(candFiles); % number of candidates
-    scores = zeros(nc,1);
-    for j=1:nc
-        candSift = [candFiles{j},'sift.txt'];
-        [~,db] = vl_ubcread(strcat(dbDir,candSift));
-        scores(j) = length(vl_ubcmatch(da,db));
+    if cell_dist == 0
+        fprintf(['\nRunning fuzzy post processing with linear ', ...
+            'decision and no combination...\n'])
+    else
+        fprintf(['\nRunning fuzzy post processing with linear ', ...
+            'decision and vote combination...\n'])
     end
     
-    results.cand.scores{k} = scores;
+    % Iterate through each query
+    for k=1:nq
+        
+        fprintf(['\nProcessing query ',num2str(k),'... '])
+        
+        % Get ground truth matches
+        gt = getGT(query(k),query_set,gtDir);
+        
+        % Get list of cells and cell locations
+        [qCell,cLat,cLon] = getCells(query(k),vDir);
+        
+        % Get query sift file name and query location
+        idx = strfind(qCell{1},',');
+        query_name = qCell{1}(1:idx(3)-1);
+        qLat = str2double(query_name(idx(1)+1:idx(2)-1));
+        qLon = str2double(query_name(idx(2)+1:end-8));
+        
+        % Get fuzzy point locations
+        [lats,lons] = getFuzzyLocs(qLat,qLon,fuzzy_rad);
+        
+        % Create cell groupings from fuzzy points and iterate through them
+        cellgroups = groupFuzzy(lats,lons,cLat,cLon,cell_dist);
+        
+        for cg=cellgroups
+            
+            % Combine cells in this grouping
+            comb_cells = qCell(cg.idx);
+            [image,vote,img_lat,img_lon] = cellCombine(comb_cells,vDir);
+            
+            % Iterate through each fuzzy point and post process
+            for j=1:cg.npts
+                
+                % Get the candidate images from the combined votes
+                cand_idx = getCand( cg.lats(j),cg.lons(j), ...
+                    img_lat,img_lon,vote,filt_dist,method.rerank10 );
+                cand = image(cand_idx);
+                cand_vote = vote(cand_idx);
+                
+                % Get the candidate ratio scores
+                idx = find(query_scores.number==query(k),1,'first');
+                img_scores = query_scores.scores{idx};
+                if ~iscell(img_scores)
+                    img_scores = cell(0,2);
+                end
+                [cand_score,img_scores] = getRatioScores(...
+                    cand,img_scores,query_name,qDir,dbDir);
+                query_scores.scores{idx} = img_scores;
+                
+                % Evaluate the post processing
+                [m,p] = evaluateScores(cand_vote,cand_score,cand, ...
+                    gt,wv,ws,method.rerank10);
+                match = match + m;
+                poss = poss + p;
+                
+            end
+            
+            total = total + cg.npts;
+            
+        end
+        
+    end
     
 end
 
-outFile = ['.\',comb_method,'\query',num2str(query_num),'_results.mat'];
-save(outFile,'results');
+% store query ratio scores
+save(scores_file,'query_scores')
 
-end
+% store results
+results.match(end-nruns+1:end,:) = match;
+results.poss(end-nruns+1:end,:) = poss;
+results.total(end-nruns+1:end,:) = total;
+save(results_file,'results')
+
+fprintf('\nRun complete.\n\n')

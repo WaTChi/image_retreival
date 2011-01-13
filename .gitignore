@@ -1,6 +1,6 @@
 *.pyc
 .svn
-matlab/query2
-matlab/post-processing
 nohup.out
 a.out
+matlab/query2
+matlab/post-processing
