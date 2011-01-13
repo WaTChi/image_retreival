@@ -10,6 +10,7 @@ import info
 import math
 import numpy as np
 import numpy.linalg as linalg
+from imageotag_reader import ImageotagReader
 
 class Tag:
   """Representation of an EarthMine tag."""
@@ -111,53 +112,86 @@ class TagCollection:
       contained.append(tag)
     return contained
 
-class TaggedImage:
-  """Tags an EarthMine image."""
-  def __init__(self, image, infofile, db):
-    """db is a TagCollection
-       image an EarthMine jpg
-       infofile an EarthMine .info file"""
-    self.db = db
+class ImageSource:
+  """Should provide
+      self.image
+      self.focal_length
+      self.lat
+      self.lon
+      self.alt
+      self.pitch
+      self.yaw
+      self.roll
+  """
+  def get_pixel_location(self, pixel):
+    out = self.get_pixel_locations([pixel])
+    if out is None:
+      return None
+    return out.get(pixel, None)
+
+  def get_pixel_locations(self, pixels):
+    """Return None if not supported."""
+    assert False, "NotImplemented"
+
+class ImageotagImageSource(ImageSource):
+  """for images from ImageotagReader"""
+  def __init__(self, image):
+    self.__dict__.update(image.__dict__)
+    self.image = Image.open(image.jpg)
+    # TODO not sure if these are right.
+    # It's hard to tell when lat/lon/alt are so wrong
+    self.pitch = (self.pitch + 90) * math.pi / 180
+    self.yaw = (self.yaw - 60) * math.pi / 180
+    self.roll = (self.roll) * math.pi / 180
+  
+  def get_pixel_locations(self, pixels):
+    return None
+
+class EarthmineImageSource(ImageSource):
+  def __init__(self, image, infofile):
     with open(infofile) as f:
       self.info = eval(f.read())
     self.lat = self.info['view-location']['lat']
     self.lon = self.info['view-location']['lon']
     self.alt = self.info['view-location']['alt']
     self.yaw = self.info['view-direction']['yaw']
+    self.yaw = -(self.yaw+180)*math.pi/180
     self.roll = 0
-    self.field_of_view = self.info['field-of-view']
     self.viewId = self.info['id']
     self.image = Image.open(image)
+    self.focal_length = 0.8625 * self.image.size[0]
     center = geom.center((0,0), self.image.size)
     cloc = self.get_pixel_location(center)
     hyp = geom.distance3d(cloc, self.info['view-location'])
     d_alt = cloc['alt'] - self.alt
     self.pitch = np.arcsin(d_alt/hyp)
-
-  def get_frustum(self):
-    return self.db.select_frustum(self.lat, self.lon, self.yaw)
-
-  def get_pixel_location(self, pixel):
-    """wrapper for get_pixel_locations"""
-    return self.get_pixel_locations([pixel], verbose=False).get(pixel, None)
-
-  def get_pixel_locations(self, pixels, verbose=True):
+  
+  def get_pixel_locations(self, pixels):
     """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
-    verbose and INFO('fetching %d pixels' % len(pixels))
     conn = earthMine.ddObject()
     viewPixels = [earthMine.ddViewPixel(p[0], p[1]) for p in pixels]
     locs = {}
     while viewPixels:
       response = conn.getLocationsForViewPixels(self.viewId, viewPixels[:490])
       viewPixels = viewPixels[490:] # limit for api
-      verbose and INFO('%d pixels more' % len(viewPixels))
       for pixel, loc in response:
         if loc: # has valid mapping
           locs[(pixel['x'], pixel['y'])] = loc
     return locs # map of (x,y) to coords
 
+class TaggedImage:
+  """Tags an EarthMine image."""
+  def __init__(self, image, source, db):
+    self.db = db
+    self.source = source
+    self.focal_length = 700
+    self.__dict__.update(self.source.__dict__)
+
+  def get_frustum(self):
+    return self.db.select_frustum(self.lat, self.lon, self.yaw)
+
   def save_point_cloud(self, output):
-    cloud = self.get_pixel_locations(1,1)
+    cloud = self.source.get_pixel_locations(1,1)
     np.save(output, cloud)
 
   def colordist(self, dist, bound=100.0):
@@ -183,22 +217,6 @@ class TaggedImage:
       for y in range(0, self.image.size[1], stepy):
         yield (x,y)
 
-  def refine_point(self, tag, place):
-    pixel = place[1]
-    worst = place[0]
-    buf = []
-    for dx in range(-50,50,6):
-      for dy in range(-50,50,6):
-        buf.append((pixel[0] + dx, pixel[1] + dy))
-    locs = self.get_pixel_locations(buf)
-    for pixel in buf:
-      if pixel not in locs:
-        continue
-      dist = tag.distance(locs[pixel])
-      place = min(place, (dist, pixel))
-    INFO("improved dist by %f (%d%%)" % (worst - place[0], 100*(worst-place[0])/worst))
-    return place
-
   def map_tags_camera(self):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
 
@@ -209,15 +227,17 @@ class TaggedImage:
     for tag in possible_tags:
       pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
       py = tag.alt - self.alt;
-      focal_length = 0.8625 * self.image.size[0]
-      x, y, z = geom.camera_transform(px, py, pz, self.pitch, -(self.yaw+180)*math.pi/180, self.roll)
-      coord = geom.project2d(x, y, z, focal_length)
+      x, y, z = geom.camera_transform(px, py, pz, self.pitch, self.yaw, self.roll)
+      coord = geom.project2d(x, y, z, self.focal_length)
       pixel = geom.center(coord, self.image.size)
       tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
 
     # add some distance debugging info from earthmine
     debugtags = []
-    locs = self.get_pixel_locations(map(lambda t: t[1][1], tags))
+    locs = self.source.get_pixel_locations(map(lambda t: t[1][1], tags))
+    if locs is None: # does not support
+      return tags
+
     for (tag, (nulldist, pixel)) in tags:
       dist = tag.xydistance(locs.get(pixel, {'lat': 9999, 'lon': 9999, 'alt': 9999}))
       if dist < THRESHOLD:
@@ -228,7 +248,8 @@ class TaggedImage:
     "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
     THRESHOLD = 10.0
     possible_tags = self.get_frustum()
-    locs = self.get_pixel_locations(list(self.get_pixels()))
+    locs = self.source.get_pixel_locations(list(self.get_pixels()))
+    assert locs is not None
     mapping = dict([(tag, (999999, None)) for tag in possible_tags])
     for pixel in self.get_pixels():
       if pixel not in locs:
@@ -240,7 +261,6 @@ class TaggedImage:
     tags = []
     for tag in possible_tags:
       if mapping[tag][0] < THRESHOLD:
-#        mapping[tag] = self.refine_point(tag)
         tags.append((tag, mapping[tag]))
     INFO("mapped %d/%d possible tags" % (len(tags), len(possible_tags)))
     return tags
@@ -274,7 +294,8 @@ class TaggedImage:
       for line in tag:
         draw.text((point[0] + off_x, point[1] + off_y), line, fill=color, font=font)
         off_y += max(size, MIN_SIZE)
-      INFO('mapping tag at %f meters error' % dist)
+      if dist:
+        INFO('mapping tag at %f meters error' % dist)
     self.image.save(output, 'png')
     INFO("saved to %s" % output)
 
@@ -288,7 +309,8 @@ def _test():
     if '.jpg' in f:
       output = os.path.join(odir, f[:-4] + '.png')
       jpg = os.path.join(idir, f)
-      img = TaggedImage(jpg, jpg[:-4] + '.info', db)
+      source = EarthmineImageSource(jpg, jpg[:-4] + '.info')
+      img = TaggedImage(jpg, source, db)
       points = img.map_tags_camera()
       for tag, (dist, point) in points:
         distlog.append(dist)
@@ -296,15 +318,28 @@ def _test():
   for i in [1, 10, 50, 100, len(distlog)]:
     INFO('top %d error is %f at %d samples' % (i, sum(sorted(distlog)[:i])/i, len(distlog)))
 
+def _testq4():
+  db = TagCollection('testdata/tags.csv')
+  import os
+  idir = 'testdata/query4'
+  odir = 'testdata/q4_output'
+  reader = ImageotagReader(idir)
+  for image in reader.images:
+    output = os.path.join(odir, image.getCanonicalName().replace('.jpg', '.png'))
+    source = ImageotagImageSource(image)
+    img = TaggedImage(image.jpg, source, db)
+    points = img.map_tags_camera()
+    img.draw(points, output)
+
 def _test2():
   db = TagCollection('testdata/tags.csv')
-  name = 'a'
-  jpg = 'testdata/%s.jpg' % name
-  img = TaggedImage(jpg, jpg[:-4] + '.info', db)
+  jpg = 'testdata/input/37.8719888495,-122.269869743-0002.jpg'
+  source = EarthmineImageSource(jpg, jpg[:-4] + '.info')
+  img = TaggedImage(jpg, source, db)
   points = img.map_tags_camera()
-  img.draw(points, 'testdata/%s-out.png' % name)
+  img.draw(points, 'testdata/out.png')
 
 if __name__ == '__main__':
-  _test()
+  _testq4()
 
 # vim: et sw=2

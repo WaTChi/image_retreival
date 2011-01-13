@@ -2,6 +2,7 @@
 # reads xml and image files from the android imageotag app
 # (which includes tons of sensor data)
 
+from config import *
 import sys
 import os
 import xml.parsers.expat
@@ -24,20 +25,20 @@ class FlatXMLParser:
 
 class TaggedImage(object):
   def __init__(self, xmlfile, jpgfile):
-    self.id = 'IMG_' + os.path.basename(xmlfile)[24:31].translate(None, '-_')
+    self.id = 'IM_' + os.path.basename(xmlfile)[24:31].translate(None, '-_')
     self.jpg = jpgfile
     xml = FlatXMLParser(xmlfile)
     self.data = xml.data
     self.time = int(self.data['clock_datetime'])
     self.gps_acc = float(self.data['gps_accuracy'])
-    self.gps_alt = float(self.data['gps_altitude'])
-    self.gps_lat = float(self.data['gps_latitude'])
-    self.gps_lon = float(self.data['gps_longitude'])
+    self.alt = self.gps_alt = float(self.data['gps_altitude'])
+    self.lat = self.gps_lat = float(self.data['gps_latitude'])
+    self.lon = self.gps_lon = float(self.data['gps_longitude'])
     self.net_acc = float(self.data['net_accuracy'])
     self.net_lat = float(self.data['net_latitude'])
     self.net_lon = float(self.data['net_longitude'])
-    self.pitch = float(self.data['orientation_x'])
-    self.yaw = float(self.data['orientation_y'])
+    self.pitch = float(self.data['orientation_y'])
+    self.yaw = float(self.data['orientation_x'])
     self.roll = float(self.data['orientation_z'])
 
   def getCanonicalName(self):
@@ -68,9 +69,12 @@ class ImageotagReader:
     jpgdir = os.path.join(basedir, 'images')
     xml_files = sorted(os.listdir(xmldir))
     for xml in xml_files:
-      name = xml[:-4]
-      image = TaggedImage(os.path.join(xmldir, xml),
-                          os.path.join(jpgdir, name + '.jpg'))
+      name = xml[10:-4]
+      jpg = os.path.join(jpgdir, name + '.jpg')
+      if not os.path.exists(jpg):
+        INFO('W: could not find %s' % jpg)
+        continue
+      image = TaggedImage(os.path.join(xmldir, xml), jpg)
       self.images.append(image)
 
   def __iter__(self):
@@ -82,7 +86,7 @@ class ImageotagReader:
     return "%d images, mean gps acc %f, net acc %f" % (len(self.images), mg, mn)
 
 if __name__ == '__main__':
-  if not os.path.isdir(sys.argv[1]):
+  if len(sys.argv) < 2 or not os.path.isdir(sys.argv[1]):
     print "Usage: %s <directory>" % sys.argv[0]
     exit()
   reader = ImageotagReader(sys.argv[1])

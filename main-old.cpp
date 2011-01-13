@@ -1,5 +1,7 @@
 /*
- * main.cpp
+ * *********************************
+ *     DEPRECATED; use query.py
+ * *********************************
  *
  *  Created on: Oct 20, 2010
  *      Author: zhangz
