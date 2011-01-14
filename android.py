@@ -27,6 +27,7 @@ class TaggedImage(object):
   def __init__(self, xmlfile, jpgfile):
     self.id = 'IM_' + os.path.basename(xmlfile)[24:31].translate(None, '-_')
     self.jpg = jpgfile
+    self.sift = jpgfile[:-4] + 'sift.txt'
     xml = FlatXMLParser(xmlfile)
     self.data = xml.data
     self.time = int(self.data['clock_datetime'])
