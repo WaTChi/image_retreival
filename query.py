@@ -7,7 +7,7 @@
 #
 
 from config import *
-from SIFTReader import *
+import SIFTReader
 from multiprocessing import cpu_count
 import info
 import time
@@ -21,6 +21,8 @@ PARAMS_DEFAULT = {
   'trees': 1,
   'checks': 1024,
   'dist_threshold': 70000,
+# sift or chog
+  'descriptor': 'sift',
 # euclidean, manhattan, minkowski, hik, hellinger, cs, kl
   'distance_type': 'euclidean',
 # use >1 for weighted
@@ -34,17 +36,17 @@ PARAMS_DEFAULT = {
 # I'm not actually sure if the distance function affects
 # index compatibility. Someone check please?
 def indextype(params):
-  alg = params['algorithm']
   dtype = params['distance_type']
   distname = '' if dtype == 'euclidean' else ('-%s' % dtype)
-  if alg == 'kdtree':
-    return 'kdtree%d%s' % (params['trees'], distname)
-  return '%s%s' % (alg, distname)
+  des = '-chog' if params['descriptor'] == 'chog' else ''
+  if params['algorithm'] == 'kdtree':
+    return 'kdtree%d%s%s' % (params['trees'], distname, des)
+  else:
+    return '%s%s%s' % (alg, distname, des)
 
 def searchtype(params):
   vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']
   conf = ''
-  comp = ''
   if params['confstring']:
     conf = ',%s' % params['confstring']
   return '%s,threshold=%dk,searchparam=%d%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], vote_method, conf)
@@ -73,6 +75,7 @@ class Query(threading.Thread):
     self.params = params
     self.barrier = barrier
     pyflann.set_distance_type(params['distance_type'])
+    self.reader = CHoGReader if params['descriptor'] == 'chog' else SIFTReader
 
   def run(self):
     if self.barrier:
@@ -80,7 +83,7 @@ class Query(threading.Thread):
     self.flann = pyflann.FLANN()
     start = time.time()
     mapping, keyset = self._build_index()
-    queryset = load_file(self.qpath)
+    queryset = self.reader.load_file(self.qpath)
     qtime = time.time()
     results, dists = self.flann.nn_index(queryset, **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
@@ -184,7 +187,7 @@ class Query(threading.Thread):
     start = time.time()
     iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
     index = getfile(self.cellpath, iname)
-    dataset, mapping, keyset = npy_cached_load(self.cellpath)
+    dataset, mapping, keyset = self.reader.npy_cached_load(self.cellpath)
     self.dataset = dataset
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
