@@ -5,6 +5,7 @@ import sys
 import time
 
 from config import *
+import android
 import info
 import query
 import query1GroundTruth
@@ -15,7 +16,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query4'
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -94,7 +95,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, 1)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -184,6 +185,8 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
             r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
             b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
             o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        elif QUERY == 'query4':
+            pass
         else:
             assert False
 
@@ -210,39 +213,40 @@ def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
         if os.path.exists(resultsdir):
             shutil.rmtree(resultsdir)
         os.makedirs(resultsdir)
-    files = util.getSiftFileNames(querydir)
+    reader = AndroidReader(querydir)
     g_count = 0
     y_count = 0
     r_count = 0
     b_count = 0
     o_count = 0
     count = 0
-    for queryfile in files:
-            count += 1
-            [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, params)
-            if g:
-                g_count += 1
-                if verbosity > 0:
-                    print "G match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-            elif y:
-                y_count += 1
-                if verbosity > 0:
-                    print "Y match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-            elif r:
-                r_count += 1
-                if verbosity > 0:
-                    print "R match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-            elif b:
-                b_count += 1
-                if verbosity > 0:
-                    print "B match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-            elif o:
-                o_count += 1
-                if verbosity > 0:
-                    print "O match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-            else:
-                if verbosity > 0:
-                    print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+    for image in reader:
+        queryfile = image.sift
+        count += 1
+        [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, params)
+        if g:
+            g_count += 1
+            if verbosity > 0:
+                print "G match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        elif y:
+            y_count += 1
+            if verbosity > 0:
+                print "Y match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        elif r:
+            r_count += 1
+            if verbosity > 0:
+                print "R match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        elif b:
+            b_count += 1
+            if verbosity > 0:
+                print "B match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        elif o:
+            o_count += 1
+            if verbosity > 0:
+                print "O match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        else:
+            if verbosity > 0:
+                print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
     end = time.time()
     elapsed = end - start
     if verbosity > 0:
@@ -320,7 +324,7 @@ topnresults = 1
 verbosity = 1
 copytopmatch = True
 resultsdir = os.path.expanduser('~/topmatches')
-maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
+maindir = os.path.expanduser('~/.gvfs/sftp for ericl on gorgan/home/ericl/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 512,
@@ -331,7 +335,7 @@ params.update({
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
+    querydir = os.path.join(maindir, 'Research/collected_images/droid/%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
     matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:
