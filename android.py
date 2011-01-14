@@ -25,7 +25,7 @@ class FlatXMLParser:
 
 class TaggedImage(object):
   def __init__(self, xmlfile, jpgfile):
-    self.id = 'IM_' + os.path.basename(xmlfile)[24:31].translate(None, '-_')
+    self.id = 'IM_' + xmlfile[24:31].translate(None, '-_')
     self.jpg = jpgfile
     self.sift = jpgfile[:-4] + 'sift.txt'
     xml = FlatXMLParser(xmlfile)
@@ -64,19 +64,17 @@ class TaggedImage(object):
 
 class AndroidReader:
   def __init__(self, basedir):
-    """Reads image data from basedir/xml, basedir/images"""
+    """Reads image data from basedir"""
     self.basedir = basedir
     self.images = []
-    xmldir = os.path.join(basedir, 'xml')
-    jpgdir = os.path.join(basedir, 'images')
-    xml_files = sorted(os.listdir(xmldir))
+    xml_files = sorted(filter(lambda k: k.endswith('.xml'), os.listdir(basedir)))
     for xml in xml_files:
       name = xml[10:-4]
-      jpg = os.path.join(jpgdir, name + '.jpg')
-      if not os.path.exists(jpg):
+      jpg = name + '.jpg'
+      if not os.path.exists(os.path.join(basedir, jpg)):
         INFO('W: could not find %s' % jpg)
         continue
-      image = TaggedImage(os.path.join(xmldir, xml), jpg)
+      image = TaggedImage(os.path.join(basedir, xml), jpg)
       self.images.append(image)
 
   def __iter__(self):
