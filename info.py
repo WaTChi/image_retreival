@@ -38,6 +38,7 @@ def getQuerySIFTCoord(fname):
     lat=fname.split(",")[1]
     lon=fname.split(",")[2][0:-8]
     return float(lat), float(lon)
+getQueryCHOGCoord = getQuerySIFTCoord
 def getCellCoord(dname):
     lat, lon = dname.split(',')
     lat = float(lat)
@@ -53,6 +54,7 @@ def getSIFTCoord(fname):
     lat=fname.split(",")[0]
     lon=fname.split(",")[1][0:-13]
     return float(lat), float(lon)
+getCHOGCoord = getSIFTCoord
 def getSIFTAngle(fname):
     """gets angle based on JPG file name. makes assumption about format of filename"""
     return int(fname[-12:-8])

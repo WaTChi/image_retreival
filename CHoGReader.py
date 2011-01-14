@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
-# Loads sift files, caching feature vectors for future runs.
-# Use load_file(sift.txt) to read features from a single file.
+# Loads chog files, caching feature vectors for future runs.
+# Use load_file(chog.txt) to read features from a single file.
 # Use npy_cached_load(directory) to load a cell.
 #
 
@@ -11,49 +11,42 @@ import pickle
 import os
 import shutil
 
-NUM_DIMENSIONS = 128
-IS_SIFT = lambda filename: 'sift.txt' in filename
+NUM_DIMENSIONS = 63
+IS_CHOG = lambda filename: 'chog.txt' in filename
 
-def sift_iterator(siftname):
-  """Returns feature values in chunks of arbitrary size."""
-  with open(siftname) as data:
-    count = -2
+def chog_iterator(chogname):
+  """Returns feature values in chunks of NUM_DIMENSIONS."""
+  with open(chogname) as data:
     for line in data:
-      count += 1
-      if count < 0 or count % 8 == 0:
-        continue
-      yield np.fromstring(line, sep=' ', dtype=np.uint8)
+      yield np.fromstring(line, sep=' ', dtype=np.float)[5:]
 
-def write_features_to_ndarray(siftname, offset, dataset, key=None, keyset=None):
-  """Adds features from a sift file to a dataset.
+def write_features_to_ndarray(chogname, offset, dataset, key=None, keyset=None):
+  """Adds features from a chog file to a dataset.
      Returns the new offset into the matrix."""
-  step = 0
-  for chunk in sift_iterator(siftname):
+  for chunk in chog_iterator(chogname):
     # copy chunk into array
-    dataset[offset][step:step+len(chunk)] = chunk
-    step += len(chunk)
-    if step >= NUM_DIMENSIONS:
-      step = 0
-      if key is not None:
-        keyset[offset] = key
-      offset += 1
+    assert len(chunk) == NUM_DIMENSIONS
+    dataset[offset] = chunk
+    if key is not None:
+      keyset[offset] = key
+    offset += 1
   return offset
 
-def load_file(siftname):
-  """Loads single sift file into numpy array."""
-  with open(siftname) as f:
-    num_features = int(f.readline().split()[0])
+def load_file(chogname):
+  """Loads single chog file into numpy array."""
+  with open(chogname) as f:
+    num_features = f.read().count('\n')
   dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
-  write_features_to_ndarray(siftname, 0, dataset)
+  write_features_to_ndarray(chogname, 0, dataset)
   return dataset
 
-def npy_save_sift_directory(directory, cellid):
-  """Writes all sift features found in a directory to a file.
+def npy_save_chog_directory(directory, cellid):
+  """Writes all chog features found in a directory to a file.
      Also builds a reverse lookup table."""
   num_features = 0
   # first count number of total features
   for name in os.listdir(directory):
-    if IS_SIFT(name):
+    if IS_CHOG(name):
       with open(os.path.join(directory, name)) as f:
         num_features += int(f.readline().split()[0])
   dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
@@ -63,17 +56,17 @@ def npy_save_sift_directory(directory, cellid):
   lookup_table = {}
   # now begin the actual read
   for name in os.listdir(directory):
-    if IS_SIFT(name):
+    if IS_CHOG(name):
       offset = write_features_to_ndarray(os.path.join(directory, name), offset, dataset, key, keyset)
       lookup_table[key] = name
       if key % 200 == 0:
         INFO('%d/%d features read' % (offset, num_features))
       key += 1
-  for dest in getdests(directory, cellid + '-features.npy'):
+  for dest in getdests(directory, cellid + '-features-chog.npy'):
     save_atomic(lambda d: np.save(d, dataset), dest)
-  for dest in getdests(directory, cellid + '-keys.npy'):
+  for dest in getdests(directory, cellid + '-keys-chog.npy'):
     save_atomic(lambda d: np.save(d, keyset), dest)
-  for dest in getdests(directory, cellid + '-map.p'):
+  for dest in getdests(directory, cellid + '-map-chog.p'):
     save_atomic(lambda d: pickle.dump(lookup_table, open(d, 'w')), dest)
 
 def getdests(directory, name):
@@ -100,15 +93,15 @@ def getcellid(directory):
   return os.path.basename(directory)
 
 def npy_cached_load(directory):
-  """Efficiently loads a matrix of sift features and reverse lookup table
-     for a directory of sift files."""
+  """Efficiently loads a matrix of chog features and reverse lookup table
+     for a directory of chog files."""
   cellid = getcellid(directory)
-  data_out = getfile(directory, cellid + '-features.npy')
-  key_out = getfile(directory, cellid + '-keys.npy')
-  map_out = getfile(directory, cellid + '-map.p')
+  data_out = getfile(directory, cellid + '-features-chog.npy')
+  key_out = getfile(directory, cellid + '-keys-chog.npy')
+  map_out = getfile(directory, cellid + '-map-chog.p')
   if not os.path.exists(data_out) or not os.path.exists(map_out) or not os.path.exists(key_out):
-    INFO('finding sift files')
-    npy_save_sift_directory(directory, cellid)
+    INFO('finding chog files')
+    npy_save_chog_directory(directory, cellid)
   mapping = pickle.load(open(map_out))
   return np.load(data_out), mapping, np.load(key_out)
 
