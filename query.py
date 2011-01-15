@@ -8,6 +8,7 @@
 
 from config import *
 import SIFTReader
+import CHoGReader
 from multiprocessing import cpu_count
 import info
 import time
@@ -185,7 +186,7 @@ class Query(threading.Thread):
 
   def _build_index(self):
     start = time.time()
-    iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
+    iname = '%s-%s.uint8.index' % (self.reader.getcellid(self.cellpath), indextype(self.params))
     index = getfile(self.cellpath, iname)
     dataset, mapping, keyset = self.reader.npy_cached_load(self.cellpath)
     self.dataset = dataset
