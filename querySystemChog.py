@@ -80,6 +80,8 @@ def write_scores(querychog, ranked_matches, outdir):
 def query2(querydir, querychog, dbdir, mainOutputDir, nClosestCells, copytopmatch, params, copy_top_n_percell=0):
     lat, lon = info.getQueryCHOGCoord(querychog)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
+    assert dict(closest_cells)['37.8732916331,-122.268346029'] < 236 or dict(closest_cells)['37.8714489427,-122.272389514'] < 236 or dict(closest_cells)['37.8696062215,-122.273737308'] < 236
+    return 0,0,0,0,0
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
     latquery, lonquery = info.getQueryCHOGCoord(querychog)
@@ -95,7 +97,7 @@ def query2(querydir, querychog, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querychog + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querychog, outputFilePaths, params)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querychog, outputFilePaths, params, 1)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -267,11 +269,11 @@ params.update({
   'distance_type': 'kl',
   'descriptor': 'chog',
   'vote_method': 'highest',
-  'confstring': '',
+  'confstring': 'unicell',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'Research/collected_images/query/%s/' % QUERY)
+    querydir = os.path.join(maindir, '%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
     matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:

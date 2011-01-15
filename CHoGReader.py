@@ -36,6 +36,7 @@ def load_file(chogname):
   """Loads single chog file into numpy array."""
   with open(chogname) as f:
     num_features = f.read().count('\n')
+    assert num_features > 0
   dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
   write_features_to_ndarray(chogname, 0, dataset)
   return dataset
@@ -48,7 +49,8 @@ def npy_save_chog_directory(directory, cellid):
   for name in os.listdir(directory):
     if IS_CHOG(name):
       with open(os.path.join(directory, name)) as f:
-        num_features += int(f.readline().split()[0])
+        num_features += f.read().count('\n')
+  assert num_features > 0
   dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
   keyset = np.ndarray((num_features, 1), dtype=np.uint16)
   offset = 0

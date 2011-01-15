@@ -112,10 +112,15 @@ class Query(threading.Thread):
 
   def _vote_highest(self, queryset, mapping, keyset, results, dists):
     counts = {} # map from sift index to counts
+    accept, reject = 0, 0
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
+        accept += 1
         k = keyset[results[i]][0]
         counts[k] = 1.0 + counts.get(k, 0.0)
+      else:
+        reject += 1
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
     votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
     return votes
 
