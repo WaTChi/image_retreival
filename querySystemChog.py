@@ -262,7 +262,7 @@ resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
-  'checks': 512,
+  'checks': 1024,
   'trees': 1,
   'distance_type': 'kl',
   'descriptor': 'chog',
