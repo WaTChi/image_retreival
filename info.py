@@ -2,6 +2,7 @@ import os
 import shutil
 import math
 SIFTREGEXSTR = r'.*sift.txt$'
+CHOGREGEXSTR = r'.*chog.txt$'
 IMGREGEXSTR = r'.*.jpg$'
   
 def moveLocation(lat1, lon1, d, bearingDegrees):
