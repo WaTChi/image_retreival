@@ -4,6 +4,10 @@
 # Use load_file(sift.txt) to read features from a single file.
 # Use npy_cached_load(directory) to load a cell.
 #
+# Misc:
+# getfile()
+# getdests()
+# getcellid()
 
 from config import *
 import numpy as np
