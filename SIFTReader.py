@@ -8,6 +8,7 @@
 # getfile()
 # getdests()
 # getcellid()
+# getdatatype()
 
 from config import *
 import numpy as np
@@ -17,6 +18,9 @@ import shutil
 
 NUM_DIMENSIONS = 128
 IS_SIFT = lambda filename: 'sift.txt' in filename
+
+def getdatatype():
+  return 'uint8'
 
 def sift_iterator(siftname):
   """Returns feature values in chunks of arbitrary size."""

@@ -14,6 +14,9 @@ import shutil
 NUM_DIMENSIONS = 63
 IS_CHOG = lambda filename: 'chog.txt' in filename
 
+def getdatatype():
+  return 'float'
+
 def chog_iterator(chogname):
   """Returns feature values in chunks of NUM_DIMENSIONS."""
   with open(chogname) as data:
@@ -37,7 +40,7 @@ def load_file(chogname):
   with open(chogname) as f:
     num_features = f.read().count('\n')
     assert num_features > 0
-  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
+  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.float)
   write_features_to_ndarray(chogname, 0, dataset)
   return dataset
 
@@ -51,7 +54,7 @@ def npy_save_chog_directory(directory, cellid):
       with open(os.path.join(directory, name)) as f:
         num_features += f.read().count('\n')
   assert num_features > 0
-  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.uint8)
+  dataset = np.ndarray((num_features, NUM_DIMENSIONS), dtype=np.float)
   keyset = np.ndarray((num_features, 1), dtype=np.uint16)
   offset = 0
   key = 0
