@@ -191,7 +191,7 @@ class Query(threading.Thread):
 
   def _build_index(self):
     start = time.time()
-    iname = '%s-%s.uint8.index' % (self.reader.getcellid(self.cellpath), indextype(self.params))
+    iname = '%s-%s.%s.index' % (self.reader.getcellid(self.cellpath), indextype(self.params), self.reader.getdatatype())
     index = self.reader.getfile(self.cellpath, iname)
     dataset, mapping, keyset = self.reader.npy_cached_load(self.cellpath)
     self.dataset = dataset
@@ -205,7 +205,7 @@ class Query(threading.Thread):
     start = time.time()
     INFO(self.flann.build_index(dataset, **self.params))
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
-    for out in reader.getdests(self.cellpath, iname):
+    for out in self.reader.getdests(self.cellpath, iname):
       save_atomic(lambda d: self.flann.save_index(d), out)
     return mapping, keyset
 
