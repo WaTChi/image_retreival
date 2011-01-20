@@ -5,6 +5,7 @@ import sys
 import time
 
 from config import *
+import people
 import info
 import query
 import query1GroundTruth
@@ -81,7 +82,12 @@ def query2(querydir, querychog, dbdir, mainOutputDir, nClosestCells, copytopmatc
     lat, lon = info.getQueryCHOGCoord(querychog)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     assert dict(closest_cells)['37.8732916331,-122.268346029'] < 236 or dict(closest_cells)['37.8714489427,-122.272389514'] < 236 or dict(closest_cells)['37.8696062215,-122.273737308'] < 236
-    return 0,0,0,0,0
+    built = [
+        '37.8732916331,-122.268346029',
+        '37.8714489427,-122.272389514',
+        '37.8696062215,-122.273737308',
+    ]
+    closest_cells = filter(lambda c: c[0] in built, closest_cells)
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
     latquery, lonquery = info.getQueryCHOGCoord(querychog)
@@ -97,7 +103,7 @@ def query2(querydir, querychog, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querychog + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querychog, outputFilePaths, params, 1)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querychog, outputFilePaths, params)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -256,12 +262,12 @@ def get_num_imgs_in_range(range, celldir, querydir='/home/zhangz/.gvfs/data on 1
 cellradius = 236.6
 ambiguity = 50
 matchdistance = 25
-ncells = 7   #if ambiguity<100, 7 is max possible by geometry
+ncells = 1   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
 copytopmatch = True
 resultsdir = os.path.expanduser('~/topmatches')
-maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
+maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 1024,
