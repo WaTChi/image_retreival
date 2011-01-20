@@ -10,6 +10,8 @@ import os
 def get_reader(typehint):
   if 'sift' in typehint:
     return SIFTReader()
+  elif 'surf' in typehint:
+    return SURFReader()
   elif 'chog' in typehint:
     return CHoGReader()
   else:
@@ -20,20 +22,20 @@ class FeatureReader(object):
     self.name = name
     self.dtype = dtype
 
-  def isfile(self, filename):
+  def is_feature_file(self, filename):
     raise NotImplementedError
 
-  def writef(self, filename, offset, dataset, index):
+  def write_features_to_array(self, filename, offset, dataset, index):
     raise NotImplementedError
 
-  def countf(self, filename):
+  def count_features_in_file(self, filename):
     raise NotImplementedError
 
   def count_features_in_dir(directory):
     num_features = 0
     for name in os.listdir(directory):
-      if self.isfile(name):
-        num_features += self.countf(os.path.join(directory, name))
+      if self.is_feature_file(name):
+        num_features += self.count_features_in_file(os.path.join(directory, name))
     return num_features
 
   def save_directory(self, directory, cellid):
@@ -42,8 +44,8 @@ class FeatureReader(object):
     num_features = 0
     for name in os.listdir(directory):
       name = os.path.join(directory, name)
-      if self.isfile(name):
-        num_features += self.countf(name)
+      if self.is_feature_file(name):
+        num_features += self.count_features_in_file(name)
     assert num_features > 0
     dataset = np.ndarray(num_features, self.dtype)
     offset = 0
@@ -51,8 +53,8 @@ class FeatureReader(object):
     lookup_table = {}
     # now begin the actual read
     for name in os.listdir(directory):
-      if self.isfile(name):
-        offset = self.writef(os.path.join(directory, name),
+      if self.is_feature_file(name):
+        offset = self.write_features_to_array(os.path.join(directory, name),
           offset, dataset, image_index)
         lookup_table[image_index] = name
         if image_index % 200 == 0:
@@ -65,10 +67,10 @@ class FeatureReader(object):
 
   def load_file(self, file):
     """Reads features from file."""
-    num_features = self.countf(file)
+    num_features = self.count_features_in_file(file)
     assert num_features > 0
     dataset = np.ndarray(num_features, self.dtype)
-    self.writef(file, 0, dataset, 0)
+    self.write_features_to_array(file, 0, dataset, 0)
     return dataset
 
   def load_cell(self, directory):
@@ -91,10 +93,10 @@ class SIFTReader(FeatureReader):
   def __init__(self):
     super(SIFTReader, self).__init__('sift', self.sift_dtype)
 
-  def isfile(self, filename):
+  def is_feature_file(self, filename):
     return 'sift.txt' in filename
 
-  def countf(self, siftfile):
+  def count_features_in_file(self, siftfile):
     with open(siftfile) as f:
       return int(f.readline().split()[0])
 
@@ -111,7 +113,7 @@ class SIFTReader(FeatureReader):
         else:
           yield np.fromstring(line, sep=' ', dtype=np.uint8)
 
-  def writef(self, siftname, offset, dataset, index):
+  def write_features_to_array(self, siftname, offset, dataset, index):
     """Adds features from a sift file to a dataset.
        Returns the new offset into the matrix."""
     step = 0
@@ -136,10 +138,10 @@ class CHoGReader(FeatureReader):
   def __init__(self):
     super(CHoGReader, self).__init__('chog', self.chog_dtype)
 
-  def isfile(self, filename):
+  def is_feature_file(self, filename):
     return 'chog.txt' in filename
 
-  def countf(self, chogfile):
+  def count_features_in_file(self, chogfile):
     with open(chogfile) as f:
       return f.read().count('\n')
 
@@ -148,13 +150,45 @@ class CHoGReader(FeatureReader):
       for line in data:
         yield np.fromstring(line, sep=' ', dtype=np.float)
 
-  def writef(self, chogname, offset, dataset, index):
+  def write_features_to_array(self, chogname, offset, dataset, index):
     for chunk in self.chog_iterator(chogname):
       assert len(chunk) == 68
       dataset['geom'][offset] = chunk[:5]
       dataset['vec'][offset] = chunk[5:]
       dataset['index'][offset] = index
       offset += 1
+    return offset
+
+class SURFReader(FeatureReader):
+  surf_dtype = {
+    'names': ['vec', 'geom', 'index'],
+    'formats': ['64uint8', '3uint16', 'uint16'],
+  }
+
+  def __init__(self):
+    super(SURFReader, self).__init__('chog', self.chog_dtype)
+
+  def is_feature_file(self, filename):
+    return 'surf.txt' in filename
+
+  def count_features_in_file(self, surffile):
+    with open(surf) as f:
+      return f.read().count('\n')
+
+  def surf_iterator(self, surfname):
+    with open(surfname) as data:
+      for line in data:
+        yield np.fromstring(line, sep=' ', dtype=np.uint16)
+        yield np.fromstring(line, sep=' ', dtype=np.uint8)
+
+  def write_features_to_array(self, surfname, offset, dataset, index):
+    for chunk in self.surf_iterator(surfname):
+      if chunk.dtype == np.uint16:
+        dataset['index'][offset] = index
+        dataset['geom'][offset] = chunk
+      else:
+        dataset['vec'][offset] = chunk
+        offset += 1
     return offset
 
 # vim: et sw=2
