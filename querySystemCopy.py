@@ -6,7 +6,6 @@ import time
 
 from config import *
 from android import AndroidReader
-import people
 import info
 import query
 import query1GroundTruth
@@ -92,7 +91,6 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    people.wait_until_idle()
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, 8)
     # end query
     for cell, dist in cells_in_range:

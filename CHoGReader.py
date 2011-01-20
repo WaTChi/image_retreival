@@ -3,13 +3,11 @@
 # Loads chog files, caching feature vectors for future runs.
 # Use load_file(chog.txt) to read features from a single file.
 # Use npy_cached_load(directory) to load a cell.
-#
 
 from config import *
 import numpy as np
 import pickle
 import os
-import shutil
 
 NUM_DIMENSIONS = 63
 IS_CHOG = lambda filename: 'chog.txt' in filename
@@ -70,29 +68,6 @@ def npy_save_chog_directory(directory, cellid):
     save_atomic(lambda d: np.save(d, keyset), dest)
   for dest in getdests(directory, cellid + '-map-chog.p'):
     save_atomic(lambda d: pickle.dump(lookup_table, open(d, 'w')), dest)
-
-def getdests(directory, name):
-  default = os.path.join(os.path.dirname(directory), name)
-  if IS_REMOTE(directory):
-    INFO('copying %s to local cache' % name)
-    local = os.path.join(CACHE_PATH, name)
-    return [default, local]
-  return [default]
-
-def getfile(directory, name):
-  default = os.path.join(os.path.dirname(directory), name)
-  if IS_REMOTE(directory):
-    local = os.path.join(CACHE_PATH, name)
-    if os.path.exists(local):
-      return local
-    elif os.path.exists(default):
-      INFO('copying %s to local cache' % name)
-      save_atomic(lambda d: shutil.copyfile(default, d), local)
-      return local
-  return default
-
-def getcellid(directory):
-  return os.path.basename(directory)
 
 def npy_cached_load(directory):
   """Efficiently loads a matrix of chog features and reverse lookup table

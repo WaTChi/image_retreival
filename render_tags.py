@@ -60,20 +60,10 @@ class EarthmineImageInfo(ImageInfo):
     hyp = geom.distance3d(cloc, self.info['view-location'])
     d_alt = cloc['alt'] - self.alt
     self.pitch = np.arcsin(d_alt/hyp)
-  
-  def get_pixel_locations(self, pixels):
-    """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
-    conn = earthMine.ddObject()
-    viewPixels = [earthMine.ddViewPixel(p[0], p[1]) for p in pixels]
-    locs = {}
-    while viewPixels:
-      response = conn.getLocationsForViewPixels(self.viewId, viewPixels[:490])
-      viewPixels = viewPixels[490:] # limit for api
-      for pixel, loc in response:
-        if loc: # has valid mapping
-          locs[(pixel['x'], pixel['y'])] = loc
-    return locs # map of (x,y) to coords
 
+  def get_pixel_locations(self, pixels):
+    return earthMine.ddGetAllPixels(pixels, self.viewId)
+  
 class TaggedImage:
   """Tags an EarthMine image."""
   def __init__(self, image, source, db):

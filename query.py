@@ -83,12 +83,12 @@ class Query(threading.Thread):
       self.barrier.acquire()
     self.flann = pyflann.FLANN()
     start = time.time()
-    mapping, keyset = self._build_index()
+    dataset, mapping = self._build_index()
     queryset = self.reader.load_file(self.qpath)
     qtime = time.time()
     results, dists = self.flann.nn_index(queryset, **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
-    votes = self.vote(queryset, mapping, keyset, results, dists)
+    votes = self.vote(queryset, dataset, mapping, results, dists)
     total = 0
     with open(self.outfile, 'w') as f:
       for tally in votes:
@@ -99,24 +99,23 @@ class Query(threading.Thread):
       self.barrier.release()
     # release memory - in case the Query is still around
     self.flann = None
-    self.dataset = None
 
-  def vote(self, queryset, mapping, keyset, results, dists):
+  def vote(self, queryset, dataset, mapping, results, dists):
     INFO('voting with method %s' % self.params['vote_method'])
     return {
       'highest': self._vote_highest,
       'weighted': self._vote_weighted,
       'location': self._vote_location,
       'revote_exact': self._vote_revote_exact,
-    }[self.params['vote_method']](queryset, mapping, keyset, results, dists)
+    }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
 
-  def _vote_highest(self, queryset, mapping, keyset, results, dists):
+  def _vote_highest(self, queryset, dataset, mapping, results, dists):
     counts = {} # map from sift index to counts
     accept, reject = 0, 0
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
         accept += 1
-        k = keyset[results[i]][0]
+        k = dataset[results[i]]['index']
         counts[k] = 1.0 + counts.get(k, 0.0)
       else:
         reject += 1
@@ -124,30 +123,28 @@ class Query(threading.Thread):
     votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
     return votes
 
-  def extract(self, dataset, keyset, indices):
-    "returns set of features from images in indices"
+  def extract(self, dataset, indices):
+    "returns set of features from indices in indices"
     indices = set(indices)
-    condition = np.zeros(len(keyset), np.bool)
+    condition = np.zeros(len(dataset), np.bool)
     for i in indices:
-      condition |= (keyset.reshape(-1) == i)
-    sdataset = np.compress(condition, dataset, axis=0)
-    skeyset = np.compress(condition, keyset, axis=0)
-    return sdataset, skeyset
+      condition |= (dataset['index'] == i)
+    return np.compress(condition, dataset)
 
-  def _vote_revote_exact(self, queryset, mapping, keyset, results, dists):
+  def _vote_revote_exact(self, queryset, dataset, mapping, results, dists):
     counts = {} # map from sift index to counts
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
-        k = keyset[results[i]][0]
+        k = dataset[results[i]]['index']
         counts[k] = 1.0 + counts.get(k, 0.0)
     # list of (votes, index_of_image)
     top_ten = sorted([(counts[index], index) for index in counts], reverse=True)[:5]
-    sdataset, skeyset = self.extract(self.dataset, keyset, [i for (v, i) in top_ten])
-    results, dists = self.flann.nn(sdataset, queryset, 1, algorithm='linear')
-    votes = self._vote_highest(queryset, mapping, skeyset, results, dists)
+    sdataset = self.extract(dataset, [i for (v, i) in top_ten])
+    results, dists = self.flann.nn(sdataset['vec'], queryset, 1, algorithm='linear')
+    votes = self._vote_highest(queryset, sdataset, mapping, results, dists)
     return votes
 
-  def _vote_weighted(self, queryset, mapping, keyset, results, dists):
+  def _vote_weighted(self, queryset, dataset, mapping, results, dists):
     """Keep voting for nearest N, weighting by (dist/MIN_DISTANCE)^-k
        requires more than 1 nearest neighbor for results.
        Note that each image gets 1 vote max."""
@@ -159,7 +156,7 @@ class Query(threading.Thread):
       marked = set()
       for j, dist in enumerate(dist_array):
         if dist < self.params['dist_threshold']:
-          image = keyset[results[i][j]][0]
+          image = dataset[results[i][j]]['index']
           if image not in marked:
             counts[image] = 1.0*(dist/best)**-k + counts.get(image, 0.0)
             marked.add(image)
@@ -170,12 +167,12 @@ class Query(threading.Thread):
     votes = sorted([(counts[index], mapping[index]) for index in counts], reverse=True)
     return votes
 
-  def _vote_location(self, queryset, mapping, keyset, results, dists):
+  def _vote_location(self, queryset, dataset, mapping, results, dists):
     TOP_N = 10 # O(N^2)
     counts = {} # map from sift index to counts
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
-        k = keyset[results[i]][0]
+        k = dataset[results[i]]['index']
         counts[k] = 1.0 + counts.get(k, 0.0)
     # get top N of counts
     counts = dict([(k,v) for (v,k) in sorted([(v,k) for (k,v) in counts.iteritems()], reverse=True)[:TOP_N]])
@@ -192,21 +189,20 @@ class Query(threading.Thread):
   def _build_index(self):
     start = time.time()
     iname = '%s-%s.uint8.index' % (self.reader.getcellid(self.cellpath), indextype(self.params))
-    index = self.reader.getfile(self.cellpath, iname)
-    dataset, mapping, keyset = self.reader.npy_cached_load(self.cellpath)
-    self.dataset = dataset
+    index = getfile(self.cellpath, iname)
+    dataset, mapping = self.reader.npy_cached_load(self.cellpath)
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
       s = time.time()
-      self.flann.load_index(index, dataset)
+      self.flann.load_index(index, dataset['vec'])
       INFO_TIMING("index load took %f seconds" % (time.time() - s))
-      return mapping, keyset
+      return dataset, mapping
     INFO('creating %s' % iname)
     start = time.time()
-    INFO(self.flann.build_index(dataset, **self.params))
+    INFO(self.flann.build_index(dataset['vec'], **self.params))
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
-    for out in reader.getdests(self.cellpath, iname):
+    for out in getdests(self.cellpath, iname):
       save_atomic(lambda d: self.flann.save_index(d), out)
-    return mapping, keyset
+    return dataset, mapping
 
 # vim: et sw=2
