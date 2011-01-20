@@ -7,8 +7,7 @@
 #
 
 from config import *
-import SIFTReader
-import CHoGReader
+import reader
 from multiprocessing import cpu_count
 import info
 import time
@@ -76,7 +75,7 @@ class Query(threading.Thread):
     self.params = params
     self.barrier = barrier
     pyflann.set_distance_type(params['distance_type'])
-    self.reader = CHoGReader if params['descriptor'] == 'chog' else SIFTReader
+    self.reader = reader.get_reader(params['descriptor'])
 
   def run(self):
     if self.barrier:
@@ -188,9 +187,9 @@ class Query(threading.Thread):
 
   def _build_index(self):
     start = time.time()
-    iname = '%s-%s.uint8.index' % (self.reader.getcellid(self.cellpath), indextype(self.params))
+    iname = '%s-%s.uint8.index' % (getcellid(self.cellpath), indextype(self.params))
     index = getfile(self.cellpath, iname)
-    dataset, mapping = self.reader.npy_cached_load(self.cellpath)
+    dataset, mapping = self.reader.load_cell(self.cellpath)
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
       s = time.time()
