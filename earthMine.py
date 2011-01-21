@@ -651,3 +651,16 @@ def ddMakeDepthMap(lat, lon, conn, name, width=DEFWIDTH, height=DEFHEIGHT):
         urllib.urlretrieve(view["url"]["href"], name+repr(count)+".jpg")
         count = count + 1
     return
+
+def ddGetAllPixels(self, pixels, viewId, keep_None=False):
+    """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
+    conn = ddObject()
+    viewPixels = [ddViewPixel(p[0], p[1]) for p in pixels]
+    locs = {}
+    while viewPixels:
+        response = conn.getLocationsForViewPixels(viewId, viewPixels[:490])
+        viewPixels = viewPixels[490:] # limit for api
+        for pixel, loc in response:
+            if loc or keep_None: # has valid mapping
+                locs[(pixel['x'], pixel['y'])] = loc
+    return locs # map of (x,y) to coords
