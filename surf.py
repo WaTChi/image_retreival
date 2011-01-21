@@ -19,14 +19,20 @@ def extract_surf(jpgfile):
   data = np.ndarray(len(features), SURFReader.surf_dtype)
 
   for i in range(len(features)):
-    surfvalues = np.fromiter(features[i], np.float)
-
-    assert max(surfvalues) <= 1.0
-    assert min(surfvalues) >= -1.0
-
-    data[i]['vec'] = np.int8(127*surfvalues)
+    data[i]['vec'] = np.fromiter(features[i], np.float32)
     data[i]['geom'] = np.fromiter([g[i][0][0], g[i][0][1], g[i][2]], np.uint16)
     data[i]['index'] = 0
+
+## Simple Quantization into bytes
+#  for i in range(len(features)):
+#    surfvalues = np.fromiter(features[i], np.float)
+#
+#    assert max(surfvalues) <= 1.0
+#    assert min(surfvalues) >= -1.0
+#
+#    data[i]['vec'] = np.int8(127*surfvalues)
+#    data[i]['geom'] = np.fromiter([g[i][0][0], g[i][0][1], g[i][2]], np.uint16)
+#    data[i]['index'] = 0
 
   save_atomic(lambda d: np.save(d, data), out)
   INFO('cv wrote %d features' % len(features))
