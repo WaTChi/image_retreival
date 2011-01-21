@@ -42,7 +42,7 @@ def indextype(params):
   if params['algorithm'] == 'kdtree':
     return 'kdtree%d%s%s' % (params['trees'], distname, des)
   else:
-    return '%s%s%s' % (alg, distname, des)
+    return '%s%s%s' % (params['algorithm'], distname, des)
 
 def searchtype(params):
   vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']

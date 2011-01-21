@@ -70,14 +70,18 @@ def copy_top_match(querydir, query, ranked_matches, match, qlat, qlon):
     queryimgpath = os.path.join(querydir, query + '.pgm')
     queryoutpath = os.path.join(resultsdir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.pgm')
     shutil.copyfile(queryimgpath, queryoutpath)
+    i = 0
     for matchedimg, score in ranked_matches:
-        if score != topentry[1]:
-            break
+#        if score != topentry[1]:
+#            break
+        i += 1 # XXX tmp image analysis code to spit out top 10
+        if i > 9:
+            break;
         clat = float(matchedimg.split(",")[0])
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matchoutpath = os.path.join(resultsdir, query + ';match;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
+        matchoutpath = os.path.join(resultsdir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         shutil.copy(matchimgpath, matchoutpath)
 
 def write_scores(querysift, ranked_matches, outdir):
