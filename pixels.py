@@ -1,5 +1,6 @@
 # Find real locations of corresponding features.
 # Provides map from (file, pixel) => (lat, lon, alt)
+# Use pixelmap.open(...) for efficency.
 
 from config import *
 from reader import get_reader

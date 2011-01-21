@@ -2,6 +2,11 @@
 # Loads feature files, caching feature vectors for future runs.
 # Use get_reader(type).load_file(file)
 # Use get_reader(type).load_cell(directory)
+#
+#  typical numpy datatype stored: {
+#    'names': ['vec', 'geom', 'index'],
+#    'formats': ['128uint8', '4float32', 'uint16'],
+#  }
 
 from config import *
 import numpy as np
@@ -162,33 +167,23 @@ class CHoGReader(FeatureReader):
 class SURFReader(FeatureReader):
   surf_dtype = {
     'names': ['vec', 'geom', 'index'],
-    'formats': ['64uint8', '3uint16', 'uint16'],
+    'formats': ['64float32', '3uint16', 'uint16'],
   }
 
   def __init__(self):
-    super(SURFReader, self).__init__('chog', self.chog_dtype)
+    super(SURFReader, self).__init__('surf', self.surf_dtype)
 
   def is_feature_file(self, filename):
-    return 'surf.txt' in filename
+    return 'surf.npy' in filename
 
   def count_features_in_file(self, surffile):
-    with open(surf) as f:
-      return f.read().count('\n')
-
-  def surf_iterator(self, surfname):
-    with open(surfname) as data:
-      for line in data:
-        yield np.fromstring(line, sep=' ', dtype=np.uint16)
-        yield np.fromstring(line, sep=' ', dtype=np.uint8)
+    return len(np.load(surf))
 
   def write_features_to_array(self, surfname, offset, dataset, index):
-    for chunk in self.surf_iterator(surfname):
-      if chunk.dtype == np.uint16:
-        dataset['index'][offset] = index
-        dataset['geom'][offset] = chunk
-      else:
-        dataset['vec'][offset] = chunk
-        offset += 1
-    return offset
+    data = np.load(surf)
+    for i in range(offset, offset + len(data)):
+      dataset[i] = data[i]
+      dataset[i]['index'] = index
+    return offset + len(data)
 
 # vim: et sw=2
