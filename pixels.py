@@ -28,8 +28,9 @@ class LazyPixelMap:
   
   def open(self, featurefile):
     """Returns map of (x,y) => (lat, lon, alt)"""
-    view = os.path.basename(featurefile)[:-8]
-    cached = os.path.join(self.datastore, view) + '.npy'
+    name = os.path.basename(featurefile)[:-4] # gps coords, angle
+    view = os.path.basename(featurefile)[:-8] # + descriptor type
+    cached = os.path.join(self.datastore, name) + '.npy'
     if not os.path.exists(cached):
       data = self.ddFetch(featurefile, view)
       save_atomic(lambda d: np.save(d, data), cached)
