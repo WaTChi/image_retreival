@@ -17,6 +17,7 @@ import groundtruthY
 import util
 
 QUERY = 'query4'
+NUM_THREADS = 8
 
 class Img:
     def __init__(self):
@@ -110,7 +111,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, 8)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -286,7 +287,7 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-copytopmatch = True
+copytopmatch = False
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
@@ -295,7 +296,7 @@ params.update({
   'trees': 1,
   'distance_type': 'euclidean',
   'vote_method': 'highest',
-  'confstring': '',
+  'confstring': 'new',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 if __name__ == "__main__":

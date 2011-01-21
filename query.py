@@ -189,7 +189,7 @@ class Query(threading.Thread):
     start = time.time()
     iname = '%s-%s.%s.index' % (getcellid(self.cellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
     index = getfile(self.cellpath, iname)
-    dataset, mapping = self.reader.npy_cached_load(self.cellpath)
+    dataset, mapping = self.reader.load_cell(self.cellpath)
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
       s = time.time()

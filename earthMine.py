@@ -652,13 +652,23 @@ def ddMakeDepthMap(lat, lon, conn, name, width=DEFWIDTH, height=DEFHEIGHT):
         count = count + 1
     return
 
-def ddGetAllPixels(self, pixels, viewId, keep_None=False):
+def ddGetAllPixels(pixels, viewId, keep_None=False):
     """fetches an arbitrary amount of pixels from EarthMine Direct Data"""
     conn = ddObject()
     viewPixels = [ddViewPixel(p[0], p[1]) for p in pixels]
     locs = {}
     while viewPixels:
-        response = conn.getLocationsForViewPixels(viewId, viewPixels[:490])
+        response = None
+        for retry in range(3):
+            try:
+                if retry:
+                    print 'try %d' % retry
+                response = conn.getLocationsForViewPixels(viewId, viewPixels[:490])
+                break
+            except Exception, e:
+                print e
+        if response is None:
+            raise Exception
         viewPixels = viewPixels[490:] # limit for api
         for pixel, loc in response:
             if loc or keep_None: # has valid mapping
