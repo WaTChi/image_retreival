@@ -5,7 +5,6 @@ import sys
 import time
 
 from config import *
-import people
 import info
 import query
 import query1GroundTruth
@@ -277,7 +276,7 @@ params.update({
   'vote_method': 'highest',
   'confstring': 'unicell',
 })
-dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
+dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
 if __name__ == "__main__":
     querydir = os.path.join(maindir, '%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')

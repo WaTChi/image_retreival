@@ -2,11 +2,13 @@
 
 import numpy as np
 import os
+import time
 import cv
 from reader import SURFReader
 from config import *
 
 def extract_surf(jpgfile):
+  start = time.time()
   out = os.path.join(os.path.dirname(jpgfile), os.path.basename(jpgfile)[:-4] + 'surf.npy')
   if os.path.exists(out):
     INFO('%s already exists' % out)
@@ -36,12 +38,13 @@ def extract_surf(jpgfile):
 
   save_atomic(lambda d: np.save(d, data), out)
   INFO('cv wrote %d features' % len(features))
+  INFO_TIMING('took %f seconds' % (time.time() - start))
 
 if __name__ == '__main__':
   import sys
   INFO('extracting SURF features from jpgs in %s' % sys.argv[1])
   for file in os.listdir(sys.argv[1]):
     if file.lower().endswith('.jpg'):
-      extract_surf(file)
+      extract_surf(os.path.join(sys.argv[1], file))
 
 # vim: et sw=2

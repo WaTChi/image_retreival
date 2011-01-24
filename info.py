@@ -3,6 +3,7 @@ import shutil
 import math
 SIFTREGEXSTR = r'.*sift.txt$'
 CHOGREGEXSTR = r'.*chog.txt$'
+SURFREGEXSTR = r'.*surf.npy$'
 IMGREGEXSTR = r'.*.jpg$'
   
 def moveLocation(lat1, lon1, d, bearingDegrees):
@@ -40,6 +41,7 @@ def getQuerySIFTCoord(fname):
     lon=fname.split(",")[2][0:-8]
     return float(lat), float(lon)
 getQueryCHOGCoord = getQuerySIFTCoord
+getQuerySURFCoord = getQuerySIFTCoord
 def getCellCoord(dname):
     lat, lon = dname.split(',')
     lat = float(lat)
@@ -56,6 +58,7 @@ def getSIFTCoord(fname):
     lon=fname.split(",")[1][0:-13]
     return float(lat), float(lon)
 getCHOGCoord = getSIFTCoord
+getSURFCoord = getSIFTCoord
 def getSIFTAngle(fname):
     """gets angle based on JPG file name. makes assumption about format of filename"""
     return int(fname[-12:-8])

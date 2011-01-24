@@ -38,7 +38,7 @@ PARAMS_DEFAULT = {
 def indextype(params):
   dtype = params['distance_type']
   distname = '' if dtype == 'euclidean' else ('-%s' % dtype)
-  des = '-chog' if params['descriptor'] == 'chog' else ''
+  des = '' if params['descriptor'] == 'sift' else ('-' + params['descriptor'])
   if params['algorithm'] == 'kdtree':
     return 'kdtree%d%s%s' % (params['trees'], distname, des)
   else:
@@ -85,7 +85,7 @@ class Query(threading.Thread):
     dataset, mapping = self._build_index()
     queryset = self.reader.load_file(self.qpath)
     qtime = time.time()
-    results, dists = self.flann.nn_index(queryset, **self.params)
+    results, dists = self.flann.nn_index(queryset['vec'], **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
     votes = self.vote(queryset, dataset, mapping, results, dists)
     total = 0
@@ -200,7 +200,7 @@ class Query(threading.Thread):
     start = time.time()
     INFO(self.flann.build_index(dataset['vec'], **self.params))
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
-    for out in self.reader.getdests(self.cellpath, iname):
+    for out in getdests(self.cellpath, iname):
       save_atomic(lambda d: self.flann.save_index(d), out)
     return dataset, mapping
 

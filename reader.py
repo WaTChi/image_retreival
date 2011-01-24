@@ -10,6 +10,7 @@
 
 from config import *
 import numpy as np
+import time
 import os
 
 def get_reader(typehint):
@@ -36,27 +37,32 @@ class FeatureReader(object):
   def count_features_in_file(self, filename):
     raise NotImplementedError
 
-  def count_features_in_dir(directory):
-    num_features = 0
+  def get_corresponding_jpg(self, filename):
+    return filename.split(self.name)[0] + '.jpg'
+
+  def get_feature_files_in_dir(self, directory):
     for name in os.listdir(directory):
       if self.is_feature_file(name):
-        num_features += self.count_features_in_file(os.path.join(directory, name))
+        yield os.path.join(directory, name)
+
+  def count_features_in_dir(self, directory):
+    num_features = 0
+    for f in self.get_feature_files_in_dir(directory):
+      num_features += self.count_features_in_file(f)
     return num_features
 
   def save_directory(self, directory, cellid):
     """Writes all features found in a directory to a file.
        Also builds a reverse lookup table."""
-    num_features = 0
-    for name in os.listdir(directory):
-      name = os.path.join(directory, name)
-      if self.is_feature_file(name):
-        num_features += self.count_features_in_file(name)
+
+    num_features = self.count_features_in_dir(directory)
     assert num_features > 0
     dataset = np.ndarray(num_features, self.dtype)
     offset = 0
     image_index = 0
     lookup_table = {}
     # now begin the actual read
+    start = time.time()
     for name in os.listdir(directory):
       if self.is_feature_file(name):
         offset = self.write_features_to_array(os.path.join(directory, name),
@@ -64,7 +70,9 @@ class FeatureReader(object):
         lookup_table[image_index] = name
         if image_index % 200 == 0:
           INFO('%d/%d features read' % (offset, num_features))
+          INFO_TIMING('%d features per second' % (offset/(time.time() - start)))
         image_index += 1
+    INFO('saving features...')
     for dest in getdests(directory, cellid + ('-%s.npy' % self.name)):
       save_atomic(lambda d: np.save(d, dataset), dest)
     for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
@@ -167,7 +175,7 @@ class CHoGReader(FeatureReader):
 class SURFReader(FeatureReader):
   surf_dtype = {
     'names': ['vec', 'geom', 'index'],
-    'formats': ['64float32', '3uint16', 'uint16'],
+    'formats': ['64int32', '3uint16', 'uint16'],
   }
 
   def __init__(self):
@@ -177,13 +185,14 @@ class SURFReader(FeatureReader):
     return 'surf.npy' in filename
 
   def count_features_in_file(self, surffile):
-    return len(np.load(surf))
+    return len(np.load(surffile))
 
   def write_features_to_array(self, surfname, offset, dataset, index):
-    data = np.load(surf)
-    for i in range(offset, offset + len(data)):
-      dataset[i] = data[i]
-      dataset[i]['index'] = index
+    data = np.load(surfname)
+    # quantize...
+    dataset[offset:offset+len(data)]['vec'] = np.int32(127*data['vec'])
+    dataset[offset:offset+len(data)]['geom'] = data['geom']
+    dataset[offset:offset+len(data)]['index'] = [index]*len(data)
     return offset + len(data)
 
 # vim: et sw=2

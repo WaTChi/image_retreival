@@ -26,6 +26,10 @@ def getCHOGFileNames(dir):
     regex = re.compile(info.CHOGREGEXSTR, re.IGNORECASE)
     return [f for f in getfiles(dir) if regex.match(f)]
 
+def getSURFFileNames(dir):
+    regex = re.compile(info.SURFREGEXSTR, re.IGNORECASE)
+    return [f for f in getfiles(dir) if regex.match(f)]
+
 def getJPGFileNames(dir):
     regex = re.compile(info.IMGREGEXSTR, re.IGNORECASE)
     return [f for f in getfiles(dir) if regex.match(f)]
