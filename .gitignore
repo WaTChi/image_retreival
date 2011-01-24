@@ -1,6 +1,7 @@
 *.pyc
 .svn
-nohup.out
-a.out
 matlab/query2
 matlab/post-processing
+*~
+a.out
+nohup.out

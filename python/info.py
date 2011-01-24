@@ -1,9 +1,9 @@
 import os
 import shutil
-import re
-import earthMine
 import math
 SIFTREGEXSTR = r'.*sift.txt$'
+CHOGREGEXSTR = r'.*chog.txt$'
+SURFREGEXSTR = r'.*surf.npy$'
 IMGREGEXSTR = r'.*.jpg$'
   
 def moveLocation(lat1, lon1, d, bearingDegrees):
@@ -40,6 +40,8 @@ def getQuerySIFTCoord(fname):
     lat=fname.split(",")[1]
     lon=fname.split(",")[2][0:-8]
     return float(lat), float(lon)
+getQueryCHOGCoord = getQuerySIFTCoord
+getQuerySURFCoord = getQuerySIFTCoord
 def getCellCoord(dname):
     lat, lon = dname.split(',')
     lat = float(lat)
@@ -55,17 +57,20 @@ def getSIFTCoord(fname):
     lat=fname.split(",")[0]
     lon=fname.split(",")[1][0:-13]
     return float(lat), float(lon)
+getCHOGCoord = getSIFTCoord
+getSURFCoord = getSIFTCoord
 def getSIFTAngle(fname):
     """gets angle based on JPG file name. makes assumption about format of filename"""
     return int(fname[-12:-8])
 def siftdistance(a, b):
   lat1, lon1 = getSIFTCoord(a)
   lat2, lon2 = getSIFTCoord(b)
-  if lat1 == lat2 and lon1 == lon2:
-    return 0
   return distance(lat1, lon1, lat2, lon2)
+
 def distance(lat1, lon1, lat2, lon2):
     """Gets distance between locations using spherical law of cosines"""
+    if lat1 == lat2 and lon1 == lon2:
+        return 0
     R = 6371e3
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
@@ -82,7 +87,6 @@ def moveCellsIf(path, lat, lon, radius):
     dirs = os.listdir(path)
     dirs = [ dir for dir in dirs if os.path.isdir(os.path.join(path,dir))]
     for dir in dirs:
-        l=len(os.listdir(os.path.join(path,dir)))
         # if l>100:
         lat2, lon2 = dir.split(',')
         lat2 = float(lat2)
