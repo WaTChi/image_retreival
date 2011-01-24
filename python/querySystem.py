@@ -101,16 +101,17 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
             outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
             outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
             copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
-#    combined = combine_until_dup(outputFilePaths, 1000)
-    combined = combine_topn_votes(outputFilePaths, float('inf'))
-#    combined = filter_in_range(newlat, newlon, combined, querysift)
-#    write_scores(querysift, combined, "/media/data/combined")
+##    combined = combine_until_dup(outputFilePaths, 1000)
+#    combined = combine_topn_votes(outputFilePaths, float('inf'))
+##    combined = filter_in_range(newlat, newlon, combined, querysift)
+##    write_scores(querysift, combined, "/media/data/combined")
     results = {}
     for n in topnresults:
-        result = check_topn_img(querysift, combined, n)
-        results[n] = reduce(lambda x,y: x or y, result)
-    if copytopmatch:
-        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, results[1])
+#        result = check_topn_img(querysift, combined, n)
+#        results[n] = reduce(lambda x,y: x or y, result)
+        results[n]=False
+#    if copytopmatch:
+#        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, results[1])
     return results
 
 def filter_in_range(qlat, qlon, ranked_matches, querysift):
@@ -125,22 +126,6 @@ def filter_in_range(qlat, qlon, ranked_matches, querysift):
 #    filtered_matches.sort(key=lambda x: x[1], reverse=True)
     return filtered_matches
 
-#def weigh_cells(ranked_matches, dbdir, nClosestCells):
-#    weighted_matches = []
-#    for matchedimg, score in ranked_matches:
-#        lat = float(matchedimg.split(",")[0])
-#        lon = float(matchedimg.split(",")[1][0:-5])
-#        closest_cells = util.getclosestcells(lat, lon, dbdir)
-#        cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius]
-#        numoverlap = len(cells_in_range)
-#        if numoverlap == 3:
-#            weighted_matches.append((matchedimg, score * 4))
-#        elif numoverlap == 4:
-#            weighted_matches.append((matchedimg, score * 3))
-##        else:
-##            print "ERROR! weigh_cells has more overlap than it's supposed to: {0}, {1}".format(numoverlap, matchedimg)
-#    weighted_matches.sort(key=lambda x: x[1], reverse=True)
-#    return weighted_matches
 
 def get_top_results(outputFilePath, n):
     file = open(outputFilePath)
@@ -195,6 +180,16 @@ def skew_location(querysift, radius):
                 points.append(point)
     return points
 
+def load_locations(querysift):
+    file = open(os.path.join(fuzzydir, querysift.split("sift.txt")[0])+'.fuz')
+    points = []
+    for line in file:
+        lat, lon = line.strip().split('\t')
+        lat = float(lat)
+        lon = float(lon)
+        points.append((lat,lon))
+    return points
+
 def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
@@ -211,7 +206,8 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, par
     for queryfile in files:
         print "checking: {0}".format(queryfile)
 #        for newlat, newlon in [info.getQuerySIFTCoord(queryfile)]:
-        for newlat, newlon in skew_location(queryfile, ambiguity):
+#        for newlat, newlon in skew_location(queryfile, ambiguity):
+        for newlat, newlon in load_locations(queryfile):
             closest_cells = util.getclosestcells(newlat, newlon, dbdir)
             count += 1
             result = run_query(newlat, newlon, querydir, queryfile, dbdir, mainOutputDir, ncells, copytopmatch, closest_cells, params)
@@ -249,12 +245,13 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, par
 cellradius = 236.6
 ambiguity = 0
 matchdistance = 25
-ncells =  1  #if ambiguity+matchdistance<100, 7 is max possible by geometry
+ncells =  7  #if ambiguity+matchdistance<100, 7 is max possible by geometry
 topnresults = [1, 2,5,10]
 verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
-maindir = HOME + "/.gvfs/data on 128.32.43.40"
+maindir = HOME + "/shiraz"
+fuzzydir = os.path.join(maindir, 'query3_fuzzy2/')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 params = query.PARAMS_DEFAULT.copy()
 params.update({
@@ -264,9 +261,13 @@ params.update({
   'vote_method': 'highest',
 })
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'query3tm/')
+    querydir = os.path.join(maindir, 'query3/')
     dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
+    #for ahvaz
+#    matchdir = HOME+'/.gvfs/sftp for zhangz on 128.32.43.34/home/zhangz/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params))
+    #for gorgan
     matchdir = HOME+'/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params))
+    #for q2
 #    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query2', 'query2', query.searchtype(params)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
@@ -283,6 +284,10 @@ if __name__ == "__main__":
         print matchdir
         #get_num_imgs_in_range(ambiguity+matchdistance, dbdir)
         characterize_fuzzy(querydir, dbdir, matchdir, ncells, copytopmatch, params)
+        print "ambiguity:{0}".format(n)
+        print querydir
+        print dbdir
+        print matchdir
 
 
 #def combine_until_dup(outputFilePaths, topn):
@@ -350,3 +355,20 @@ if __name__ == "__main__":
 #        if check_truth(query_str.split('sift')[0], img, groundTruth_dict):
 #            return True
 #    return False
+
+#def weigh_cells(ranked_matches, dbdir, nClosestCells):
+#    weighted_matches = []
+#    for matchedimg, score in ranked_matches:
+#        lat = float(matchedimg.split(",")[0])
+#        lon = float(matchedimg.split(",")[1][0:-5])
+#        closest_cells = util.getclosestcells(lat, lon, dbdir)
+#        cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius]
+#        numoverlap = len(cells_in_range)
+#        if numoverlap == 3:
+#            weighted_matches.append((matchedimg, score * 4))
+#        elif numoverlap == 4:
+#            weighted_matches.append((matchedimg, score * 3))
+##        else:
+##            print "ERROR! weigh_cells has more overlap than it's supposed to: {0}, {1}".format(numoverlap, matchedimg)
+#    weighted_matches.sort(key=lambda x: x[1], reverse=True)
+#    return weighted_matches

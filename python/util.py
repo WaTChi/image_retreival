@@ -1,3 +1,4 @@
+import os.path
 import pprint
 import datetime
 
@@ -7,6 +8,32 @@ import shutil
 
 import earthMine as em
 import info
+
+def countuniqimages(celldir="E:\Research\cellsg=100,r=d=236.6"):
+    names = set()
+    cells = getdirs(celldir)
+    for cell in cells:
+        cellpath=os.path.join(celldir, cell)
+        jpgs = getJPGFileNames(cellpath)
+        for jpg in jpgs:
+            names.add(jpg)
+        print len(jpgs)
+    print len(cells)
+    return len(names)
+
+
+def countimgsinrange(querydir="E:\query3", celldir="E:\Research\cellsg=100,r=d=236.6"):
+    names = set()
+    jpgs = getJPGFileNames(querydir)
+    counts=[]
+    for img in jpgs:
+        lat, lon = info.getQueryCoord(img)
+        cell, dist=getclosestcell(lat, lon, celldir)
+        count = getNumJPGInRange(lat, lon, os.path.join(celldir, cell), 100)
+        print "{0}: {1}".format(img, count)
+        counts.append(count)
+    print sum(counts)/len(counts)
+
 
 def getdirs(path):
     return [dir for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir))]
@@ -67,8 +94,7 @@ def compileGroundTruthFile(inputDir, outputFile):
         pprint.pprint(all_matches, stream=output)
 
 def getNumJPGInRange(lat, lon, inputDir, radius):
-    """puts all images in inputDir within radius of given coordinate into outputDir.
-    makes assumption about format of filename"""
+    """counts all images in inputDir within radius of given coordinate makes assumption about format of filename"""
     if os.path.exists(inputDir):
         count = 0
         files = getJPGFileNames(inputDir)
@@ -204,7 +230,7 @@ def generateCellCoords(lat, lon, len, distance):
         candlat1, candlon1 = em.moveLocation4(candlat1, candlon1, distance, 150)
     return coords
     
-def makecellsgivenspots(spots, inputDir, radius, outputDir='X:\\Research\\newcells\\'):
+def makecellsgivenspots(spots, inputDir="E:\\Research\\collected_images\\earthmine-new,culled\\37.871955,-122.270829", radius=236.6, outputDir='E:\\Research\\newcells\\'):
     print "creating {0} cells from {1}".format(len(spots), inputDir)
     for spot in spots:
         spotstr = str(spot[0]) + ',' + str(spot[1]);
@@ -264,12 +290,14 @@ def getclosestcell(lat, lon, celldir):
             closest_cell = dir
     return closest_cell, closest_dist
     
-def getAvgNumImgsInCell(cellsdirpath="E:\Research\cellsg=50,r=100,d=86.6"):
+def getAvgNumImgsInCell(cellsdirpath="E:\Research\cellsg=100,r=d=236.6"):
     if os.path.exists(cellsdirpath):
         count = 0
         cells = getdirs(cellsdirpath)
         for cell in cells:
-            count += len(getSiftFileNames(os.path.join(cellsdirpath, cell)))
+            num = len(getSiftFileNames(os.path.join(cellsdirpath, cell)))
+            count += num
+            print cell, num
         return count / len(cells)
     else:
         raise OSError("{p} does not exist.".format(p=celldirpath))
@@ -342,135 +370,3 @@ def getNumFeaturesInCell(celldirpath="E:\Research\cellsg=50,r=100,d=86.6\\37.869
 #            else:
 #                counter[img] = 1
 #    return counter
-
-##BEGIN VOCABTREE STUFF
-#import queryDatabase as qD
-#import vTreeBuild
-#import vocabularyTree
-
-#def examine(file):
-#    file = os.path.join("H:\\results2", file)
-#    copy_results("C:\\37.87070,-122.27160,500\\37.8707,-122.2716\\jpg", "C:\\matches", file)
-#    copyResultPGMs("C:\\37.87070,-122.27160,500\\37.8707,-122.2716\\pgm", "C:\\matchPGMs", file)
-#    for line in dupCount(file).items():
-#        print line
-
-# def writeBuiltDBCoords(path, fname):
-    # """writes cell coordinates for all celldirs in path with built vocabtree databases into a file fname for use in google earth"""
-    # if not os.path.exists(path):
-        # return
-    # dirs = os.listdir(path)
-    # dirs = [ dir for dir in dirs if os.path.isdir(os.path.join(path,dir))]
-    # f = open(fname,"w")
-    # for dir in dirs:
-        # lat, lon = dir.split(',')
-        # dirpath = os.path.join(path, dir)
-        # d=os.path.join(dirpath, "doneDatabase10_5.2.bin")
-        # if os.path.exists(d):
-            # f.write(','+lon+'-'+lat+','+lon+','+lat+''+'\n')
-    # f.close()
-
-#def writeResultCoords(path, fname):
-#    if not os.path.exists(path):
-#        return
-#    results = os.listdir(path)
-#    f = open(fname, "w")
-#    for res in results:
-#        lat, lon = res.split(',')[1:3]
-#        lon = lon[0:-4]
-#        f.write(',,' + lon + ',' + lat + '' + '\n')
-#    f.close()
-
-#def copy_results(imgdir, outdir, file):
-#    shutil.rmtree(outdir)
-#    os.makedirs(outdir)
-#    file = open(file)
-#    lines = []
-#    for line in file:
-#        lines.append(line)
-#    lines.sort(key=lambda x: float(x.split(' ')[0].split(',')[-1]))
-#    c1 = 1
-#    for line in lines[0:4]:
-#        c2 = 1
-#        for img in line.split(' ')[1:6]:
-#            shutil.copy(os.path.join(imgdir, ('%s.jpg' % img)), os.path.join(outdir, '%s-%s-%s.jpg' % (c1, c2, img)))
-#            c2 += 1
-#        c1 += 1
-#def copyResultPGMs(imgdir, outdir, file):
-#    shutil.rmtree(outdir)
-#    os.makedirs(outdir)
-#    file = open(file)
-#    lines = []
-#    for line in file:
-#        lines.append(line)
-#    lines.sort(key=lambda x: float(x.split(' ')[0].split(',')[-1]))
-#    for line in lines[0:4]:
-#        for img in line.split(' ')[1:6]:
-#            shutil.copy(os.path.join(imgdir, ('%s.pgm' % img)), outdir)
-#def copyResultSIFTs(imgdir, outdir, file):
-#    file = open(file)
-#    lines = []
-#    for line in file:
-#        lines.append(line)
-#    lines.sort(key=lambda x: float(x.split(' ')[0].split(',')[-1]))
-#    for line in lines[0:4]:
-#        for img in line.split(' ')[1:6]:
-#            shutil.copy(os.path.join(imgdir, ('%ssift.txt' % img)), outdir)
-
-#def query(lat, lon, celldir, imgPath, radius=150):
-#    if not os.path.exists(celldir):
-#        return
-#    dirs = [ dir for dir in os.listdir(celldir) if os.path.isdir(os.path.join(celldir,dir))]
-#    for dir in dirs:
-#        lat2, lon2 = dir.split(',')
-#        lat2 = float(lat2)
-#        lon2 = float(lon2)
-#        dirpath = os.path.join(celldir, dir)
-#        d=os.path.join(dirpath, "doneDatabase10_5.2.bin")
-#        if  info.distance(lat,lon,lat2,lon2) < radius and os.path.exists(d):
-#            print "querying{0}".format(dir)
-#            qD.queryTree(d, imgPath, os.path.join("C:\\results\\", dir), numresults=10)
-
-#def queryTrees(celldir, qPath, outdir, radius=150, numresults=10):
-#    regex = re.compile(r'.*sift.txt$', re.IGNORECASE)
-#    files = [f for f in os.listdir(qPath) if regex.match(f)]
-#    files.sort()
-#    dirs = [ dir for dir in os.listdir(celldir) if os.path.isdir(os.path.join(celldir,dir))]
-#    for file in files:
-#        outfile = os.path.join(outdir, "%s.txt" % file[0:-8])
-#        print outfile
-#        if not os.path.exists(outfile):
-#            print "checking query: {0}".format(file)
-#            lat, lon = info.getQuerySIFTCoord(file)
-#            feats = vocabularyTree.readonefileSIFT(os.path.join(qPath,file))
-#            r=[]
-#            toQuery=[]
-#            for dir in dirs:
-#                lat2, lon2 = info.getCellCoord(dir)
-#                dirpath = os.path.join(celldir, dir)
-#                dbpath = os.path.join(dirpath, "doneDatabase10_5.2.bin")
-#                dist = info.distance(lat,lon,lat2,lon2)
-#                if  dist < radius and os.path.exists(dbpath):
-#                    toQuery.append([dir, dist])
-#            toQuery.sort(key = lambda x : x[1])
-#            for pair in toQuery[0:4]:
-#                dir = pair[0]
-#                dist = pair[1]
-#                dirpath = os.path.join(celldir, dir)
-#                dbpath = os.path.join(dirpath, "doneDatabase10_5.2.bin")
-#                print "Loading database: {0}".format(dbpath)
-#                d = vocabularyTree.Database(None)
-#                d.fromFile(dbpath)
-#                print "querying"
-#                results = d.queryn(feats, numresults)
-#                results.reverse()
-#                r.append(" ".join(["%(dir)s,%(dist)s" % locals()] + map(lambda x: str(x[0]),results)))
-#                del d
-#            print "writing output: {0}".format(file)
-#            of = open(outfile,'w')
-#            for result in r:
-#                of.write(result)
-#                of.write("\n")
-#            of.close()
-
-##END VOCABTREE STUFF

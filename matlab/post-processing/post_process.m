@@ -3,7 +3,7 @@ function [results] = post_process(query_set,method)
 % [results] = post_process(query_set,method)
 % 
 % First coded 8 Jan 2011 by Aaron Hallquist
-% Latest revision 9 Jan 2011 by Aaron Hallquist
+% Latest revision 18 Jan 2011 by Aaron Hallquist
 % 
 % DESCRIPTION
 %   This function computes the post-processing results on the input query
@@ -14,13 +14,15 @@ function [results] = post_process(query_set,method)
 %   query_set:  Integer determining which query set to post process.
 %   method:     Structure detailing what method to use. Contents depend on
 %               the values of certain required fields, listed below:
-%       .fuzzy:     Boolean to use fuzzy reported locations
-%       .cell_dist: Maximum distance between location and cell center to
-%                   search that cell. If equal to zero, we use no
-%                   combination and only the nearest cell is searched
-%       .decision:  Decision method. Current modes supported...
-%       .rerank10:  Boolean to rerank 10 and analyze
-%               'linear':   Linear combination of votes and scores.
+%       .fuzzy:         Boolean to use fuzzy reported locations
+%       .cell_dist:     Maximum distance between location and cell center
+%                       to search that cell. If equal to zero, we use no
+%                       combination and only the nearest cell is searched
+%       .decision:      Decision method. Current modes supported...
+%           'linear':   Linear combination of votes and scores.
+%       .rerank:        Boolean to rerank 10 and analyze
+%       .filter:        Boolean to filter nearby db images or not.
+%       .distribution:  Fuzzy point distribution: 'uniform' or 'exponential'
 %       - type 'help ppstruct' for additional fields used based on the
 %         values of the above fields
 % 
@@ -31,7 +33,7 @@ function [results] = post_process(query_set,method)
 
 % Fixed directory
 dbDir = 'E:\Research\collected_images\earthmine-new,culled\37.871955,-122.270829\';
-gtDir = ['E:\Research\app\code\matlab\ground-truth\'];
+gtDir = 'E:\Research\app\code\matlab\ground-truth\';
 
 % Adjusted directories based on inputs
 qDir = ['E:\query',num2str(query_set),'\'];
@@ -46,12 +48,24 @@ run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 addpath('.\..\util\')
 
 % Load results structure
-if method.fuzzy && ~method.rerank10
+if strcmp(method.distribution,'exponential') && method.filter
+    results_file = ['.\',method.decision,'\query',num2str(query_set), ...
+        'expo',num2str(dRound(method.cell_dist,0)),'filt_results.mat'];
+elseif strcmp(method.distribution,'exponential') && ~method.filter
+    results_file = ['.\',method.decision,'\query',num2str(query_set), ...
+        'expo',num2str(dRound(method.cell_dist,0)),'nofilt_results.mat'];
+elseif method.fuzzy && ~method.rerank && method.filter
     results_file = ['.\',method.decision,'\query',num2str(query_set), ...
         'fuzzy',num2str(dRound(method.cell_dist,0)),'_results.mat'];
-elseif method.fuzzy && method.rerank10
+elseif method.fuzzy && method.rerank && method.filter
     results_file = ['.\',method.decision,'\rerank\query',num2str(query_set), ...
         'fuzzy',num2str(dRound(method.cell_dist,0)),'_results.mat'];
+elseif method.fuzzy && ~method.rerank && ~method.filter
+    results_file = ['.\',method.decision,'\query',num2str(query_set), ...
+        'fuzzy',num2str(dRound(method.cell_dist,0)),'nofilt_results.mat'];
+elseif method.fuzzy && method.rerank && ~method.filter
+    results_file = ['.\',method.decision,'\rerank\query',num2str(query_set), ...
+        'fuzzy',num2str(dRound(method.cell_dist,0)),'nofilt_results.mat'];
 else
     results_file = ['.\',method.decision,'\query',num2str(query_set), ...
         'exact',num2str(dRound(method.cell_dist,0)),'_results.mat'];
@@ -66,6 +80,7 @@ end
 query = dir(qDir);
 query = strvcat(query(3:end).name);
 query = unique(str2double(cellstr(query(:,5:8)))); % query numbers
+query(isnan(query)) = [];
 nq = length(query); % number of queries
 
 % Load query ratio scores
@@ -84,8 +99,13 @@ if method.fuzzy && strcmp(method.decision,'linear')
     wv = method.wv;
     ws = method.ws;
     cell_dist = method.cell_dist;
-    fuzzy_rad = 75;
-    filt_dist = 100;
+    if strcmp(method.distribution,'exponential')
+        fuzzy_rad = 200;
+        spacing = 4;
+    else
+        fuzzy_rad = 75;
+        spacing = 1;
+    end
     N = 10; % maximum number of candidate images
     nruns = length(wv);
     
@@ -128,8 +148,11 @@ if method.fuzzy && strcmp(method.decision,'linear')
             'decision and vote combination...\n'])
     end
     
+%     mismatch_file = 'E:\Research\app\code\matlab\post-processing\linear\rerank\mismatch.txt';
+%     fid = fopen(mismatch_file,'w');
+    
     % Iterate through each query
-    for k=1:nq
+    for k=1:73
         
         fprintf(['\nProcessing query ',num2str(k),'... '])
         
@@ -146,11 +169,13 @@ if method.fuzzy && strcmp(method.decision,'linear')
         qLon = str2double(query_name(idx(2)+1:end-8));
         
         % Get fuzzy point locations
-        [lats,lons] = getFuzzyLocs(qLat,qLon,fuzzy_rad);
+        [lats,lons] = getFuzzyLocs(qLat,qLon,fuzzy_rad,spacing);
         
         % Create cell groupings from fuzzy points and iterate through them
         cellgroups = groupFuzzy(lats,lons,cLat,cLon,cell_dist);
         
+%         ma = 0;
+%         to = 0;
         for cg=cellgroups
             
             % Combine cells in this grouping
@@ -161,10 +186,16 @@ if method.fuzzy && strcmp(method.decision,'linear')
             for j=1:cg.npts
                 
                 % Get the candidate images from the combined votes
-                cand_idx = getCand( cg.lats(j),cg.lons(j), ...
-                    img_lat,img_lon,vote,filt_dist,method.rerank10 );
-                cand = image(cand_idx);
-                cand_vote = vote(cand_idx);
+                if ~method.filter
+                    [cand,cand_vote] = getCand( cg.lats(j),cg.lons(j), ...
+                        img_lat,img_lon,image,vote,'none',method.rerank );
+                elseif strcmp(method.distribution,'exponential')
+                    [cand,cand_vote] = getCand( cg.lats(j),cg.lons(j), ...
+                        img_lat,img_lon,image,vote,'exponential',method.rerank );
+                else
+                    [cand,cand_vote] = getCand( cg.lats(j),cg.lons(j), ...
+                        img_lat,img_lon,image,vote,'cutoff',method.rerank );
+                end
                 
                 % Get the candidate ratio scores
                 idx = find(query_scores.number==query(k),1,'first');
@@ -178,15 +209,27 @@ if method.fuzzy && strcmp(method.decision,'linear')
                 
                 % Evaluate the post processing
                 [m,p] = evaluateScores(cand_vote,cand_score,cand, ...
-                    gt,wv,ws,method.rerank10);
-                match = match + m;
-                poss = poss + p;
+                    gt,wv,ws,method.rerank);
+                % weigh result if exponential distribution
+                if strcmp(method.distribution,'exponential')
+                    d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
+                    weight = exp(-d/50);
+                else
+                    weight = 1;
+                end
+                match = match + weight*m;
+                poss = poss + weight*p;
+                total = total + weight;
+%                 ma = ma+m(1);
                 
             end
             
-            total = total + cg.npts;
+%             to = to + cg.npts;
             
         end
+        
+%         mismatch_pct = ma / to;
+%         fprintf(fid,[query_name(1:end-8),'\t%1.4f\n'],mismatch_pct);
         
     end
     
@@ -194,6 +237,7 @@ end
 
 % store query ratio scores
 save(scores_file,'query_scores')
+% fclose(fid);
 
 % store results
 results.match(end-nruns+1:end,:) = match;

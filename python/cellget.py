@@ -6,7 +6,6 @@ import earthMine
 import math
 import cPickle
 import info
-import vTreeBuild
 #import util
 
 DEBUG = 0
@@ -54,31 +53,6 @@ def createCells(lat, lon, radius, cellRad, uncertaintyRad, imgDir):
         p=os.path.join(imgDir, str(c["lat"])+','+str(c["lon"]))
         util.copySIFTInRange(c["lat"], c["lon"], imgDir, p, cellRad)
     util.removeEmptyDir(imgDir)
-
-def buildTrees(lat, lon, radius, celldir):
-    if not os.path.exists(celldir):
-        return
-    dirs = [ dir for dir in os.listdir(celldir) if os.path.isdir(os.path.join(celldir,dir))]
-    totalcount= 0
-    failcount = 0
-    for dir in dirs:
-        lat2, lon2 = dir.split(',')
-        lat2 = float(lat2)
-        lon2 = float(lon2)
-        dirpath = os.path.join(celldir, dir)
-        d=os.path.join(dirpath, "doneDatabase10_5.2.bin")
-        if  info.distance(lat,lon,lat2,lon2) < radius and not os.path.exists(d):
-#            try:
-            print "building: {0}".format(dir)
-            vTreeBuild.buildTree(dirpath)
-#            except MemoryError:
-#                failcount+=1
-#                print sys.exc_info()
-#                if os.path.exists(d):
-#                    os.remove(d)
-            totalcount+=1
-            print "builds: {c}".format(c=totalcount)
-            print "builds failed: {c}".format(c=failcount)
 
 def naiveHundredGet(lat, lon, radius, x, y):
     center = earthMine.ddLocation(lat, lon)    

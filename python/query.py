@@ -68,11 +68,11 @@ class Query(threading.Thread):
     self.params = params
     self.barrier = barrier
     pyflann.set_distance_type(params['distance_type'])
-    self.flann = pyflann.FLANN()
 
   def run(self):
     if self.barrier:
       self.barrier.acquire()
+    self.flann = pyflann.FLANN()
     start = time.time()
     mapping, keyset = self._build_index()
     queryset = load_file(self.qpath)
@@ -88,6 +88,9 @@ class Query(threading.Thread):
     INFO_TIMING("took %f total" % (time.time() - start))
     if self.barrier:
       self.barrier.release()
+    # free memory - in case the Query is still around
+    self.flann = None
+    self.dataset = None
 
   def vote(self, queryset, mapping, keyset, results, dists):
     INFO('voting with method %s' % self.params['vote_method'])
