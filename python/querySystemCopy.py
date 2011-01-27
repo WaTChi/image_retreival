@@ -16,7 +16,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query4'
 try:
     NUM_THREADS = int(os.environ['NUM_THREADS'])
 except:
@@ -72,21 +72,23 @@ def copy_top_match(querydir, query, ranked_matches, match, qlat, qlon):
     clon = float(matchedimg.split(",")[1][0:-5])
     distance = info.distance(qlat, qlon, clat, clon)
 
+    udir = os.path.join(resultsdir, query)
+    os.makedirs(udir)
     queryimgpath = os.path.join(querydir, query + '.pgm')
-    queryoutpath = os.path.join(resultsdir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.pgm')
+    queryoutpath = os.path.join(udir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.pgm')
     shutil.copyfile(queryimgpath, queryoutpath)
     i = 0
     for matchedimg, score in ranked_matches:
-#        if score != topentry[1]:
-#            break
-        i += 1 # XXX tmp image analysis code to spit out top 10
-        if i > 9:
-            break;
+        if score != topentry[1]:
+            break
+#        i += 1 # XXX tmp image analysis code to spit out top 10
+#        if i > 9:
+#            break;
         clat = float(matchedimg.split(",")[0])
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matchoutpath = os.path.join(resultsdir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         shutil.copy(matchimgpath, matchoutpath)
 
 def write_scores(querysift, ranked_matches, outdir):
@@ -291,14 +293,14 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-copytopmatch = False
+copytopmatch = True
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 #maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
-  'checks': 1024,
-  'trees': 1,
+  'checks': 2048,
+  'trees': 4,
   'distance_type': 'euclidean',
   'vote_method': 'highest',
   'confstring': '',
@@ -306,8 +308,8 @@ params.update({
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
 if __name__ == "__main__":
     querydir = os.path.join(maindir, '%s/' % QUERY)
-    dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
+    dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
+    matchdir = os.path.join(maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
