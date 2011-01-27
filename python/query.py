@@ -53,36 +53,39 @@ def searchtype(params):
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
-  ok = False
+  INFO("running queries with up to %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
-    if not os.path.exists(outputFilePath):
-      if not ok:
-        INFO("running queries with %d threads" % num_threads)
-        ok = True
-      thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
-      threads.append(thread)
-      thread.start()
+    thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
+    threads.append(thread)
+    thread.start()
   for thread in threads:
      thread.join()
 
+# Produces human readable .res file with summary of votes.
+# Also produces a .res-detailed.npy file:
+#   list of (imagename,
+#      list of (vector geom from db,
+#              matching vector geom from query))
+#   sorted by decreasing number of matching features
+#   for plotting, postprocessing, etc.
+# Note that the vote method chosen is responsible for this list.
 class Query(threading.Thread):
-  def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None, dump=None):
-# for more detailed results, specify dump.
-# dump will be a *.npy file with:
-# map of (imagename => list of (vector from db, matching vector from query))
+  def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
     threading.Thread.__init__(self)
     self.qpath = qdir + qfile
     self.cellpath = celldir + cell
     self.outfile = outfile
     self.params = params
     self.barrier = barrier
-    self.dump = dump
+    self.dump = self.outfile + '-detailed.npy'
     pyflann.set_distance_type(params['distance_type'])
     self.reader = reader.get_reader(params['descriptor'])
 
   def run(self):
     if self.barrier:
       self.barrier.acquire()
+    if os.path.exists(self.outfile) and os.path.exists(self.dump):
+      return
     self.flann = pyflann.FLANN()
     start = time.time()
     dataset, mapping = self._build_index()
@@ -90,16 +93,15 @@ class Query(threading.Thread):
     qtime = time.time()
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
-    counts = self.vote(queryset, dataset, mapping, results, dists)
-    if self.dump:
-      INFO('saving raw vote data in %s' % self.dump)
-      np.save(self.dump, counts)
-    votes = sorted([(len(counts[img]), img) for img in counts], reverse=True)
-#    total = 0
-    with open(self.outfile, 'w') as f:
-      for tally in votes:
-        f.write("%f\t%s\n" % tally)
-#        total += tally[0]
+    sorted_counts = self.vote(queryset, dataset, mapping, results, dists)
+    INFO('saving detailed vote data in %s' % self.dump)
+    save_atomic(lambda d: np.save(d, sorted_counts), self.dump)
+    votes = [(len(matches), img) for img, matches in sorted_counts]
+    def write_votes(d):
+      with open(d, 'w') as f:
+        for tally in votes:
+          f.write("%f\t%s\n" % tally)
+    save_atomic(write_votes, self.outfile)
     INFO_TIMING("took %f total" % (time.time() - start))
     if self.barrier:
       self.barrier.release()
@@ -110,9 +112,7 @@ class Query(threading.Thread):
     INFO('voting with method %s' % self.params['vote_method'])
     counts = {
       'highest': self._vote_highest,
-      'weighted': self._vote_weighted,
-      'location': self._vote_location,
-      'revote_exact': self._vote_revote_exact,
+      'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
@@ -125,11 +125,20 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
-        counts[img].append(results[i])
+        counts[img].append({'db': dataset[results[i]]['geom'].copy(),
+                            'query': queryset[i]['geom'].copy()})
       else:
         reject += 1
     INFO('accepted %d/%d votes' % (accept, accept + reject))
-    return counts
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
+  def _vote_ransac(self, queryset, dataset, mapping, results, dists):
+    sorted_counts = self._vote_highest(queryset, dataset, mapping, results, dists)
+    # filters out outliers from counts until
+    # filtered_votes(ith image) > votes(jth image) for all j != i
+    # and returns top 10 filtered results
+    raise NotImplementedError
 
   def _build_index(self):
     start = time.time()

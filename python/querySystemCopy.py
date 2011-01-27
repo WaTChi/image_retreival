@@ -16,7 +16,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query4'
+QUERY = 'query3'
 try:
     NUM_THREADS = int(os.environ['NUM_THREADS'])
 except:
@@ -299,8 +299,8 @@ maindir = os.path.expanduser('~/shiraz')
 #maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
-  'checks': 2048,
-  'trees': 4,
+  'checks': 1024,
+  'trees': 1,
   'distance_type': 'euclidean',
   'vote_method': 'highest',
   'confstring': '',
