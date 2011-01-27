@@ -40,11 +40,14 @@ class LazyPixelMap:
 
 if __name__ == '__main__':
   mapper = LazyPixelMap('/home/ericl/shiraz/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
-  superdir = '/home/ericl/shiraz/Research/cellsg=100,r=d=236.6/'
+  superdir = '/home/ericl/shiraz/Research/cells/g=100,r=d=236.6/'
   for dir in os.listdir(superdir):
     dir = os.path.join(superdir, dir)
     if os.path.isdir(dir):
       for f in get_reader('sift').get_feature_files_in_dir(dir):
-        mapper.open(f)
+        try:
+          mapper.open(f)
+        except:
+          pass
 
 # vim: et sw=2
