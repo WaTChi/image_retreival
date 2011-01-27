@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Find real locations of corresponding features.
-# Provides map from (file, pixel) => (lat, lon, alt)
-# Use pixelmap.open(...) for efficency.
+# Use pixelmap.open(siftfile) for efficency.
+# Provides map from (pixel) => (lat, lon, alt)
 
 from config import *
 from reader import get_reader

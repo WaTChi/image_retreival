@@ -88,11 +88,11 @@ class Query(threading.Thread):
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
     votes = self.vote(queryset, dataset, mapping, results, dists)
-    total = 0
+#    total = 0
     with open(self.outfile, 'w') as f:
       for tally in votes:
         f.write("%f\t%s\n" % tally)
-        total += tally[0]
+#        total += tally[0]
     INFO_TIMING("took %f total" % (time.time() - start))
     if self.barrier:
       self.barrier.release()

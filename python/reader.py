@@ -90,7 +90,9 @@ class FeatureReader(object):
     """Efficiently loads a matrix of features and reverse lookup table
        for a directory of files."""
     cellid = getcellid(directory)
+    #features, geom, index
     data_out = getfile(directory, cellid + ('-%s.npy' % self.name))
+    #mapping
     pydata_out = getfile(directory, cellid + ('-%s-pydata.npy' % self.name))
     if not os.path.exists(data_out) or not os.path.exists(pydata_out):
       INFO('finding %s files' % self.name)
