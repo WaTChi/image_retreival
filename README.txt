@@ -1,8 +1,10 @@
 Dependencies:
   Numpy
+  OpenCV
+  PIL
+  PyFLANN
   SciPy
   httplib
-  PIL
 
 Important Libraries:
   earthmine.py - download data from earthmine

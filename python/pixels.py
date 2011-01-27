@@ -9,7 +9,7 @@ from earthMine import ddGetAllPixels
 import numpy as np
 import os
 
-class LazyPixelMap:
+class PixelMap:
   def __init__(self, infodir):
     self.infodir = infodir
     self.datastore = os.path.join(os.path.dirname(os.path.abspath(infodir)), 'pixeldata')
@@ -39,7 +39,7 @@ class LazyPixelMap:
     return np.load(cached).item()
 
 if __name__ == '__main__':
-  mapper = LazyPixelMap('/home/ericl/shiraz/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+  mapper = PixelMap('/home/ericl/shiraz/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
   superdir = '/home/ericl/shiraz/Research/cells/g=100,r=d=236.6/'
   for dir in os.listdir(superdir):
     dir = os.path.join(superdir, dir)
