@@ -7,8 +7,19 @@ import numpy as np
 import cv
 import os
 
-CONFIDENCE_LEVEL = 0.99
-MAX_PIXEL_DEVIATION = 10
+CONFIDENCE_LEVEL = 0.999
+MAX_PIXEL_DEVIATION = 20
+
+def combine_matches(outputFilePaths):
+  """Returns dictionary of siftfile => matches"""
+  comb = {}
+  for res in outputFilePaths:
+    detailed = res + '-detailed.npy'
+    for image, matches in np.load(detailed):
+      if image not in comb:
+        comb[image] = []
+      comb[image].extend(matches)
+  return comb
 
 def find_corr(matches):
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
@@ -30,7 +41,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   a = Image.open(q_img)
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
-  target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+  target = Image.new('RGB', (a.size[0] + b.size[0], height))
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
   draw = ImageDraw.Draw(target)

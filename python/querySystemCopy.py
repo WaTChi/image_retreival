@@ -8,6 +8,7 @@ from config import *
 from android import AndroidReader
 import info
 import query
+import corr
 import query1GroundTruth
 import groundtruthB
 import groundtruthG
@@ -16,7 +17,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query4'
 try:
     NUM_THREADS = int(os.environ['NUM_THREADS'])
 except:
@@ -48,20 +49,7 @@ def check_truth(query_str, result_str, groundTruth_dict):
     print result_str
     return result_str in groundTruth_dict[query_str]
 
-def copy_topn_results(imgdir, outdir, filepath, topn=4):
-    if  os.path.exists(outdir):
-        shutil.rmtree(outdir)
-    os.makedirs(outdir)
-    file = open(filepath)
-    lines = []
-    for line in file:
-        lines.append(line)
-    for line in lines[0:4]:
-        score = line.split('\t')[0]
-        img = line.split('\t')[1].split('sift')[0]
-        shutil.copyfile(os.path.join(imgdir, ('%s.jpg' % img)), os.path.join(outdir, '%s-%s.jpg' % (score, img)))
-
-def copy_top_match(querydir, query, ranked_matches, match, qlat, qlon):
+def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
     topentry = ranked_matches[0]
     matchedimg = topentry[0]
     score = topentry[1]
@@ -72,11 +60,11 @@ def copy_top_match(querydir, query, ranked_matches, match, qlat, qlon):
     clon = float(matchedimg.split(",")[1][0:-5])
     distance = info.distance(qlat, qlon, clat, clon)
 
-    udir = os.path.join(resultsdir, query)
-    os.makedirs(udir)
+    udir = resultsdir
+#    udir = os.path.join(resultsdir, query)
+#    os.makedirs(udir)
     queryimgpath = os.path.join(querydir, query + '.pgm')
     queryoutpath = os.path.join(udir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.pgm')
-    shutil.copyfile(queryimgpath, queryoutpath)
     i = 0
     for matchedimg, score in ranked_matches:
         if score != topentry[1]:
@@ -88,8 +76,10 @@ def copy_top_match(querydir, query, ranked_matches, match, qlat, qlon):
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-        shutil.copy(matchimgpath, matchoutpath)
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
+        matches = comb_matches[matchedimg + 'sift.txt']
+        F, inliers = corr.find_corr(matches)
+        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
 def write_scores(querysift, ranked_matches, outdir):
     if  not os.path.exists(outdir):
@@ -101,7 +91,7 @@ def write_scores(querysift, ranked_matches, outdir):
         outfile.write(matchedimg)
         outfile.write('\n')
 
-def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, params, lat, lon, copy_top_n_percell=0):
+def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr, params, lat, lon):
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
@@ -125,17 +115,15 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatc
         loncell = float(loncell)
         actualdist = info.distance(lat, lon, latcell, loncell)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
-        if copy_top_n_percell > 0:
-            outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
-            copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
 #    combined = combine_until_dup(outputFilePaths, 1000)
     combined = combine_topn_votes(outputFilePaths, float('inf'))
+    comb_matches = corr.combine_matches(outputFilePaths)
 #    combined = filter_in_range(combined, querysift)
 #    write_scores(querysift, combined, "/media/data/combined")
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
-    if copytopmatch:
+    if drawtopcorr:
         match = g or y or r or b or o
-        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, match, lat, lon)
+        draw_top_corr(querydir, querysift.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
     return [g, y, r, b, o]
     
 def filter_in_range(ranked_matches, querysift):
@@ -227,11 +215,11 @@ def skew_location(querysift, radius):
                 points.append(point)
     return points
     
-def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
+def characterize(querydir, dbdir, mainOutputDir, n, drawtopcorr, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
-    if copytopmatch:
+    if drawtopcorr:
         if os.path.exists(resultsdir):
             shutil.rmtree(resultsdir)
         os.makedirs(resultsdir)
@@ -245,7 +233,7 @@ def characterize(querydir, dbdir, mainOutputDir, n, copytopmatch, params):
     for image in reader:
         queryfile = image.sift
         count += 1
-        [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, copytopmatch, params, image.lat, image.lon)
+        [g, y, r, b, o] = query2(querydir, queryfile, dbdir, mainOutputDir, n, drawtopcorr, params, image.lat, image.lon)
         if g:
             g_count += 1
             if verbosity > 0:
@@ -293,7 +281,7 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-copytopmatch = True
+drawtopcorr = True
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 #maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
@@ -319,4 +307,4 @@ if __name__ == "__main__":
         matchdir = sys.argv[3]
     topnresults = 1
     INFO("matchdir=%s" % matchdir)
-    characterize(querydir, dbdir, matchdir, ncells, copytopmatch, params)
+    characterize(querydir, dbdir, matchdir, ncells, drawtopcorr, params)
