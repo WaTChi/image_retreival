@@ -8,6 +8,7 @@
 
 from config import *
 import reader
+import corr
 from multiprocessing import cpu_count
 import time
 import pyflann
@@ -138,7 +139,21 @@ class Query(threading.Thread):
     # filters out outliers from counts until
     # filtered_votes(ith image) > votes(jth image) for all j != i
     # and returns top 10 filtered results
-    raise NotImplementedError
+    filtered = {}
+    bound = -1
+    num_filt = 0
+    for siftfile, matches in sorted_counts:
+      if len(matches) < bound:
+        INFO('stopped after filtering %d' % num_filt)
+        break
+      num_filt += 1
+      F, inliers = corr.find_corr(matches)
+      bound = max(sum(inliers), bound)
+      pts = np.ndarray(len(matches), np.object)
+      pts[0:len(matches)] = matches
+      filtered[siftfile] = list(np.compress(inliers, pts))
+    sorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
 
   def _build_index(self):
     start = time.time()

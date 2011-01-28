@@ -7,7 +7,7 @@ import cv
 import os
 
 CONFIDENCE_LEVEL = 0.99
-MAX_PIXEL_DEVIATION = 3
+MAX_PIXEL_DEVIATION = 1
 
 def find_corr(matches):
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
