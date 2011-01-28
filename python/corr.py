@@ -2,12 +2,13 @@
 
 from config import *
 import time
+import Image, ImageDraw
 import numpy as np
 import cv
 import os
 
-CONFIDENCE_LEVEL = 0.99
-MAX_PIXEL_DEVIATION = 3
+CONFIDENCE_LEVEL = 0.999
+MAX_PIXEL_DEVIATION = 10
 
 def find_corr(matches):
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
@@ -19,18 +20,41 @@ def find_corr(matches):
   inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
   cv.SetZero(F)
   cv.SetZero(inliers)
-  ret = cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
-#  if not ret:
-#    raise Exception, "No correspondence found."
+  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(detailed_resfile, q_img, db_img, out_img, inliers):
+def draw_matches(matches, q_img, db_img, out_img, inliers):
+  # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-  pass
+  a = Image.open(q_img)
+  b = Image.open(db_img)
+  height = max(a.size[1], b.size[1])
+  target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+  target.paste(a, (0,0))
+  target.paste(b, (a.size[0],0))
+  draw = ImageDraw.Draw(target)
+  green = np.compress(inliers, matches)
+  red = np.compress(map(lambda x: not x, inliers), matches)
+  def drawline(match, color):
+    db = [match['db'][1] + a.size[0], match['db'][0]]
+    draw.line([match['query'][1], match['query'][0]] + db, fill=color)
+  def drawcircle(match):
+    draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline="hsl(20,100%,50%)")
+    draw.ellipse((match['db'][1] + a.size[0] - match['db'][2], match['db'][0] - match['db'][2], match['db'][1] + a.size[0] + match['db'][2], match['db'][0] + match['db'][2]), outline="hsl(20,100%,50%)")
+
+  for match in red:
+    drawline(match, 'red')
+    drawcircle(match)
+  for match in green:
+    drawline(match, 'green')
+    drawcircle(match)
+  target.save(out_img, 'png')
+
 
 if __name__ == '__main__':
-  mdir = '/home/ericl/shiraz/'
+#  mdir = '/home/ericl/shiraz/'
+  mdir = '/home/eric/.gvfs/sftp for ericl on gorgan/home/ericl/shiraz/'
   res = mdir + 'Research/results/query3/matchescells(g=100,r=d=236.6),query3,kdtree1,threshold=70k,searchparam=1024/DSC_8848,37.872682,-122.268556sift.txt,37.8714488812,-122.266998471,193.626818312.res-detailed.npy'
   votes = np.load(res)[0][1] # top image
   start = time.time()
@@ -42,6 +66,6 @@ if __name__ == '__main__':
   INFO_TIMING('RANSAC took %f seconds' % (time.time() - start))
   q_img = mdir + 'query3/DSC_8848,37.872682,-122.268556.pgm'
   db_img = mdir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8726500925,-122.268473956-0010.jpg'
-  draw_matches(res, q_img, db_img, '/home/ericl/out.png', inliers)
+  draw_matches(votes, q_img, db_img, '/home/eric/Desktop/out.png', inliers)
 
 # vim: et sw=2

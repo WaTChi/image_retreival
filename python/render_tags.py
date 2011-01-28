@@ -170,7 +170,6 @@ class TaggedImage:
       img = self.image.copy()
       draw2 = ImageDraw.Draw(img)
       draw2.rectangle([top_left, bottom_right], fill='#000')
-      draw2.ellipse((point[0]-size,point[1]-size,point[0]+size,point[1]+size), fill='#000')
 
       self.image = Image.blend(self.image, img, 0.75)
       draw = ImageDraw.Draw(self.image)
