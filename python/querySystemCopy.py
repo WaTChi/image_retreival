@@ -17,7 +17,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query4'
 try:
     NUM_THREADS = int(os.environ['NUM_THREADS'])
 except:
@@ -281,17 +281,13 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-drawtopcorr = True
+drawtopcorr = 1
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
-#maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
-
 # want to test
 # 70k normal
 # 999k normal
-# 70k ransac
-# 999k ransac
 params.update({
   'checks': 1024,
   'trees': 1,
