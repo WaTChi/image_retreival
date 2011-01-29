@@ -4,8 +4,8 @@ import shutil
 from datetime import datetime
 
 LOCAL_CACHING = True
-CACHE_PATH = os.path.expanduser('~/cache')
-IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d
+CACHE_PATH = os.path.expanduser('/var/tmp')
+IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
 
 def getdests(directory, name):
   default = os.path.join(os.path.dirname(directory), name)
@@ -47,7 +47,7 @@ def INFO(x):
   print datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
-  INFO(x)
+#  INFO(x)
   pass
 
 # vim: et sw=2

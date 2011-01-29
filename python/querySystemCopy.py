@@ -281,16 +281,19 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-drawtopcorr = True
+drawtopcorr = 1
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
-#maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
+# want to test
+# 70k normal
+# 999k normal
 params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'highest',
+  'vote_method': 'restrict',
+  'dist_threshold': 70000,
   'confstring': '',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")

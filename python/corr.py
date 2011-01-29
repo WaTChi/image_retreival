@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pyhehon
 
 from config import *
 import time
@@ -16,6 +16,7 @@ def combine_matches(outputFilePaths):
   for res in outputFilePaths:
     detailed = res + '-detailed.npy'
     for image, matches in np.load(detailed):
+      assert type(matches) == list
       if image not in comb:
         comb[image] = []
       comb[image].extend(matches)
