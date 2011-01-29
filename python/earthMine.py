@@ -31,6 +31,7 @@ DD_VIEWPIXELMAX = 400
 DD_VIEWPIXELSIDE = 20
 EARTHMINE_URL = "http://cloud.earthmine.com/service"
 
+DEBUG=1
 
 class ddError(Exception):
     """Default Exception class for ddErrors."""
@@ -414,9 +415,11 @@ def ddGetViews(ddConnection, lat, lon, radius=60, maxResults=12, FOV=DEFFOV, wid
 
     try:
         ddConnection.buildGetViews(width, height, searchRadius=radius, maxResults=maxResults, FOV=FOV, lat=lat, lon=lon)
-        print ddConnection.JSONData
+        if DEBUG > 0:
+            print ddConnection.JSONData
         result = ddConnection.sendRequest()
     except Exception as msg:
+        print "sent: {0}".format(ddConnection.JSONData)
         raise ddError(0, "ddConnection object raised an exception: {msg}".format(msg=msg))
 
     try:
@@ -429,9 +432,11 @@ def ddGetPanos(ddConnection, lat, lon, radius=60, maxResults=12):
        the given latitude and longitude."""
     try:
         ddConnection.buildGetPano(searchRadius=radius, maxResults=maxResults, lat=lat, lon=lon)
-        print ddConnection.JSONData
+        if DEBUG > 0:
+            print ddConnection.JSONData
         result = ddConnection.sendRequest()
     except Exception as msg:
+        print "sent: {0}".format(ddConnection.JSONData)
         raise ddError(0, "ddConnection object raised an exception: {msg}".format(msg=msg))
 
     try:

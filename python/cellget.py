@@ -20,8 +20,10 @@ def get_spots_in_square(lat, lon, halflength, x, y):
     print "Getting list of views within {rad} meters...".format(rad=halflength),
     conn = earthMine.ddObject()
     r=100
+    #makes this large enough given r
+    MAXPERQUERY=1000
     if halflength <= r:
-        views = earthMine.getFrontalViews(conn, lat, lon, halflength, maxResults=1000, width=x, height=y)
+        views = earthMine.getFrontalViews(conn, lat, lon, halflength, maxResults=MAXPERQUERY, width=x, height=y)
     else:
         #Generate other centers...
         #Throw down a square, sprinkle centers over it...
@@ -44,11 +46,11 @@ def get_spots_in_square(lat, lon, halflength, x, y):
             for j in range(M):
                 centers.append(earthMine.moveLocation(minstart, r*2*j, 90))
             minstart = earthMine.moveLocation(minstart, r*2, 180)
-            
+
         #DL all views
         iviews = []
         for c in centers:
-            iviews.extend(earthMine.getFrontalViews(conn, c["lat"], c["lon"], r, maxResults=1000, FOV=60.0, width=x,height=y))
+            iviews.extend(earthMine.getFrontalViews(conn, c["lat"], c["lon"], r, maxResults=MAXPERQUERY, FOV=60.0, width=x,height=y))
 
         #Process list, kill duplicates
         #Easiest way: two lists, one without dupes.
