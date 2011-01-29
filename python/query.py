@@ -27,7 +27,7 @@ PARAMS_DEFAULT = {
   'distance_type': 'euclidean',
 # use >1 for weighted
   'num_neighbors': 1,
-# highest, weighted, revote_exact, location
+# highest, ransac, top_n, restrict
   'vote_method': 'highest',
 # custom configuration notation
   'confstring': '',
@@ -45,11 +45,13 @@ def indextype(params):
     return '%s%s%s' % (params['algorithm'], distname, des)
 
 def searchtype(params):
+  nn = params['num_neighbors']
+  nn = '' if nn == 1 else (',nn=%d' % nn)
   vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']
   conf = ''
   if params['confstring']:
     conf = ',%s' % params['confstring']
-  return '%s,threshold=%dk,searchparam=%d%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], vote_method, conf)
+  return '%s,threshold=%dk,searchparam=%d%s%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], nn, vote_method, conf)
 
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
@@ -95,7 +97,6 @@ class Query(threading.Thread):
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
     sorted_counts = self.vote(queryset, dataset, mapping, results, dists)
-    INFO('saving detailed vote data in %s' % self.dump)
     save_atomic(lambda d: np.save(d, sorted_counts), self.dump)
     votes = [(len(matches), img) for img, matches in sorted_counts]
     def write_votes(d):
@@ -113,12 +114,64 @@ class Query(threading.Thread):
     INFO('voting with method %s' % self.params['vote_method'])
     counts = {
       'highest': self._vote_highest,
+      'restrict': self._vote_restrict,
+      'top_n': self._vote_top_n,
       'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
+  def _vote_top_n(self, queryset, dataset, mapping, results, dists):
+    """Keep voting for nearest N.
+       requires more than 1 nearest neighbor for results.
+       Note that each image gets 1 vote max."""
+    accept, reject = 0, 0
+    counts = {} # map from img to counts
+    for i, dist_array in enumerate(dists):
+      best = dist_array[0]
+      marked = set()
+      for j, dist in enumerate(dist_array):
+        if dist < self.params['dist_threshold']:
+          image = mapping[dataset[results[i][j]]['index']]
+          if image not in marked:
+            if image not in counts:
+              counts[image] = []
+            counts[image].append({'db': dataset[results[i][j]]['geom'].copy(),
+                                'query': queryset[i]['geom'].copy()})
+            marked.add(image)
+          accept += 1
+        else:
+          reject += 1
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
+  def _vote_restrict(self, queryset, dataset, mapping, results, dists):
+    """Like vote highest, but each db feature is restricted to 1 match"""
+    counts = {} # map from img to counts
+    closed = set()
+    accept, reject, restrict = 0, 0, 0
+    for i, dist in enumerate(dists):
+      if dist > self.params['dist_threshold']:
+        reject += 1
+      elif results[i] in closed:
+        reject += 1
+        restrict += 1
+      else:
+        closed.add(results[i])
+        accept += 1
+        img = mapping[dataset[results[i]]['index']]
+        if img not in counts:
+          counts[img] = []
+        counts[img].append({'db': dataset[results[i]]['geom'].copy(),
+                            'query': queryset[i]['geom'].copy()})
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
+    if restrict:
+      INFO('discarded %d vote collisions' % restrict)
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
   def _vote_highest(self, queryset, dataset, mapping, results, dists):
-    counts = {} # map from sift index to counts
+    counts = {} # map from img to counts
     accept, reject = 0, 0
     for i, dist in enumerate(dists):
       if dist < self.params['dist_threshold']:
@@ -135,7 +188,10 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_ransac(self, queryset, dataset, mapping, results, dists):
-    sorted_counts = self._vote_highest(queryset, dataset, mapping, results, dists)
+    if self.params['num_neighbors'] > 1:
+      sorted_counts = self._vote_top_n(queryset, dataset, mapping, results, dists)
+    else:
+      sorted_counts = self._vote_highest(queryset, dataset, mapping, results, dists)
     # filters out outliers from counts until
     # filtered_votes(ith image) > votes(jth image) for all j != i
     # and returns top 10 filtered results
@@ -143,7 +199,7 @@ class Query(threading.Thread):
     bound = -1
     num_filt = 0
     for siftfile, matches in sorted_counts:
-      if len(matches) < bound:
+      if len(matches) < bound or num_filt > 10:
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
@@ -151,9 +207,13 @@ class Query(threading.Thread):
       bound = max(sum(inliers), bound)
       pts = np.ndarray(len(matches), np.object)
       pts[0:len(matches)] = matches
-      filtered[siftfile] = list(np.compress(inliers, pts))
-    sorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    return sorted_counts
+      if any(inliers):
+        filtered[siftfile] = list(np.compress(inliers, pts))
+    rsorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    if not rsorted_counts:
+      INFO('W: ransac rejected everything, not filtering')
+      return sorted_counts
+    return rsorted_counts
 
   def _build_index(self):
     start = time.time()

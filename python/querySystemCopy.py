@@ -17,7 +17,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query4'
+QUERY = 'query3'
 try:
     NUM_THREADS = int(os.environ['NUM_THREADS'])
 except:
@@ -286,11 +286,18 @@ resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 #maindir = os.path.expanduser('~/.gvfs/data on 128.32.43.40')
 params = query.PARAMS_DEFAULT.copy()
+
+# want to test
+# 70k normal
+# 999k normal
+# 70k ransac
+# 999k ransac
 params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'highest',
+  'vote_method': 'restrict',
+  'dist_threshold': 70000,
   'confstring': '',
 })
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
