@@ -193,7 +193,7 @@ class ddObject():
         sig = hashlib.md5(DD_KEY+DD_SECRET+str(currTime)).hexdigest()
         #fullURL = self.requestURL + "?sig="+sig
         fullURL = self.requestURL + "?sig="+sig+"&timestamp="+str(currTime)
-        print fullURL
+#        print fullURL
         return fullURL
 
     def buildGetViews(self, width, height, FOV=DEFFOV,
