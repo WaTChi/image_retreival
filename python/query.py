@@ -27,7 +27,7 @@ PARAMS_DEFAULT = {
   'distance_type': 'euclidean',
 # use >1 for weighted
   'num_neighbors': 1,
-# highest, ransac, top_n, restrict
+# highest, ransac, top_n, matchonce
   'vote_method': 'highest',
 # custom configuration notation
   'confstring': '',
@@ -114,23 +114,28 @@ class Query(threading.Thread):
     INFO('voting with method %s' % self.params['vote_method'])
     counts = {
       'highest': self._vote_highest,
-      'restrict': self._vote_restrict,
+      'matchonce': self._vote_matchonce,
       'top_n': self._vote_top_n,
       'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
   def _vote_top_n(self, queryset, dataset, mapping, results, dists):
-    """Keep voting for nearest N.
+    """Like vote_matchonce, but up to 3 db images per query feature.
        requires more than 1 nearest neighbor for results.
        Note that each image gets 1 vote max."""
-    accept, reject = 0, 0
+    accept, reject, matchonce = 0, 0, 0
     counts = {} # map from img to counts
+    closed = set()
     for i, dist_array in enumerate(dists):
       best = dist_array[0]
       marked = set()
       for j, dist in enumerate(dist_array):
-        if dist < self.params['dist_threshold']:
+        if results[i][j] in closed:
+          matchonce += 1
+          reject += 1
+        elif dist < self.params['dist_threshold']:
+          closed.add(results[i][j])
           image = mapping[dataset[results[i][j]]['index']]
           if image not in marked:
             if image not in counts:
@@ -142,20 +147,22 @@ class Query(threading.Thread):
         else:
           reject += 1
     INFO('accepted %d/%d votes' % (accept, accept + reject))
+    if matchonce:
+      INFO('discarded %d vote collisions' % matchonce)
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     return sorted_counts
 
-  def _vote_restrict(self, queryset, dataset, mapping, results, dists):
-    """Like vote highest, but each db feature is restricted to 1 match"""
+  def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
+    """Like vote highest, but each db feature is matchonceed to 1 match"""
     counts = {} # map from img to counts
     closed = set()
-    accept, reject, restrict = 0, 0, 0
+    accept, reject, matchonce = 0, 0, 0
     for i, dist in enumerate(dists):
       if dist > self.params['dist_threshold']:
         reject += 1
       elif results[i] in closed:
         reject += 1
-        restrict += 1
+        matchonce += 1
       else:
         closed.add(results[i])
         accept += 1
@@ -165,8 +172,8 @@ class Query(threading.Thread):
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
                             'query': queryset[i]['geom'].copy()})
     INFO('accepted %d/%d votes' % (accept, accept + reject))
-    if restrict:
-      INFO('discarded %d vote collisions' % restrict)
+    if matchonce:
+      INFO('discarded %d vote collisions' % matchonce)
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     return sorted_counts
 
@@ -191,7 +198,7 @@ class Query(threading.Thread):
     if self.params['num_neighbors'] > 1:
       sorted_counts = self._vote_top_n(queryset, dataset, mapping, results, dists)
     else:
-      sorted_counts = self._vote_highest(queryset, dataset, mapping, results, dists)
+      sorted_counts = self._vote_matchonce(queryset, dataset, mapping, results, dists)
     # filters out outliers from counts until
     # filtered_votes(ith image) > votes(jth image) for all j != i
     # and returns top 10 filtered results
