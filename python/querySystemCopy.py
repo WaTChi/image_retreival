@@ -7,9 +7,11 @@ import time
 from config import *
 from android import AndroidReader
 import info
+import numpy as np
 import query
 import corr
 import query1GroundTruth
+import query2Groundtruth
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -19,10 +21,16 @@ import util
 
 QUERY = 'query4'
 try:
-    NUM_THREADS = int(os.environ['NUM_THREADS'])
+    if 'NUM_THREADS' in os.environ:
+        NUM_THREADS = int(os.environ['NUM_THREADS'])
+    else:
+        import multiprocessing
+        NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 'NO_DRAW' not in os.environ
 except:
     import multiprocessing
     NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 1
 
 class Img:
     def __init__(self):
@@ -60,11 +68,11 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
     clon = float(matchedimg.split(",")[1][0:-5])
     distance = info.distance(qlat, qlon, clat, clon)
 
-    udir = resultsdir
-#    udir = os.path.join(resultsdir, query)
-#    os.makedirs(udir)
+    udir = os.path.join(resultsdir, str(match))
+#    udir = os.path.join(resultsdir, str(match), query)
+    if not os.path.exists(udir):
+        os.makedirs(udir)
     queryimgpath = os.path.join(querydir, query + '.pgm')
-    queryoutpath = os.path.join(udir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.pgm')
     i = 0
     for matchedimg, score in ranked_matches:
         if score != topentry[1]:
@@ -76,9 +84,9 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(score) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
         matches = comb_matches[matchedimg + 'sift.txt']
         F, inliers = corr.find_corr(matches)
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(sum(inliers)) + ' of ' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
 def write_scores(querysift, ranked_matches, outdir):
@@ -116,8 +124,9 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr
         actualdist = info.distance(lat, lon, latcell, loncell)
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
 #    combined = combine_until_dup(outputFilePaths, 1000)
-    combined = combine_topn_votes(outputFilePaths, float('inf'))
     comb_matches = corr.combine_matches(outputFilePaths)
+    combined = combine_ransac(comb_matches)
+#    combined = combine_topn_votes(outputFilePaths, float('inf'))
 #    combined = filter_in_range(combined, querysift)
 #    write_scores(querysift, combined, "/media/data/combined")
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
@@ -168,6 +177,31 @@ def get_top_results(outputFilePath, n):
     file.close()
     return top_results
 
+def combine_ransac(counts):
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    filtered = {}
+    bound = -1
+    num_filt = 0
+    for siftfile, matches in sorted_counts:
+      siftfile = siftfile[:-8]
+      if len(matches) < bound or num_filt > 10:
+        INFO('stopped after filtering %d' % num_filt)
+        break
+      num_filt += 1
+      F, inliers = corr.find_corr(matches)
+      bound = max(sum(inliers), bound)
+      pts = np.ndarray(len(matches), np.object)
+      pts[0:len(matches)] = matches
+      if any(inliers):
+        filtered[siftfile] = list(np.compress(inliers, pts))
+    rsorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    def condense(list):
+        return map(lambda x: (x[0], len(x[1])), list)
+    if not rsorted_counts:
+      INFO('W: postcomb ransac rejected everything, not filtering')
+      return condense(sorted_counts)
+    return condense(rsorted_counts)
+
 def combine_topn_votes(outputFilePaths, topn):
     #returns true if query if in topn of results
     dupCount = {}
@@ -195,6 +229,8 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
             r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
             b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
             o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        elif QUERY == 'query2':
+            g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
         elif QUERY == 'query4':
             pass
         else:
@@ -281,18 +317,14 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-drawtopcorr = 1
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
-# want to test
-# 70k normal
-# 999k normal
 params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'restrict',
+  'vote_method': 'matchonce',
   'dist_threshold': 70000,
   'confstring': '',
 })
