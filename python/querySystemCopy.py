@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query4'
+QUERY = 'query3'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -53,8 +53,6 @@ def parse_result_line(line):
     return score, img
 
 def check_truth(query_str, result_str, groundTruth_dict):
-    print query_str
-    print result_str
     return result_str in groundTruth_dict[query_str]
 
 def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
@@ -86,7 +84,7 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
         matches = comb_matches[matchedimg + 'sift.txt']
         F, inliers = corr.find_corr(matches)
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(sum(inliers)) + ' of ' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
 def write_scores(querysift, ranked_matches, outdir):
@@ -184,7 +182,7 @@ def combine_ransac(counts):
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if len(matches) < bound or num_filt > 10:
+      if len(matches) < bound or num_filt > 20:
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
