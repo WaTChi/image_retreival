@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Find real locations of corresponding features.
-# Use pixelmap.open(siftfile) for efficency.
+# Use pixelmap.open(siftfile) for reading a specific file.
+# Use pixelmap.get(siftfile, x, y) for general fast reads.
 # Provides map from (pixel) => (lat, lon, alt)
 
 from config import *
@@ -16,6 +17,7 @@ class PixelMap:
     INFO('datastore %s' % self.datastore)
     if not os.path.isdir(self.datastore):
       os.mkdir(self.datastore)
+    self.cached = {}
 
   def ddFetch(self, featurefile, view):
     "Fetches pixels for view using ddObject"
@@ -27,6 +29,13 @@ class PixelMap:
     data = ddGetAllPixels(pixels, info['id'], keep_None=True)
     assert len(data) == len(pixels)
     return data
+  
+  def get(self, featurefile, x, y):
+    if featurefile in self.cached:
+      pixmap = self.cached[featurefile]
+    else:
+      pixmap = self.cached[featurefile] = self.open(featurefile)
+    return pixmap[x,y]
   
   def open(self, featurefile):
     """Returns map of (x,y) => (lat, lon, alt)"""
