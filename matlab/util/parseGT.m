@@ -49,10 +49,10 @@ end
 
 % Ground truth filename format
 fnPrefix = 'groundtruth';
-fnSuffix = 'Matlab.txt';
+fnSuffix = '.txt';
 
 % Number of queries and ground truth divisions
-nq = length(importdata([root_dir,fnPrefix,divs(1),fnSuffix]));
+nq = length(importdata([root_dir,fnPrefix,divs(1),fnSuffix]))
 nd = length(divs);
 
 % Fetch ground truth data

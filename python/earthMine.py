@@ -31,7 +31,7 @@ DD_VIEWPIXELMAX = 400
 DD_VIEWPIXELSIDE = 20
 EARTHMINE_URL = "http://cloud.earthmine.com/service"
 
-DEBUG=1
+DEBUG=0
 
 class ddError(Exception):
     """Default Exception class for ddErrors."""

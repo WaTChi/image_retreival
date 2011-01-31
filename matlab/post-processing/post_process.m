@@ -1,4 +1,4 @@
-function [results] = post_process(method)
+function [results] = post_process(method,reset)
 
 % [results] = post_process(method)
 % 
@@ -33,11 +33,17 @@ function [results] = post_process(method)
 %                         indicating the mean distance from GPS location
 %                       - Samples cap at 4 times mean from GPS location
 %                           (e.g. caps at 200m if mean is 50m)
+%   reset:      Optional flag (1 indicates results reset; default = 0)
 % 
 % OUTPUTS
 %   results:    Structure containing the details of post-processing
 %               - type 'help ppstruct' for information on the format of the
 %                 results structure (depends on the contents of method)
+
+% Set reset flag
+if nargin < 2
+    reset = 0;
+end
 
 % Fixed directory
 dbDir = 'E:\Research\collected_images\earthmine-new,culled\37.871955,-122.270829\';
@@ -45,24 +51,29 @@ gtDir = 'E:\Research\app\code\matlab\ground-truth\';
 
 % Adjusted directories based on inputs
 qDir = ['E:\query',num2str(method.set),'\'];
-vDir = ['E:\Research\results(query',num2str(method.set), ...
-    ')\matchescells(g=100,r=d=236.6),query',num2str(method.set), ...
+vDir = ['E:\Research\results\query',num2str(method.set), ...
+    '\matchescells(g=100,r=d=236.6),query',num2str(method.set), ...
     ',kdtree4,threshold=70k,searchparam=1024\'];
 
-% Post-processing code initialization
+% Ratio score code initialization
 run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 
 % Code dependencies
 addpath('.\..\util\')
+addpath('.\..\bayes\')
 
 % Load results structure
 results_file = ['.\',method.decision,'\query',num2str(method.set), ...
                 method.distribution, ...
                 num2str(dRound(method.cell_dist,0)),'_results.mat'];
-try
-    load(results_file)
-catch
+if reset
     results = struct;
+else
+    try
+        load(results_file)
+    catch
+        results = struct;
+    end
 end
 
 % Get a list of queries
@@ -88,7 +99,10 @@ if strcmp(method.decision,'bayes')
     try
         load(bayes_file)
     catch
-%         bayes = trainQueryClassifier(method);
+        train_method = method;
+        train_method.set = 2;
+        fprintf('\nMust train classifier. Doing this now...\n')
+        bayes = trainQueryClassifier(train_method,100);
     end
 end
 

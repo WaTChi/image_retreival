@@ -17,7 +17,7 @@ def dbgmsg(string):
 def get_spots_in_square(lat, lon, halflength, x, y):
     #fetches spots within square centered at lat,lon and halflength given.
     center = earthMine.ddLocation(lat, lon)    
-    print "Getting list of views within {rad} meters...".format(rad=halflength),
+    print "Getting list of views within {rad} meters...".format(rad=halflength)
     conn = earthMine.ddObject()
     r=100
     #makes this large enough given r
@@ -101,8 +101,8 @@ getDepth = False
 
 if __name__=="__main__":
 
-    if len(sys.argv) < 3:
-        print "USAGE: {prog} lat lon halflength outdir]".format(prog=sys.argv[0])
+    if len(sys.argv) < 5:
+        print "USAGE: {prog} lat lon halflength outdir".format(prog=sys.argv[0])
         sys.exit()
     
 
