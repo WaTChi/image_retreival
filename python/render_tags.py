@@ -26,7 +26,7 @@ class ImageInfo:
 
   def get_pixel_locations(self, pixels):
     """Return None if not supported."""
-    assert False, "NotImplemented"
+    raise NotImplementedError
 
 class AndroidImageInfo(ImageInfo):
   """for images from AndroidReader"""

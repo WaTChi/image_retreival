@@ -7,7 +7,7 @@ import numpy as np
 import cv
 import os
 
-MAX_PIXEL_DEVIATION = 2
+MAX_PIXEL_DEVIATION = 3
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -31,7 +31,7 @@ def find_corr(matches):
   inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
   cv.SetZero(F)
   cv.SetZero(inliers)
-  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION)
+  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=.99999)
   return F, np.asarray(inliers)[0]
 
 def draw_matches(matches, q_img, db_img, out_img, inliers):
