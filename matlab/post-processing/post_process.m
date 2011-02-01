@@ -40,13 +40,18 @@ function [results] = post_process(method,reset)
 %               - type 'help ppstruct' for information on the format of the
 %                 results structure (depends on the contents of method)
 
+% Fixed parameters
+ncand = 50; % number of candidate images from vote only
+nfilt = 20; % number of images to filter down to from candidates
+ntop = 10; % maximum top n for results
+
 % Set reset flag
 if nargin < 2
     reset = 0;
 end
 
 % Fixed directory
-dbDir = 'E:\Research\collected_images\earthmine-new,culled\37.871955,-122.270829\';
+dbDir = 'E:\Research\collected_images\earthmine-fa10.1,culled\37.871955,-122.270829\';
 gtDir = 'E:\Research\app\code\matlab\ground-truth\';
 
 % Adjusted directories based on inputs
@@ -62,26 +67,32 @@ run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 addpath('.\..\util\')
 addpath('.\..\bayes\')
 
-% Load results structure
-results_file = ['.\',method.decision,'\query',num2str(method.set), ...
-                method.distribution, ...
-                num2str(dRound(method.cell_dist,0)),'_results.mat'];
-if reset
-    results = struct;
-else
-    try
-        load(results_file)
-    catch
-        results = struct;
-    end
-end
-
 % Get a list of queries
 query = dir(qDir);
 query = strvcat(query(3:end).name);
 query = unique(str2double(cellstr(query(:,5:8)))); % query numbers
 query(isnan(query)) = [];
 nq = length(query); % number of queries
+
+% Load results structure
+results_file = ['.\',method.decision,'\query',num2str(method.set), ...
+                method.distribution, ...
+                num2str(dRound(method.cell_dist,0)),'_results.mat'];
+if reset
+    results.match = zeros(ntop,0);
+    results.total = zeros(ntop,0);
+    results.match_pct = zeros(ntop,0);
+    results.query_pct = zeros(nq,0);
+else
+    try
+        load(results_file)
+    catch
+        results.match = zeros(ntop,0);
+        results.total = zeros(ntop,0);
+        results.match_pct = zeros(ntop,0);
+        results.query_pct = zeros(nq,0);
+    end
+end
 
 % Load query ratio scores
 scores_file = ['.\scores\query',num2str(method.set),'_scores.mat'];
@@ -102,20 +113,16 @@ if strcmp(method.decision,'bayes')
         train_method = method;
         train_method.set = 2;
         fprintf('\nMust train classifier. Doing this now...\n')
-        bayes = trainQueryClassifier(train_method,100);
+        classifier = trainQueryClassifier(train_method,100);
     end
 end
 
-               
-               
+
 % ---------------------------------------------
 % Post-processing | Main part
 % ---------------------------------------------
     
 % Initialize variables
-ncand = 50; % number of candidate images from vote only
-nfilt = 20; % number of images to filter down to from candidates
-ntop = 10; % maximum top n for results
 cell_dist = method.cell_dist;
 if strcmp(method.decision,'linear')
     ws = method.ws;
@@ -191,22 +198,28 @@ for k=1:nq
             if strcmp(method.decision,'linear')
                 [m,p] = evaluateScores(cand_vote,cand_score,cand, ...
                     gt,wv,ws,method.rerank);
-                % weigh result if exponential distribution
-                if strcmp(method.distribution,'exponential')
-                    d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
-                    weight = exp(-d/50);
-                else % exact or uniform
-                    weight = 1;
-                end
             else % if strcmp(method.decision,'bayes')
                 bayes_features = [cand_dist,cand_vote,cand_score];
-                [~,condP] = classify(bayes_features,bayes);
+                [~,condP] = classifybayes(bayes_features,classifier);
                 [condP,prob_idx] = sort(condP(:,1),'descend');
                 cand = cand(prob_idx);
+                m = zeros(ntop,1);
+                cand_idx = 1;
+                while cand_idx<=ntop && ~textMatch(cand(cand_idx),gt)
+                    cand_idx = cand_idx+1;
+                end
+                m(cand_idx:end)=1;
+            end
+            
+            % weigh result if exponential distribution
+            if strcmp(method.distribution,'exponential')
+                d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
+                weight = exp(-d/50);
+            else % exact or uniform
+                weight = 1;
             end
                 
             match = match + weight*m;
-            poss = poss + weight*p;
             total = total + weight;
 
             ma = ma + weight*m(1);
@@ -216,8 +229,7 @@ for k=1:nq
 
     end
 
-    mismatch_pct = ma / to;
-    fprintf(fid,[query_name(1:end-8),'\t%1.4f\n'],mismatch_pct);
+    query_pct(k) = ma / to;
 
 end
 
@@ -226,9 +238,11 @@ save(scores_file,'query_scores')
 % fclose(fid);
 
 % store results
-results.match(end-nruns+1:end,:) = match;
-results.poss(end-nruns+1:end,:) = poss;
-results.total(end-nruns+1:end,:) = total;
+results.match(:,end+1:end+nruns) = match;
+results.total(:,end+1:end+nruns) = total;
+results.match_pct(:,end+1:end+nruns) = match./total;
+results.query_pct(:,end+1:end+nruns) = query_pct;
+
 save(results_file,'results')
 
 fprintf('\nRun complete.\n\n')

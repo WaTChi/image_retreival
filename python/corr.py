@@ -21,6 +21,7 @@ def combine_matches(outputFilePaths):
       comb[image].extend(matches)
   return comb
 
+#matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
 def find_corr(matches):
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)

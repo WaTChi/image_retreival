@@ -71,7 +71,7 @@ for j=1:nd
         end
     end
     for k=1:nq
-        gt{k,j} = textdata(query_idx(k)+1:query_idx(k+1)-1);
+        gt(k,j) = textdata(query_idx(k)+1:query_idx(k+1)-1);
     end
 end
 
@@ -83,9 +83,12 @@ for k=1:nq
     gtIdx(k,1) = str2double(gtQ{k}(5:8));
     gtIdx(k,2) = idx;
     for j=1:nd
-        ng = length(gt{k,j});
-        gtFile(idx:idx+ng-1) = gt{k,j};
-        idx = idx+ng;
+        tmp = strfind(gt{k,j},'''');
+        tmp = reshape(tmp,[2,length(tmp)/2]);
+        for i=
+            gtFile{idx} = gt{k,j}(i(1)+1:i(2)-1);
+            idx=idx+1;
+        end
     end
     gtIdx(k,3) = idx-1;
 end
