@@ -8,6 +8,7 @@
 
 from config import *
 import reader
+import util
 import corr
 from multiprocessing import cpu_count
 import time
@@ -76,7 +77,9 @@ class Query(threading.Thread):
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
     threading.Thread.__init__(self)
     self.qpath = qdir + qfile
+    self.lat, self.lon = map(float, qfile[9:-8].split(','))
     self.cellpath = celldir + cell
+    self.celldir = celldir
     self.outfile = outfile
     self.params = params
     self.barrier = barrier
@@ -115,6 +118,7 @@ class Query(threading.Thread):
     counts = {
       'highest': self._vote_highest,
       'matchonce': self._vote_matchonce,
+      'filter': self._vote_filter,
       'top_n': self._vote_top_n,
       'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
@@ -149,6 +153,63 @@ class Query(threading.Thread):
     INFO('accepted %d/%d votes' % (accept, accept + reject))
     if matchonce:
       INFO('discarded %d vote collisions' % matchonce)
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
+  def false_search(self, queryset):
+    self.flann = None # release memory
+    # TODO eliminate duplicated build index code
+#    falsecellpath = util.getfurthestcell(self.lat, self.lon, self.celldir)
+    falsecellpath = os.path.expanduser('~/shiraz/Research/cells/g=100,r=d=236.6/37.8732916946,-122.279128355')
+    falseflann = pyflann.FLANN()
+    iname = '%s-%s.%s.index' % (getcellid(falsecellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
+    index = getfile(falsecellpath, iname)
+    dataset, mapping = self.reader.load_cell(falsecellpath)
+    if os.path.exists(index):
+      falseflann.load_index(index, dataset['vec'])
+    else:
+      falseflann.build_index(dataset['vec'], **self.params)
+      for out in getdests(falsecellpath, iname):
+        save_atomic(lambda d: falseflann.save_index(d), out)
+    dists = []
+    r, dists = falseflann.nn_index(queryset['vec'], **self.params)
+    return r, dists
+
+  def _vote_filter(self, queryset, dataset, mapping, results, dists):
+    """Votes must beat false votes in another cell."""
+    counts = {} # map from img to counts
+    closed = set()
+    closed2 = set()
+    accept, reject, matchonce, vs, c2 = 0, 0, 0, 0, 0
+    results2, contest = self.false_search(queryset)
+    for i, dist in enumerate(dists):
+      if dist > self.params['dist_threshold']:
+        reject += 1
+      elif dist > contest[i] and results2[i] in closed2:
+        reject += 1
+        c2 += 1
+      elif dist > contest[i]:
+        closed2.add(results2[i])
+        reject += 1
+        vs += 1
+      elif results[i] in closed:
+        reject += 1
+        matchonce += 1
+      else:
+        closed.add(results[i])
+        accept += 1
+        img = mapping[dataset[results[i]]['index']]
+        if img not in counts:
+          counts[img] = []
+        counts[img].append({'db': dataset[results[i]]['geom'].copy(),
+                            'query': queryset[i]['geom'].copy()})
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
+    if matchonce:
+      INFO('discarded %d vote collisions' % matchonce)
+    if vs:
+      INFO('discarded %d losing votes' % vs)
+    if c2:
+      INFO('%d votes escaped filtering' % c2)
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     return sorted_counts
 

@@ -128,8 +128,8 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr
 #    combined = filter_in_range(combined, querysift)
 #    write_scores(querysift, combined, "/media/data/combined")
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
-    if drawtopcorr:
-        match = g or y or r or b or o
+    match = g or y or r or b or o
+    if drawtopcorr or not match:
         draw_top_corr(querydir, querysift.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
     return [g, y, r, b, o]
     
@@ -322,7 +322,7 @@ params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'matchonce',
+  'vote_method': 'filter',
   'dist_threshold': 70000,
   'confstring': '',
 })

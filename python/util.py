@@ -278,6 +278,9 @@ def getclosestcells(lat, lon, celldir):
     closest_cells.sort(key=lambda x: x[1])
     return closest_cells
 
+def getfurthestcell(lat, lon, celldir):
+    return os.path.join(celldir, getclosestcells(lat, lon, celldir)[-1][0])
+
 def printclosestcells(lat, lon, celldir="/media/data/Research/cellsg=50,r=100,d=86.6"):
     for cell in getclosestcells(lat, lon, celldir):
         print cell

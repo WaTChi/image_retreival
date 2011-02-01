@@ -7,7 +7,7 @@ import numpy as np
 import cv
 import os
 
-MAX_PIXEL_DEVIATION = 3
+MAX_PIXEL_DEVIATION = 5
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
