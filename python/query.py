@@ -77,7 +77,6 @@ class Query(threading.Thread):
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
     threading.Thread.__init__(self)
     self.qpath = qdir + qfile
-    self.lat, self.lon = map(float, qfile[9:-8].split(','))
     self.cellpath = celldir + cell
     self.celldir = celldir
     self.outfile = outfile
@@ -159,7 +158,6 @@ class Query(threading.Thread):
   def false_search(self, queryset):
     self.flann = None # release memory
     # TODO eliminate duplicated build index code
-#    falsecellpath = util.getfurthestcell(self.lat, self.lon, self.celldir)
     falsecellpath = os.path.expanduser('~/shiraz/Research/cells/g=100,r=d=236.6/37.8732916946,-122.279128355')
     falseflann = pyflann.FLANN()
     iname = '%s-%s.%s.index' % (getcellid(falsecellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
