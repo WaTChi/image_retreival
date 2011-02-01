@@ -347,22 +347,27 @@ def getNumFeaturesInCell(celldirpath="E:\Research\cellsg=50,r=100,d=86.6\\37.869
 #        if  info.distance(lat, lon, lat2, lon2) < radius: #and os.path.exists(d):
 #            print "{0},\t distance: {1}".format(dir, info.distance(lat, lon, lat2, lon2))
 
-#import groundtruthG
-#import groundtruthY
-#import groundtruthR
-#import groundtruthB
-#import groundtruthO
-#import query2Groundtruth
-#def pythonToMatlabGroundTruth(d, fname):
-#    f = open(fname,"w")
-#    for key in d:
-#        f.write( "{0}\t{1}\n".format(key, d[key]))
-#pythonToMatlabGroundTruth(groundtruthG.matches, "gt3G")
-#pythonToMatlabGroundTruth(groundtruthY.matches, "gt3Y")
-#pythonToMatlabGroundTruth(groundtruthR.matches, "gt3R")
-#pythonToMatlabGroundTruth(groundtruthB.matches, "gt3B")
-#pythonToMatlabGroundTruth(groundtruthO.matches, "gt3O")
-#pythonToMatlabGroundTruth(query2Groundtruth.matches, "gt2")
+import groundtruthG
+import groundtruthY
+import groundtruthR
+import groundtruthB
+import groundtruthO
+import query1Groundtruth
+import query2Groundtruth
+def python_to_matlab_groundTruth(d, fname):
+    f = open(fname,"w")
+    for key in d:
+        if d[key]:
+            f.write( "{0}\n{1}\n".format(key, '\n'.join(d[key])))
+        else:
+            f.write( "{0}\n".format(key))
+python_to_matlab_groundTruth(groundtruthG.matches, "gt3G")
+python_to_matlab_groundTruth(groundtruthY.matches, "gt3Y")
+python_to_matlab_groundTruth(groundtruthR.matches, "gt3R")
+python_to_matlab_groundTruth(groundtruthB.matches, "gt3B")
+python_to_matlab_groundTruth(groundtruthO.matches, "gt3O")
+python_to_matlab_groundTruth(query1Groundtruth.matches, "gt1")
+python_to_matlab_groundTruth(query2Groundtruth.matches, "gt2")
 
 #def dupCount(file):
 #    counter = {}
