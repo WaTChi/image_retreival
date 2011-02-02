@@ -155,7 +155,15 @@ class TaggedImage:
   def taggedcopy(self, points, image):
     MIN_SIZE = 1
     draw = ImageDraw.Draw(image)
-    points.sort(key=lambda p: info.distance(p[0].lat, p[0].lon, self.lat, self.lon), reverse=True) # draw distant first
+    def dist(p):
+      return info.distance(p[0].lat, p[0].lon, self.lat, self.lon)
+    dists = sorted(map(dist, points))
+    threshold = 2 * sum(dists[:3])/(len(dists[:3]) + 1)
+    points = filter(lambda p: dist(p) < threshold, points)
+    diff = len(dists) - len(points)
+    if diff:
+      INFO('filtered out %d tags' % diff)
+    points.sort(key=dist, reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
       size = int(200.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))

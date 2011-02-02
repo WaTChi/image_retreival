@@ -54,7 +54,11 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
+  q_img = q_img.replace('.pgm', '.jpg')
   a = Image.open(q_img)
+  if a.size > (768, 512):
+    INFO('resizing image %s => %s' % (str(a.size), '(768, 512)'))
+    a = a.resize((768, 512), Image.ANTIALIAS)
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
@@ -101,7 +105,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
     drawline(match)
     drawcircle(match)
   for match in green:
-    drawline(match, 'yellow', 2)
+    drawline(match, 'yellow')
     drawcircle(match, 'yellow')
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)
@@ -129,7 +133,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
 #    match['query'] = dest
 #    drawline(match, 'red')
 #    drawcircle(match)
-  target.save(out_img, 'png')
+  target.save(out_img, 'jpeg', quality=90)
 
 if __name__ == '__main__':
 #  mdir = '/home/ericl/shiraz/'

@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query2'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -84,7 +84,7 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
         matches = comb_matches[matchedimg + 'sift.txt']
         F, inliers = corr.find_corr(matches)
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.png')
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
 def write_scores(querysift, ranked_matches, outdir):
