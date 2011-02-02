@@ -50,7 +50,6 @@ class EarthmineImageInfo(ImageInfo):
     self.lon = self.info['view-location']['lon']
     self.alt = self.info['view-location']['alt']
     self.yaw = self.info['view-direction']['yaw']
-    self.yaw = -(self.yaw+180)*math.pi/180
     self.roll = 0
     self.viewId = self.info['id']
     self.image = Image.open(image)
@@ -69,6 +68,7 @@ class TaggedImage:
   def __init__(self, image, source, db):
     self.db = db
     self.source = source
+    self.focal_length = 700 # overwritten by source update below
     self.__dict__.update(self.source.__dict__)
 
   def get_frustum(self):
@@ -222,13 +222,13 @@ def _testq4():
 
 def _test2():
   db = TagCollection('testdata/tags.csv')
-  jpg = 'testdata/input/37.8719888495,-122.269869743-0002.jpg'
+  jpg = 'testdata/x8.jpg'
   source = EarthmineImageInfo(jpg, jpg[:-4] + '.info')
   img = TaggedImage(jpg, source, db)
   points = img.map_tags_camera()
   img.draw(points, 'testdata/out.png')
 
 if __name__ == '__main__':
-  _testq4()
+  _test2()
 
 # vim: et sw=2
