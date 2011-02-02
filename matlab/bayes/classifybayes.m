@@ -75,7 +75,7 @@ for j=1:J
 
         % Compute log p(Fi|Cj) depending on the distribution
         if strcmp(dists{f},'Gamma')
-            k = m.^2 / v; % shape parameter k
+            k = m.^2 ./ v; % shape parameter k
             t = v ./ m; % scale parameter theta
             logpfc = (k-1)*log(x) - x./t - log(gamma(k)) - k.*log(t);
         else % if strcmp(dists{f},'Normal')

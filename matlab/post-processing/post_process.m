@@ -110,10 +110,7 @@ if strcmp(method.decision,'bayes')
     try
         load(bayes_file)
     catch
-        train_method = method;
-        train_method.set = 2;
-        fprintf('\nMust train classifier. Doing this now...\n')
-        classifier = trainQueryClassifier(train_method,100);
+        error('No Bayes classifier trained.')
     end
 end
 
@@ -126,20 +123,17 @@ end
 cell_dist = method.cell_dist;
 if strcmp(method.decision,'linear')
     ws = method.ws;
-    nruns = length(ws);
-    wv = ones(nruns,1);
-else % if strcmp(method.decision,'bayes')
-    nruns = 1;
+    wv = 1;
 end
-match = zeros(ntop,nruns);
-total = zeros(ntop,nruns);
-match_pct = zeros(ntop,nruns);
-query_pct = zeros(nq,nruns);
+match = zeros(ntop,1);
+total = zeros(ntop,1);
+match_pct = zeros(ntop,1);
+query_pct = zeros(nq,1);
 
 fprintf('\nRunning post processing...\n')
 
 % Iterate through each query
-for k=1:nq
+for k=62%1:nq
 
     fprintf(['\nProcessing query ',num2str(k),'... '])
 
@@ -159,11 +153,19 @@ for k=1:nq
     if strcmp(method.distribution,'exact')
         lats = qLat; lons = qLon;
     elseif strcmp(method.distribution,'unif')
-        rad = method.param;
-        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/50);
+        if ~isfield(method,'param')
+            rad = 75;
+        else
+            rad = method.param;
+        end
+        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
     else % if strcmp(method.distribution,'expo')
-        rad = 4*method.param;
-        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/50);
+        if ~isfield(method,'param')
+            rad = 200;
+        else
+            rad = 4*method.param;
+        end
+        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
     end
 
     % Create cell groupings from fuzzy points and iterate through them
@@ -199,10 +201,10 @@ for k=1:nq
                 [m,p] = evaluateScores(cand_vote,cand_score,cand, ...
                     gt,wv,ws,method.rerank);
             else % if strcmp(method.decision,'bayes')
-                bayes_features = [cand_dist,cand_vote,cand_score];
-                [~,condP] = classifybayes(bayes_features,classifier);
-                [condP,prob_idx] = sort(condP(:,1),'descend');
-                cand = cand(prob_idx);
+                % Get feature matrix and rank candidates
+                bayes_features = [nan(ncand,1),cand_vote,cand_score];
+                [cand,score] = rankNcand(cand,bayes_features,method,ntop);
+                % Check for matches
                 m = zeros(ntop,1);
                 cand_idx = 1;
                 while cand_idx<=ntop && ~textMatch(cand(cand_idx),gt)
@@ -212,9 +214,14 @@ for k=1:nq
             end
             
             % weigh result if exponential distribution
-            if strcmp(method.distribution,'exponential')
+            if strcmp(method.distribution,'expo')
                 d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
-                weight = exp(-d/50);
+                if ~isfield(method,'param')
+                    param = 50;
+                else
+                    param = method.param;
+                end
+                weight = exp(-d/param);
             else % exact or uniform
                 weight = 1;
             end
@@ -235,13 +242,12 @@ end
 
 % store query ratio scores
 save(scores_file,'query_scores')
-% fclose(fid);
 
 % store results
-results.match(:,end+1:end+nruns) = match;
-results.total(:,end+1:end+nruns) = total;
-results.match_pct(:,end+1:end+nruns) = match./total;
-results.query_pct(:,end+1:end+nruns) = query_pct;
+results.match(:,end+1) = match;
+results.total(:,end+1) = total;
+results.match_pct(:,end+1) = match./total;
+results.query_pct(:,end+1) = query_pct;
 
 save(results_file,'results')
 
