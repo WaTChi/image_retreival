@@ -56,9 +56,12 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   assert os.path.exists(db_img)
   q_img = q_img.replace('.pgm', '.jpg')
   a = Image.open(q_img)
+  if a.mode != 'RGB':
+    a = a.convert('RGB')
   if a.size > (768, 512):
     INFO('resizing image %s => %s' % (str(a.size), '(768, 512)'))
     a = a.resize((768, 512), Image.ANTIALIAS)
+  assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))

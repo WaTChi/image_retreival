@@ -157,12 +157,6 @@ class TaggedImage:
     draw = ImageDraw.Draw(image)
     def dist(p):
       return info.distance(p[0].lat, p[0].lon, self.lat, self.lon)
-    dists = sorted(map(dist, points))
-    threshold = 2 * sum(dists[:3])/(len(dists[:3]) + 1)
-    points = filter(lambda p: dist(p) < threshold, points)
-    diff = len(dists) - len(points)
-    if diff:
-      INFO('filtered out %d tags' % diff)
     points.sort(key=dist, reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
