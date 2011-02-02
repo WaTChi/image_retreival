@@ -1,6 +1,7 @@
 # place for geometric utility functions
 from info import distance
 import numpy as np
+import math
 from numpy import matrix, sin, cos, sqrt
 
 def lltom(lat1, lon1, lat2, lon2):
@@ -15,6 +16,7 @@ def lltom(lat1, lon1, lat2, lon2):
 def camera_transform(px, py, pz, pitch, yaw, roll):
   """Translates units from px, py, pz to camera perspective.
      Units are in radians and meters."""
+  yaw = -(yaw+180)*math.pi/180
   p = np.matrix([px, py, pz]).transpose()
   x, y, z = pitch, yaw, roll
   A = matrix(((1, 0, 0), (0, cos(x), -sin(x)), (0, sin(x), cos(x))))
