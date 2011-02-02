@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query4'
+QUERY = 'query3'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -195,9 +195,11 @@ def combine_ransac(counts):
     rsorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
     def condense(list):
         return map(lambda x: (x[0], len(x[1])), list)
+    def condense2(list):
+        return map(lambda x: (x[0][:-8], len(x[1])), list)
     if not rsorted_counts:
       INFO('W: postcomb ransac rejected everything, not filtering')
-      return condense(sorted_counts)
+      return condense2(sorted_counts)
     return condense(rsorted_counts)
 
 def combine_topn_votes(outputFilePaths, topn):

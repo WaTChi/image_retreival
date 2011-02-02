@@ -3,6 +3,7 @@
 from config import *
 import time
 import Image, ImageDraw
+import render_tags
 import numpy as np
 import cv
 import os
@@ -35,6 +36,19 @@ def find_corr(matches):
   cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=.99999)
   return F, np.asarray(inliers)[0]
 
+def find_hom(matches):
+  pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
+  pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
+  for i, m in enumerate(matches):
+    cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
+    cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
+  F = cv.CreateMat(3, 3, cv.CV_64F)
+  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
+  cv.SetZero(F)
+  cv.SetZero(inliers)
+  cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
+  return F, np.asarray(inliers)[0]
+
 def draw_matches(matches, q_img, db_img, out_img, inliers):
   # create image
   assert os.path.exists(q_img)
@@ -43,26 +57,61 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGB', (a.size[0] + b.size[0], height))
-  target.paste(a, (0,0))
-  target.paste(b, (a.size[0],0))
-  draw = ImageDraw.Draw(target)
   green = np.compress(inliers, matches)
   red = np.compress(map(lambda x: not x, inliers), matches)
+
   def drawline(match, color):
     db = [match['db'][1] + a.size[0], match['db'][0]]
-    draw.line([match['query'][1], match['query'][0]] + db, fill=color)
+    draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=3)
+
   def drawcircle(match):
     draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline="hsl(20,100%,50%)")
     draw.ellipse((match['db'][1] + a.size[0] - match['db'][2], match['db'][0] - match['db'][2], match['db'][1] + a.size[0] + match['db'][2], match['db'][0] + match['db'][2]), outline="hsl(20,100%,50%)")
 
-  for match in red:
-    drawline(match, 'red')
-    drawcircle(match)
+  draw = ImageDraw.Draw(target)
+
+  db = render_tags.TagCollection(os.path.expanduser('~/shiraz/tags.csv'))
+  source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
+  img = render_tags.TaggedImage(db_img, source, db)
+  points = img.map_tags_camera()
+  proj_points = []
+#  matches = [
+#  {'db': (0,10), 'query': (0,20)},
+#  {'db': (0,0), 'query': (0,10)},
+#  {'db': (10,10), 'query': (10,20)},
+#  {'db': (10,0), 'query': (10,10)}
+#  ]
+  matches = np.compress(inliers, matches)
+  H, inliers = find_hom(matches)
+  H = np.matrix(np.asarray(H))
+  print H
+  for (tag, (nulldist, pixel)) in points:
+    print pixel
+    pixel = H*np.matrix([pixel[0],pixel[1],1]).transpose()
+    print pixel
+    proj_points.append((tag, (0, pixel)))
+  b = img.taggedcopy(points, b)
+  print proj_points
+  a = img.taggedcopy(proj_points, a)
+
+  target.paste(a, (0,0))
+  target.paste(b, (a.size[0],0))
+  for x in matches:
+    db = x['db']
+    querypt = H*np.matrix([db[0], db[1], 1]).transpose()
+    q=[abs(querypt[0].item()/querypt[2].item()), abs(querypt[1].item()/querypt[2].item()),0,0]
+    print x
+    print {'db': x['db'], 'query': q}
+    print
+    drawline({'db': x['db'], 'query': q}, 'blue')
+
+#  for match in red:
+#    drawline(match, 'red')
+#    drawcircle(match)
   for match in green:
     drawline(match, 'green')
     drawcircle(match)
   target.save(out_img, 'png')
-
 
 if __name__ == '__main__':
 #  mdir = '/home/ericl/shiraz/'

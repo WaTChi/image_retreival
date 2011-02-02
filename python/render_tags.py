@@ -69,7 +69,6 @@ class TaggedImage:
   def __init__(self, image, source, db):
     self.db = db
     self.source = source
-    self.focal_length = 700
     self.__dict__.update(self.source.__dict__)
 
   def get_frustum(self):
@@ -113,12 +112,14 @@ class TaggedImage:
       pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
       py = tag.alt - self.alt;
       x, y, z = geom.camera_transform(px, py, pz, self.pitch, self.yaw, self.roll)
-      coord = geom.project2d(x, y, z, self.focal_length)
+      coord = geom.project2d(x, y, z, self.source.focal_length)
       pixel = geom.center(coord, self.image.size)
-      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
+#      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
+      tags.append((tag, (0, pixel)))
 
     # add some distance debugging info from earthmine
     debugtags = []
+    return tags # XXX
     locs = self.source.get_pixel_locations(map(lambda t: t[1][1], tags))
     if locs is None: # does not support
       return tags
@@ -150,9 +151,9 @@ class TaggedImage:
     INFO("mapped %d/%d possible tags" % (len(tags), len(possible_tags)))
     return tags
 
-  def draw(self, points, output):
-    draw = ImageDraw.Draw(self.image)
+  def taggedcopy(self, points, image):
     MIN_SIZE = 1
+    draw = ImageDraw.Draw(image)
     points.sort(key=lambda p: p[1][0], reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
@@ -167,12 +168,12 @@ class TaggedImage:
       for line in tag:
         w = max(w, draw.textsize(line, font)[0])
       bottom_right = (point[0] + off_x + w + 3, point[1] + off_y + max(size, MIN_SIZE)*len(tag) + 3)
-      img = self.image.copy()
+      img = image.copy()
       draw2 = ImageDraw.Draw(img)
       draw2.rectangle([top_left, bottom_right], fill='#000')
 
-      self.image = Image.blend(self.image, img, 0.75)
-      draw = ImageDraw.Draw(self.image)
+      image = Image.blend(image, img, 0.75)
+      draw = ImageDraw.Draw(image)
       # end black container
       draw.ellipse((point[0]-size/2,point[1]-size/2,point[0]+size/2,point[1]+size/2), fill=color)
       for line in tag:
@@ -180,7 +181,11 @@ class TaggedImage:
         off_y += max(size, MIN_SIZE)
       if dist:
         INFO('mapping tag at %f meters error' % dist)
-    self.image.save(output, 'png')
+    return image
+
+  def draw(self, points, output):
+    image = self.taggedcopy(points, self.image)
+    image.save(output, 'png')
     INFO("saved to %s" % output)
 
 def _test():

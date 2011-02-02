@@ -76,8 +76,8 @@ def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num
 class Query(threading.Thread):
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
     threading.Thread.__init__(self)
-    self.qpath = qdir + qfile
-    self.cellpath = celldir + cell
+    self.qpath = os.path.join(qdir, qfile)
+    self.cellpath = os.path.join(celldir, cell)
     self.celldir = celldir
     self.outfile = outfile
     self.params = params
