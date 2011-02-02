@@ -1,6 +1,7 @@
 #!/usr/bin/env pyhehon
 
 from config import *
+import random
 import time
 import Image, ImageDraw
 import render_tags
@@ -56,61 +57,78 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   a = Image.open(q_img)
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
-  target = Image.new('RGB', (a.size[0] + b.size[0], height))
-  green = np.compress(inliers, matches)
-  red = np.compress(map(lambda x: not x, inliers), matches)
+  target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
-  def drawline(match, color):
+  def drawline(match, color='hsl(20,100%,50%)', w=1):
     db = [match['db'][1] + a.size[0], match['db'][0]]
-    draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=3)
+    draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
 
-  def drawcircle(match):
-    draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline="hsl(20,100%,50%)")
-    draw.ellipse((match['db'][1] + a.size[0] - match['db'][2], match['db'][0] - match['db'][2], match['db'][1] + a.size[0] + match['db'][2], match['db'][0] + match['db'][2]), outline="hsl(20,100%,50%)")
+  def drawcircle(match, col='hsl(20,100%,50%)'):
+    draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline=col)
+    draw.ellipse((match['db'][1] + a.size[0] - match['db'][2], match['db'][0] - match['db'][2], match['db'][1] + a.size[0] + match['db'][2], match['db'][0] + match['db'][2]), outline=col)
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser('~/shiraz/tags.csv'))
+  db = render_tags.TagCollection(os.path.expanduser('../tags.csv'))
   source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
-#  matches = [
-#  {'db': (0,10), 'query': (0,20)},
-#  {'db': (0,0), 'query': (0,10)},
-#  {'db': (10,10), 'query': (10,20)},
-#  {'db': (10,0), 'query': (10,10)}
-#  ]
+  oldmatches = matches
+  oldinliers = inliers
   matches = np.compress(inliers, matches)
   H, inliers = find_hom(matches)
   H = np.matrix(np.asarray(H))
-  print H
+  tagmatches = []
+
+  green = np.compress(inliers, matches)
+  red = np.compress(map(lambda x: not x, oldinliers), oldmatches)
+
+  # deeply confusing geometry. x and y switch between the reprs.
   for (tag, (nulldist, pixel)) in points:
-    print pixel
-    pixel = H*np.matrix([pixel[0],pixel[1],1]).transpose()
-    print pixel
-    proj_points.append((tag, (0, pixel)))
-  b = img.taggedcopy(points, b)
-  print proj_points
-  a = img.taggedcopy(proj_points, a)
+    x = pixel[1]
+    y = pixel[0]
+    dest = H*np.matrix([x,y,1]).transpose()
+    dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+    tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
+    dest = (dest[1], dest[0])
+    proj_points.append((tag, (0, dest)))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
-  for x in matches:
-    db = x['db']
-    querypt = H*np.matrix([db[0], db[1], 1]).transpose()
-    q=[abs(querypt[0].item()/querypt[2].item()), abs(querypt[1].item()/querypt[2].item()),0,0]
-    print x
-    print {'db': x['db'], 'query': q}
-    print
-    drawline({'db': x['db'], 'query': q}, 'blue')
 
-#  for match in red:
+  for match in red:
+    drawline(match)
+    drawcircle(match)
+  for match in green:
+    drawline(match, 'yellow', 2)
+    drawcircle(match, 'yellow')
+  # ImageDraw :(
+  a2 = img.taggedcopy(proj_points, a)
+  b2 = img.taggedcopy(points, b)
+  a = Image.new('RGBA', (a.size[0], height))
+  b = Image.new('RGBA', (b.size[0], height))
+  a = img.taggedcopy(proj_points, a)
+  b = img.taggedcopy(points, b)
+  tags = Image.new('RGBA', (a.size[0] + b.size[0], height))
+  tagfilled = Image.new('RGBA', (a.size[0] + b.size[0], height))
+  tags.paste(a, (0,0))
+  tags.paste(b, (a.size[0],0))
+  tagfilled.paste(a2, (0,0))
+  tagfilled.paste(b2, (a.size[0],0))
+  target.paste(tagfilled, mask=tags)
+
+#  for match in tagmatches:
+#    rand = 'hsl(%d,100%%,50%%)' % (100 + int(155*random.random()))
+#    drawline(match, rand)
+#    drawcircle(match)
+#
+#  for match in oldmatches:
+#    dest = H*np.matrix([match['db'][0],match['db'][1],1]).transpose()
+#    dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())) + [10])
+#    match['query'] = dest
 #    drawline(match, 'red')
 #    drawcircle(match)
-  for match in green:
-    drawline(match, 'green')
-    drawcircle(match)
   target.save(out_img, 'png')
 
 if __name__ == '__main__':

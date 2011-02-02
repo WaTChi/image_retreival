@@ -60,10 +60,10 @@ def draw_corr(queryimgpath, matchedimg, matches):
     return F, inliers
 
 if __name__ == '__main__':
-    sift = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853sift.txt')
-    image = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853.JPG')
-#    sift = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223sift.txt')
-#    image = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223.JPG')
+#    sift = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853sift.txt')
+#    image = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853.JPG')
+    sift = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223sift.txt')
+    image = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223.JPG')
 #    sift = os.path.expanduser('~/shiraz/DSC_7746,37.87203,-122.27022sift.txt')
 #    image = os.path.expanduser('~/shiraz/DSC_7746,37.87203,-122.27022.jpg')
 #    sift = os.path.expanduser('~/shiraz/DSC_7712,37.87125,-122.26820sift.txt')

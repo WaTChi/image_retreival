@@ -117,9 +117,10 @@ class TaggedImage:
 #      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
       tags.append((tag, (0, pixel)))
 
+    return tags
+
     # add some distance debugging info from earthmine
     debugtags = []
-    return tags # XXX
     locs = self.source.get_pixel_locations(map(lambda t: t[1][1], tags))
     if locs is None: # does not support
       return tags
@@ -154,7 +155,7 @@ class TaggedImage:
   def taggedcopy(self, points, image):
     MIN_SIZE = 1
     draw = ImageDraw.Draw(image)
-    points.sort(key=lambda p: p[1][0], reverse=True) # draw distant first
+    points.sort(key=lambda p: info.distance(p[0].lat, p[0].lon, self.lat, self.lon), reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
       size = int(200.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
