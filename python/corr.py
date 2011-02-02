@@ -25,15 +25,17 @@ def combine_matches(outputFilePaths):
 
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
 def find_corr(matches):
+  F = cv.CreateMat(3, 3, cv.CV_64F)
+  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
+  cv.SetZero(F)
+  cv.SetZero(inliers)
+  if not matches:
+    return F, np.asarray(inliers)[0]
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   for i, m in enumerate(matches):
     cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
     cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
-  F = cv.CreateMat(3, 3, cv.CV_64F)
-  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
-  cv.SetZero(F)
-  cv.SetZero(inliers)
   cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=.99999)
   return F, np.asarray(inliers)[0]
 
@@ -54,13 +56,13 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-  q_img = q_img.replace('.pgm', '.jpg')
+#  q_img = q_img.replace('.pgm', '.jpg')
   a = Image.open(q_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
-  if a.size > (768, 512):
-    INFO('resizing image %s => %s' % (str(a.size), '(768, 512)'))
-    a = a.resize((768, 512), Image.ANTIALIAS)
+#  if a.size > (768, 512):
+#    INFO('resizing image %s => %s' % (str(a.size), '(768, 512)'))
+#    a = a.resize((768, 512), Image.ANTIALIAS)
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
@@ -96,7 +98,10 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
     x = pixel[1]
     y = pixel[0]
     dest = H*np.matrix([x,y,1]).transpose()
-    dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+    try:
+      dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+    except ZeroDivisionError:
+      dest = (0,0)
     tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
     dest = (dest[1], dest[0])
     proj_points.append((tag, (0, dest)))
