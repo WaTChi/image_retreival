@@ -18,11 +18,20 @@ function [results] = post_process(method,reset)
 %                       to search that cell. If equal to zero, we use no
 %                       combination and only the nearest cell is searched
 %       .decision:      Decision method. Current modes supported...
-%           'linear':   Linear combination of votes and scores.
-%                       - If 'linear' is chosen, the field .ws must be
-%                         specified, indicating the weight on the ratio
-%                         score; the vote weight is set to 1
-%           'bayes':    Uses Naive Bayes classifier : must be trained
+%           'linear-a.b':   Linear combination of votes and scores.
+%                           - If 'linear' is chosen, the a.b parameter
+%                             refers to the ratio score weight. The vote
+%                             score weight will be 1, while the ratio score
+%                             weight will be str2double('a.b')
+%           'bayes-xyz':    Uses Naive Bayes classifier : must be trained
+%                           - If 'bayes' is chosen, the 'xyz' parameter
+%                             refers to which features will be used in the
+%                             bayes decision.
+%                               - 'd' for distance
+%                               - 'v' for vote
+%                               - 'r' for ratio score
+%                           - e.g. 'dv' decides based on distance and vote
+%                             while 'vs' is based on vote and ratio score
 %       .distribution:  Noisy location distribution. Currently supports:
 %           'exact':    Using the camera GPS coordinate only
 %           'unif':     Generates noisy locations in a uniform distribution
@@ -41,8 +50,8 @@ function [results] = post_process(method,reset)
 %                 results structure (depends on the contents of method)
 
 % Fixed parameters
-ncand = 50; % number of candidate images from vote only
-nfilt = 20; % number of images to filter down to from candidates
+ncand = 100; % number of candidate images from vote only
+nfilt = 25; % number of images to filter down to from candidates
 ntop = 10; % maximum top n for results
 
 % Set reset flag
@@ -67,6 +76,11 @@ run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 addpath('.\..\util\')
 addpath('.\..\bayes\')
 
+% Read the decision parameter
+idx = strfind(method.decision,'-');
+decision = method.decision(1:idx-1);
+decis_prm = method.decision(idx+1:end);
+
 % Get a list of queries
 query = dir(qDir);
 query = strvcat(query(3:end).name);
@@ -75,10 +89,11 @@ query(isnan(query)) = [];
 nq = length(query); % number of queries
 
 % Load results structure
-results_file = ['.\',method.decision,'\query',num2str(method.set), ...
+results_file = ['.\',decision,'\query',num2str(method.set), ...
                 method.distribution, ...
                 num2str(dRound(method.cell_dist,0)),'_results.mat'];
 if reset
+    results.run = cell(1,0);
     results.match = zeros(ntop,0);
     results.total = zeros(ntop,0);
     results.match_pct = zeros(ntop,0);
@@ -87,6 +102,7 @@ else
     try
         load(results_file)
     catch
+        results.run = cell(1,0);
         results.match = zeros(ntop,0);
         results.total = zeros(ntop,0);
         results.match_pct = zeros(ntop,0);
@@ -104,7 +120,7 @@ catch
 end
 
 % Load the classifier if necessary
-if strcmp(method.decision,'bayes')
+if strcmp(decision,'bayes')
     bayes_file = ['.\bayes\classifier\',method.distribution, ...
                        num2str(dRound(method.cell_dist,0)),'_bayes.mat'];
     try
@@ -121,19 +137,18 @@ end
     
 % Initialize variables
 cell_dist = method.cell_dist;
-if strcmp(method.decision,'linear')
-    ws = method.ws;
-    wv = 1;
-end
+run = decis_prm;
 match = zeros(ntop,1);
 total = zeros(ntop,1);
 match_pct = zeros(ntop,1);
 query_pct = zeros(nq,1);
 
+% Set run
+
 fprintf('\nRunning post processing...\n')
 
 % Iterate through each query
-for k=62%1:nq
+for k=[13,16,21,24,28,68]%1:nq
 
     fprintf(['\nProcessing query ',num2str(k),'... '])
 
@@ -177,13 +192,22 @@ for k=62%1:nq
 
         % Combine cells in this grouping
         comb_cells = qCell(cg.idx);
-        [cand,cand_vote,cand_lat,cand_lon,nfeat] = cellCombine(comb_cells,ncand,vDir);
+        [cand,cand_vote,cand_lat,cand_lon,nfeat] = cellCombine(comb_cells,vDir,ncand);
 
         % Iterate through each fuzzy point and post process
         for j=1:cg.npts
             
-            % Get the candidate distances
-            cand_dist = latlonDistance(cg.lats(j),cg.lons(j),cand_lat,cand_lon);
+            % Get the candidate distances and filter down to nfilt
+            if strcmp(decision,'linear')
+                cand = cand(1:nfilt);
+                cand_vote = cand_vote(1:nfilt);
+            else
+                cand_dist = latlonDistance(cg.lats(j),cg.lons(j),cand_lat,cand_lon);
+                param = [cand_dist,cand_vote,nan(ncand,1)];
+                [cand,param,~] = rankNcand(cand,param,method,nfilt);
+                cand_dist = param(1,:);
+                cand_vote = param(2,:);
+            end
             
             % Get the candidate ratio scores | read from file if possible
             idx = find(query_scores.number==query(k),1,'first');
@@ -196,22 +220,21 @@ for k=62%1:nq
             query_scores.scores{idx} = img_scores;
             cand_score = cand_score / nfeat;
 
-            % Evaluate the post processing
-            if strcmp(method.decision,'linear')
-                [m,p] = evaluateScores(cand_vote,cand_score,cand, ...
-                    gt,wv,ws,method.rerank);
-            else % if strcmp(method.decision,'bayes')
-                % Get feature matrix and rank candidates
-                bayes_features = [nan(ncand,1),cand_vote,cand_score];
-                [cand,score] = rankNcand(cand,bayes_features,method,ntop);
-                % Check for matches
-                m = zeros(ntop,1);
-                cand_idx = 1;
-                while cand_idx<=ntop && ~textMatch(cand(cand_idx),gt)
-                    cand_idx = cand_idx+1;
-                end
-                m(cand_idx:end)=1;
+            % Post process the features parameters to get a final ranking
+            if strcmp(decision,'linear')
+                param = [cand_vote,cand_score];
+            else % if strcmp(decision,'bayes')
+                param = [cand_dist,cand_vote,cand_score];
             end
+            cand = rankNcand(cand,param,method,ntop);
+            
+            % Check for matches
+            m = zeros(ntop,1);
+            cand_idx = 1;
+            while cand_idx<=ntop && ~textMatch(cand(cand_idx),gt)
+                cand_idx = cand_idx+1;
+            end
+            m(cand_idx:end)=1;
             
             % weigh result if exponential distribution
             if strcmp(method.distribution,'expo')
@@ -237,13 +260,14 @@ for k=62%1:nq
     end
 
     query_pct(k) = ma / to;
+    
+    % store query ratio scores
+    save(scores_file,'query_scores')
 
 end
 
-% store query ratio scores
-save(scores_file,'query_scores')
-
 % store results
+results.run(1,end+1) = decis_prm;
 results.match(:,end+1) = match;
 results.total(:,end+1) = total;
 results.match_pct(:,end+1) = match./total;
