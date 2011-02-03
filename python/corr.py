@@ -10,6 +10,7 @@ import cv
 import os
 
 MAX_PIXEL_DEVIATION = 5
+CONFIDENCE_LEVEL = .99999
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -36,7 +37,7 @@ def find_corr(matches):
   for i, m in enumerate(matches):
     cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
     cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
-  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=.99999)
+  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
   return F, np.asarray(inliers)[0]
 
 def find_hom(matches):

@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query1'
+QUERY = 'query3'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
