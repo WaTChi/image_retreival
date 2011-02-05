@@ -61,8 +61,9 @@ for f=1:M
         t = vars ./ means;
         
         if strcmp(plotmode(1),'x') % linear in x
-            maxX = max(means+3*sqrt(vars));
-            x = 0:maxX/npts:maxX;
+%             maxX = max(means+3*sqrt(vars));
+%             x = 0:maxX/npts:maxX;
+            x = 0:1/npts:1;
         else % logarithmic in x
             extent = max(log(k));
             minX = min(log(means)-2*extent);

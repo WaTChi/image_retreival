@@ -34,10 +34,10 @@ function [results] = post_process(method,reset)
 %                             while 'vs' is based on vote and ratio score
 %       .distribution:  Noisy location distribution. Currently supports:
 %           'exact':    Using the camera GPS coordinate only
-%           'unif':     Generates noisy locations in a uniform distribution
+%           'unif-x':   Generates noisy locations in a uniform distribution
 %                       - Distribution parameter .param must be specified,
 %                         indicating the maximum radius from GPS location
-%           'expo':     Generates noisy locations, exponential distribution
+%           'expo-x':   Generates noisy locations, exponential distribution
 %                       - Distribution parameter .param must be specified,
 %                         indicating the mean distance from GPS location
 %                       - Samples cap at 4 times mean from GPS location
@@ -76,10 +76,15 @@ run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
 addpath('.\..\util\')
 addpath('.\..\bayes\')
 
-% Read the decision parameter
+% Parse the decision parameter
 idx = strfind(method.decision,'-');
 decision = method.decision(1:idx-1);
 decis_prm = method.decision(idx+1:end);
+
+% Parse distribution parameter
+idx = strfind(method.distribution,'-');
+distr = method.distribution(1:idx-1);
+distr_prm = str2double(method.distribution(idx+1:end));
 
 % Get a list of queries
 query = dir(qDir);
@@ -89,8 +94,7 @@ query(isnan(query)) = [];
 nq = length(query); % number of queries
 
 % Load results structure
-results_file = ['.\',decision,'\query',num2str(method.set), ...
-                method.distribution, ...
+results_file = ['.\',decision,'\query',num2str(method.set),distr, ...
                 num2str(dRound(method.cell_dist,0)),'_results.mat'];
 if reset
     results.run = cell(1,0);
@@ -121,8 +125,8 @@ end
 
 % Load the classifier if necessary
 if strcmp(decision,'bayes')
-    bayes_file = ['.\bayes\classifier\',method.distribution, ...
-                       num2str(dRound(method.cell_dist,0)),'_bayes.mat'];
+    bayes_file = ['.\bayes\classifier\',distr, ...
+        num2str(dRound(method.cell_dist,0)),'_bayes.mat'];
     try
         load(bayes_file)
     catch
@@ -137,7 +141,6 @@ end
     
 % Initialize variables
 cell_dist = method.cell_dist;
-run = decis_prm;
 match = zeros(ntop,1);
 total = zeros(ntop,1);
 match_pct = zeros(ntop,1);
@@ -148,7 +151,7 @@ query_pct = zeros(nq,1);
 fprintf('\nRunning post processing...\n')
 
 % Iterate through each query
-for k=[13,16,21,24,28,68]%1:nq
+for k=1:nq
 
     fprintf(['\nProcessing query ',num2str(k),'... '])
 
@@ -165,21 +168,13 @@ for k=[13,16,21,24,28,68]%1:nq
     qLon = str2double(query_name(idx(2)+1:end-8));
 
     % Get fuzzy point locations
-    if strcmp(method.distribution,'exact')
+    if strcmp(distr,'exact')
         lats = qLat; lons = qLon;
-    elseif strcmp(method.distribution,'unif')
-        if ~isfield(method,'param')
-            rad = 75;
-        else
-            rad = method.param;
-        end
+    elseif strcmp(distr,'unif')
+        rad = distr_prm;
         [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
-    else % if strcmp(method.distribution,'expo')
-        if ~isfield(method,'param')
-            rad = 200;
-        else
-            rad = 4*method.param;
-        end
+    else % if strcmp(dist,'expo')
+        rad = 4*distr_prm;
         [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
     end
 
@@ -205,8 +200,8 @@ for k=[13,16,21,24,28,68]%1:nq
                 cand_dist = latlonDistance(cg.lats(j),cg.lons(j),cand_lat,cand_lon);
                 param = [cand_dist,cand_vote,nan(ncand,1)];
                 [cand,param,~] = rankNcand(cand,param,method,nfilt);
-                cand_dist = param(1,:);
-                cand_vote = param(2,:);
+                cand_dist = param(:,1);
+                cand_vote = param(:,2);
             end
             
             % Get the candidate ratio scores | read from file if possible
@@ -237,14 +232,9 @@ for k=[13,16,21,24,28,68]%1:nq
             m(cand_idx:end)=1;
             
             % weigh result if exponential distribution
-            if strcmp(method.distribution,'expo')
+            if strcmp(distr,'expo')
                 d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
-                if ~isfield(method,'param')
-                    param = 50;
-                else
-                    param = method.param;
-                end
-                weight = exp(-d/param);
+                weight = exp(-d/distr_prm);
             else % exact or uniform
                 weight = 1;
             end
@@ -267,7 +257,7 @@ for k=[13,16,21,24,28,68]%1:nq
 end
 
 % store results
-results.run(1,end+1) = decis_prm;
+results.run{1,end+1} = decis_prm;
 results.match(:,end+1) = match;
 results.total(:,end+1) = total;
 results.match_pct(:,end+1) = match./total;

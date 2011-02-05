@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query1'
+QUERY = 'query3'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -70,7 +70,7 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
 #    udir = os.path.join(resultsdir, str(match), query)
     if not os.path.exists(udir):
         os.makedirs(udir)
-    queryimgpath = os.path.join(querydir, query + '.pgm')
+    queryimgpath = os.path.join(querydir, query + '.jpg')
     i = 0
     for matchedimg, score in ranked_matches:
         if score != topentry[1]:
@@ -209,8 +209,6 @@ def combine_topn_votes(outputFilePaths, topn):
         for score, img in get_top_results(outputFilePath, topn):
             dupCount[img] = dupCount.get(img, 0) + float(score)
     dupCountLst = dupCount.items()
-#    dupCountLst.sort(key=lambda x: x[1])
-#    dupCountLst.reverse()
     dupCountLst.sort(key=lambda x: x[1], reverse=True)
     return dupCountLst
 
@@ -317,7 +315,7 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-resultsdir = os.path.expanduser('~/topmatches')
+resultsdir = os.path.expanduser('~/shiraz/topmatchesq4')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({

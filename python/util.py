@@ -183,9 +183,10 @@ def writeCellCoordsIfInRange(path, fname, lat, lon, radius):
                 f.write(',' + str(l) + ',' + str(lon2) + ',' + str(lat2) + '' + '\n')
     f.close()
    
-def writeCellCoords(path, fname):
+def writeCellCoords(path='/home/zhangz/shiraz/Research/cells/g=100,r=d=236.6', fname='/home/zhangz/shiraz/cells.txt'):
     """writes cell coordinates for all celldirs in path into a file fname for use in google earth"""
     if not os.path.exists(path):
+        print "invalid path"
         return
     dirs = getdirs(path)
     f = open(fname, "w")
@@ -193,11 +194,19 @@ def writeCellCoords(path, fname):
         lat, lon = dir.split(',')
         f.write(',' + lon + '-' + lat + ',' + lon + ',' + lat + '' + '\n')
     f.close()
-    
+
+def writeGridCoords(center = (37.872436,-122.272609), fname='/home/zhangz/shiraz/Research/google earth visuals/grid.txt'):
+    import querySystem
+    f = open(fname, "w")
+    for lat, lon in querySystem._skew_location(center, 75):
+        lat = str(lat)
+        lon = str(lon)
+        f.write(',' + ',' + lon + ',' + lat + '' + '\n')
 
 def writeQueryCoords(querydir, fname):
     """writes coordinates for all querysift in path into a file fname for use in google earth"""
-    if not os.path.exists(querydir):
+    if not os.path.exists(path):
+        print "invalid path"
         return
     f = open(fname, "w")
     for querysift in getSiftFileNames(querydir):

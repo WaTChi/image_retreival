@@ -168,12 +168,15 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
 
 def skew_location(querysift, radius):
     center = info.getQuerySIFTCoord(querysift)
+    return _skew_location(center, radius)
+
+def _skew_location(center, radius):
     length = 2*radius
     points = []
     corner = info.moveLocation(center[0], center[1], (2**.5)*radius, -45)
-    for i in range(length+1):
+    for i in range(length+5):
         row = info.moveLocation(corner[0], corner[1], i, 180)
-        for j in range(length+1):
+        for j in range(length+5):
             point = info.moveLocation(row[0],row[1], j, 90)
             if info.distance(center[0],center[1], point[0], point[1]) <= radius:
                 #newquerysift = querysift.split(',')[0]+','+str(point[0])+','+str(point[1])+'sift.txt'

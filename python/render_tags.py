@@ -160,7 +160,7 @@ class TaggedImage:
     points.sort(key=dist, reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 10.0)
-      size = int(200.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
+      size = int(150.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2

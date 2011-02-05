@@ -52,7 +52,7 @@ def find_hom(matches):
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers):
+def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showtag=True):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
@@ -60,15 +60,19 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   a = Image.open(q_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
-#  if a.size > (768, 512):
-#    INFO('resizing image %s => %s' % (str(a.size), '(768, 512)'))
-#    a = a.resize((768, 512), Image.ANTIALIAS)
+  scale=1
+  if a.size[0]> 768 or a.size[1] > 512:
+    newy=512
+    newx=(a.size[0]*newy/a.size[1])
+    scale = float(newy)/a.size[1]
+    INFO('resizing image %s => %s' % (str(a.size), str((newx,newy))))
+    a = a.resize((newx,newy ), Image.ANTIALIAS)
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
-  def drawline(match, color='hsl(20,100%,50%)', w=1):
+  def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
     draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
 
@@ -90,10 +94,20 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
-  green = np.compress(inliers, matches)
-  red = np.compress(map(lambda x: not x, oldinliers), oldmatches)
+  #TODO: include outliers from homography in red, refactor stuff. the oldinlier/inlier stuff is confusing
+  green = np.compress(inliers, matches).tolist()
+  red = np.compress(map(lambda x: not x, oldinliers), oldmatches).tolist()
+  red += np.compress(map(lambda x: not x, inliers), matches).tolist()
 
-  # deeply confusing geometry. x and y switch between the reprs.
+  for g in green:
+      g['query'][0]*=scale
+      g['query'][1]*=scale
+
+  for g in red:
+      g['query'][0]*=scale
+      g['query'][1]*=scale
+
+#  # deeply confusing geometry. x and y switch between the reprs.
   for (tag, (nulldist, pixel)) in points:
     x = pixel[1]
     y = pixel[0]
@@ -103,18 +117,20 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
     except ZeroDivisionError:
       dest = (0,0)
     tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
-    dest = (dest[1], dest[0])
+    dest = (dest[1]*scale, dest[0]*scale)
+#    dest = (dest[1], dest[0])
     proj_points.append((tag, (0, dest)))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 
-  for match in red:
-    drawline(match)
-    drawcircle(match)
-  for match in green:
-    drawline(match, 'yellow')
-    drawcircle(match, 'yellow')
+  if showLine:
+      for match in red:
+        drawline(match, 'red')
+        drawcircle(match, 'red')
+      for match in green:
+        drawline(match, 'green')
+        drawcircle(match, 'green')
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)
   b2 = img.taggedcopy(points, b)
@@ -128,7 +144,8 @@ def draw_matches(matches, q_img, db_img, out_img, inliers):
   tags.paste(b, (a.size[0],0))
   tagfilled.paste(a2, (0,0))
   tagfilled.paste(b2, (a.size[0],0))
-  target.paste(tagfilled, mask=tags)
+  if showtag:
+    target.paste(tagfilled, mask=tags)
 
 #  for match in tagmatches:
 #    rand = 'hsl(%d,100%%,50%%)' % (100 + int(155*random.random()))
