@@ -78,6 +78,44 @@ class FeatureReader(object):
     for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
 
+  def load_3dmap_for_cell(self, directory, dataset, mapping, pixmap_dir):
+    """For the cell specified, return a vector v such that
+       3dcoord(dataset[i]) == v[i]
+       This vector (~100MB) will be cached on disk."""
+    # IMPORTANT:
+    # IF ANY FIELD IS SET TO ZERO, THE DISTANCE IS UNKNOWN/FAR AWAY
+    map3d_dtype = {
+      'names': ['lat', 'lon', 'alt'],
+      'formats': ['float64', 'float64', 'float64'],
+    }
+    cellid = getcellid(directory)
+    v_out = getfile(directory, cellid + '-map3d.npy')
+    if os.path.exists(v_out):
+      return np.load(v_out)
+    INFO('reading 3d pts for %s' % cellid)
+
+    import pixels # avoid circular imports
+
+    pixmap = pixels.PixelMap(pixmap_dir)
+    map3d = np.zeros(len(dataset), map3d_dtype)
+    oldindex = -1
+    for i, row in enumerate(dataset):
+      coord = row['geom']
+      index = row['index']
+      if index != oldindex:
+        if index % 200 == 0:
+          INFO('read %d/%d pts' % (i, len(dataset)))
+        oldindex = index
+        pts3d = pixmap.open(mapping[index])
+      pt3d = pts3d[int(coord[0]), int(coord[1])]
+      if pt3d is not None:
+        map3d[i]['lat'] = pt3d['lat']
+        map3d[i]['lon'] = pt3d['lon']
+        map3d[i]['alt'] = pt3d['alt']
+    for dest in getdests(directory, cellid + '-map3d.npy'):
+      save_atomic(lambda d: np.save(d, map3d), dest)
+    return map3d
+
   def load_file(self, file):
     """Reads features from file."""
     num_features = self.count_features_in_file(file)

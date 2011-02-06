@@ -315,14 +315,15 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-resultsdir = os.path.expanduser('~/shiraz/topmatchesq4')
+resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'filter',
+  'vote_method': 'ratio',
+  'num_neighbors': 10,
   'dist_threshold': 70000,
   'confstring': '',
 })

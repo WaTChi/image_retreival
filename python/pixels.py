@@ -4,6 +4,7 @@
 # Use pixelmap.get(siftfile, x, y) for general fast reads.
 # Provides map from (pixel) => (lat, lon, alt)
 
+import time
 from config import *
 from reader import get_reader
 from earthMine import ddGetAllPixels
@@ -14,7 +15,6 @@ class PixelMap:
   def __init__(self, infodir):
     self.infodir = infodir
     self.datastore = os.path.join(os.path.dirname(os.path.abspath(infodir)), 'pixeldata')
-    INFO('datastore %s' % self.datastore)
     if not os.path.isdir(self.datastore):
       os.mkdir(self.datastore)
     self.cached = {}
@@ -31,10 +31,15 @@ class PixelMap:
     return data
   
   def get(self, featurefile, x, y):
+    start = time.time()
+    x, y = int(x), int(y)
     if featurefile in self.cached:
+      print 'cached'
       pixmap = self.cached[featurefile]
     else:
+      print 'uncached'
       pixmap = self.cached[featurefile] = self.open(featurefile)
+    print time.time() - start
     return pixmap[x,y]
   
   def open(self, featurefile):
