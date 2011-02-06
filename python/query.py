@@ -18,7 +18,6 @@ import threading
 import numpy as np
 import os
 
-
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
   'trees': 1,
