@@ -13,6 +13,7 @@ import corr
 from multiprocessing import cpu_count
 import time
 import pyflann
+import pixels
 import threading
 import numpy as np
 import os
@@ -87,10 +88,10 @@ class Query(threading.Thread):
     self.reader = reader.get_reader(params['descriptor'])
 
   def run(self):
-    if self.barrier:
-      self.barrier.acquire()
     if os.path.exists(self.outfile) and os.path.exists(self.dump):
       return
+    if self.barrier:
+      self.barrier.acquire()
     self.flann = pyflann.FLANN()
     start = time.time()
     dataset, mapping = self._build_index()
@@ -118,15 +119,69 @@ class Query(threading.Thread):
       'highest': self._vote_highest,
       'matchonce': self._vote_matchonce,
       'filter': self._vote_filter,
+      'ratio': self._vote_spatial_ratio,
       'top_n': self._vote_top_n,
       'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
+  def _vote_spatial_ratio(self, queryset, dataset, mapping, results, dists):
+    """Like vote_matchonce, but with a spatially aware ratio test.
+       Votes must exceed meet ratio with all matches outside of a
+       bubble around the original vote location. This requires nn >> 1.
+       Params to tweak: ratio threshold, bubble radius"""
+    assert self.params['num_neighbors'] > 1
+    # TODO eliminate hardcoded path
+    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, os.path.expanduser('~/shiraz/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'))
+    accept, reject, matchonce, ratio = 0, 0, 0, 0
+    counts = {} # map from img to counts
+    closed = set()
+    for i, dist_array in enumerate(dists):
+      if results[i][0] in closed:
+        matchonce += 1
+        reject += 1
+        continue
+      elif dist_array[0] > self.params['dist_threshold']:
+        reject += 1
+        continue
+      dist0 = dist_array[0]
+      image = mapping[dataset[results[i][0]]['index']]
+      coord = dataset[results[i][0]]['geom']
+      coord3d = map3d[results[i][0]]
+      passes_ratio_test = False
+      if coord3d is None: # no option but to accept
+        passes_ratio_test = True
+      else:
+        fd = util.filter_dist_exceeds(map3d, mapping, dataset, results[i], coord3d, 10.0, enumerate(dist_array[1:], 1))
+        if len(fd) == 0:
+          passes_ratio_test = True
+        else:
+          for j2, dist2 in fd:
+            if dist_array[0]/dist2 < 0.8:
+              passes_ratio_test = True
+              break
+      if not passes_ratio_test:
+        ratio += 1
+        reject += 1
+        continue
+      if passes_ratio_test:
+        closed.add(results[i][0])
+        if image not in counts:
+          counts[image] = []
+        counts[image].append({'db': dataset[results[i][0]]['geom'].copy(),
+                            'query': queryset[i]['geom'].copy()})
+        accept += 1
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
+    INFO('discarded %d vote collisions' % matchonce)
+    INFO('discarded %d votes using ratio test' % ratio)
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
   def _vote_top_n(self, queryset, dataset, mapping, results, dists):
-    """Like vote_matchonce, but up to 3 db images per query feature.
+    """Like vote_matchonce, but up to nn db images per query feature.
        requires more than 1 nearest neighbor for results.
        Note that each image gets 1 vote max."""
+    assert self.params['num_neighbors'] > 1
     accept, reject, matchonce = 0, 0, 0
     counts = {} # map from img to counts
     closed = set()
@@ -158,6 +213,7 @@ class Query(threading.Thread):
   def false_search(self, queryset):
     self.flann = None # release memory
     # TODO eliminate duplicated build index code
+    # TODO eliminate hardcoded path
     falsecellpath = os.path.expanduser('~/shiraz/Research/cells/g=100,r=d=236.6/37.8732916946,-122.279128355')
     falseflann = pyflann.FLANN()
     iname = '%s-%s.%s.index' % (getcellid(falsecellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
@@ -175,6 +231,7 @@ class Query(threading.Thread):
 
   def _vote_filter(self, queryset, dataset, mapping, results, dists):
     """Votes must beat false votes in another cell."""
+    assert self.params['num_neighbors'] == 1
     counts = {} # map from img to counts
     closed = set()
     closed2 = set()
@@ -213,6 +270,7 @@ class Query(threading.Thread):
 
   def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
     """Like vote highest, but each db feature is matchonceed to 1 match"""
+    assert self.params['num_neighbors'] == 1
     counts = {} # map from img to counts
     closed = set()
     accept, reject, matchonce = 0, 0, 0
@@ -237,6 +295,7 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_highest(self, queryset, dataset, mapping, results, dists):
+    assert self.params['num_neighbors'] == 1
     counts = {} # map from img to counts
     accept, reject = 0, 0
     for i, dist in enumerate(dists):

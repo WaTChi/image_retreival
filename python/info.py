@@ -76,9 +76,10 @@ def distance(lat1, lon1, lat2, lon2):
     lon1 = math.radians(lon1)
     lat2 = math.radians(lat2)
     lon2 = math.radians(lon2)
-    d = math.acos(math.sin(lat1)*math.sin(lat2) \
+    p = min(1.0, math.sin(lat1)*math.sin(lat2) \
                   + math.cos(lat1)*math.cos(lat2) \
-                  * math.cos(lon2 - lon1)) * R
+                  * math.cos(lon2 - lon1))
+    d = math.acos(p)*R
     return d
     
 def moveCellsIf(path, lat, lon, radius):

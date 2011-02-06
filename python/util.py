@@ -8,6 +8,17 @@ import shutil
 
 import earthMine as em
 import info
+import geom
+
+def filter_dist_exceeds(map3d, mapping, dataset, results, origin3d, thresh, enum):
+    out = []
+    for i, dist in enum:
+        image = mapping[dataset[results[i]]['index']]
+        coord = dataset[results[i]]['geom']
+        coord3d = map3d[results[i]]
+        if coord3d is None or geom.distance3d(coord3d, origin3d) > thresh:
+            out.append((i, dist))
+    return out
 
 def countuniqimages(celldir="E:\Research\cellsg=100,r=d=236.6"):
     names = set()
