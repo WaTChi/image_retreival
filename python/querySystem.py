@@ -15,6 +15,7 @@ import util
 import query
 import datetime
 import corr
+import numpy as np
 
 HOME = os.path.expanduser('~')
 
@@ -125,7 +126,7 @@ def combine_ransac(counts):
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
       if len(matches) < bound or num_filt > 20:
-        INFO('stopped after filtering %d' % num_filt)
+#        INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
       F, inliers = corr.find_corr(matches)
@@ -239,8 +240,8 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, par
     for queryfile in files:
         print "checking: {0}".format(queryfile)
 #        for newlat, newlon in [info.getQuerySIFTCoord(queryfile)]:
-#        for newlat, newlon in skew_location(queryfile, ambiguity):
-        for newlat, newlon in load_locations(queryfile):
+        for newlat, newlon in skew_location(queryfile, ambiguity):
+#        for newlat, newlon in load_locations(queryfile):
             closest_cells = util.getclosestcells(newlat, newlon, dbdir)
             count += 1
             result = run_query(newlat, newlon, querydir, queryfile, dbdir, mainOutputDir, ncells, copytopmatch, closest_cells, params)
