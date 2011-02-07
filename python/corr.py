@@ -1,4 +1,4 @@
-#!/usr/bin/env pyhehon
+#!/usr/bin/env python
 
 from config import *
 import random
@@ -11,6 +11,7 @@ import os
 
 MAX_PIXEL_DEVIATION = 5
 CONFIDENCE_LEVEL = .99999
+ROT_THRESHOLD_RADIANS = 0.2
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -24,40 +25,47 @@ def combine_matches(outputFilePaths):
       comb[image].extend(matches)
   return comb
 
-#matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
-def find_corr(matches):
-  F = cv.CreateMat(3, 3, cv.CV_64F)
-  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
-  cv.SetZero(F)
-  cv.SetZero(inliers)
-  if not matches:
-    return F, np.asarray(inliers)[0]
-  pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
-  pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
-  for i, m in enumerate(matches):
-    cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
-    cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
-  cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
-  return F, np.asarray(inliers)[0]
+def rot_delta(m):
+  a = m['query'][3]
+  b = m['db'][3]
+  rot = 2*np.pi
+  return min((a-b) % rot, (b-a) % rot)
 
-def find_hom(matches):
+#matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
+def find_corr(matches, hom=False):
+  matches = list(matches)
+  F = cv.CreateMat(3, 3, cv.CV_64F)
+  cv.SetZero(F)
+  if not matches or (hom and len(matches) < 4):
+    return F, []
+  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
+  cv.SetZero(inliers)
   pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   for i, m in enumerate(matches):
     cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
     cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
-  F = cv.CreateMat(3, 3, cv.CV_64F)
-  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
-  cv.SetZero(F)
-  cv.SetZero(inliers)
+
+  # ransac for fundamental matrix. rotation filtering
+  # TODO custom RANSAC including rotation in model
+  # TODO custom RANSAC including SIFT feature size in model
+  if not hom:
+    cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
+    inliers = np.asarray(inliers)[0]
+    for i, m in enumerate(matches):
+      if inliers[i]:
+        if rot_delta(m) > ROT_THRESHOLD_RADIANS:
+          inliers[i] = False
+    return F, inliers
+
+  # homography only. no rotation check
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showtag=True):
+def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showtag=True):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-#  q_img = q_img.replace('.pgm', '.jpg')
   a = Image.open(q_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
@@ -73,7 +81,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
-  def drawline(match, color='hsl(20,100%,50%)', w=3):
+  def drawline(match, color='hsl(20,100%,50%)', w=1):
     db = [match['db'][1] + a.size[0], match['db'][0]]
     draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
 
@@ -91,7 +99,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
   oldmatches = matches
   oldinliers = inliers
   matches = np.compress(inliers, matches)
-  H, inliers = find_hom(matches)
+  H, inliers = find_corr(matches, hom=True)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -108,7 +116,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
       g['query'][0]*=scale
       g['query'][1]*=scale
 
-#  # deeply confusing geometry. x and y switch between the reprs.
+  # confusing geometry. x and y switch between the reprs.
   for (tag, (nulldist, pixel)) in points:
     x = pixel[1]
     y = pixel[0]
@@ -117,21 +125,35 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
       dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
     except ZeroDivisionError:
       dest = (0,0)
+    except ValueError:
+      dest = (0,0)
     tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
     dest = (dest[1]*scale, dest[0]*scale)
-#    dest = (dest[1], dest[0])
     proj_points.append((tag, (0, dest)))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 
+  def colorize(theta):
+    if theta < .1:
+      return 'green'
+    elif theta < .2:
+      return 'blue'
+    elif theta < .5:
+      return 'purple'
+    elif theta < 1.5:
+      return 'orange'
+    else:
+      return 'red'
+
   if showLine:
       for match in red:
         drawline(match, 'red')
-        drawcircle(match, 'red')
+        drawcircle(match, colorize(rot_delta(match)))
       for match in green:
         drawline(match, 'green')
-        drawcircle(match, 'green')
+        drawcircle(match, colorize(rot_delta(match)))
+
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)
   b2 = img.taggedcopy(points, b)
@@ -148,17 +170,6 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
   if showtag:
     target.paste(tagfilled, mask=tags)
 
-#  for match in tagmatches:
-#    rand = 'hsl(%d,100%%,50%%)' % (100 + int(155*random.random()))
-#    drawline(match, rand)
-#    drawcircle(match)
-#
-#  for match in oldmatches:
-#    dest = H*np.matrix([match['db'][0],match['db'][1],1]).transpose()
-#    dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())) + [10])
-#    match['query'] = dest
-#    drawline(match, 'red')
-#    drawcircle(match)
   target.save(out_img, 'jpeg', quality=90)
 
 if __name__ == '__main__':
