@@ -69,19 +69,24 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
   a = Image.open(q_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
-  scale=1
-  if a.size[0]> 768 or a.size[1] > 512:
-    newy=512
-    newx=(a.size[0]*newy/a.size[1])
+  scale = 1
+  portrait = a.size[0] < a.size[1]
+  if a.size[0] > 768 or a.size[1] > 512:
+    newy = 512
     scale = float(newy)/a.size[1]
+    newx = a.size[0]*scale
     INFO('resizing image %s => %s' % (str(a.size), str((newx,newy))))
-    a = a.resize((newx,newy ), Image.ANTIALIAS)
+    a = a.resize((newx,newy), Image.ANTIALIAS)
+    # XXX TODO rework rescale
+    if portrait:
+#      scale = float(newy)/840
+      scale = 1
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
-  def drawline(match, color='hsl(20,100%,50%)', w=1):
+  def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
     draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
 
@@ -148,10 +153,10 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
 
   if showLine:
       for match in red:
-        drawline(match, 'red')
+        drawline(match, 'red', w=1)
         drawcircle(match, colorize(rot_delta(match)))
       for match in green:
-        drawline(match, 'green')
+        drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match)))
 
   # ImageDraw :(

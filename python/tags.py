@@ -88,7 +88,7 @@ class TagCollection:
           key = None
       self.tags.append(Tag(tag))
 
-  def select_frustum(self, lat, lon, yaw, fov=90, radius=100):
+  def select_frustum(self, lat, lon, yaw, fov=270, radius=100):
     contained = []
     for tag in self.tags:
       dist = info.distance(lat, lon, tag.lat, tag.lon)
