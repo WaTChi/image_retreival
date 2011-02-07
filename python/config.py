@@ -1,3 +1,4 @@
+import sys
 import os
 import random
 import shutil
@@ -6,6 +7,11 @@ from datetime import datetime
 LOCAL_CACHING = True
 CACHE_PATH = os.path.expanduser('/var/tmp')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
+
+if os.getenv('USER') == 'www-data':
+  STDOUT = sys.stderr
+else:
+  STDOUT = sys.stdout
 
 def getdests(directory, name):
   default = os.path.join(os.path.dirname(directory), name)
@@ -44,7 +50,7 @@ def getcellid(directory):
   return os.path.basename(directory)
 
 def INFO(x):
-  print datetime.today().strftime("%l:%M:%S - ") + str(x)
+  print >> STDOUT, datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
 #  INFO(x)

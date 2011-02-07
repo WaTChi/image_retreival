@@ -69,13 +69,18 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
   a = Image.open(q_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
-  scale=1
-  if a.size[0]> 768 or a.size[1] > 512:
-    newy=512
-    newx=(a.size[0]*newy/a.size[1])
+  scale = 1
+  portrait = a.size[0] < a.size[1]
+  if a.size[0] > 768 or a.size[1] > 512:
+    newy = 512
     scale = float(newy)/a.size[1]
+    newx = a.size[0]*scale
     INFO('resizing image %s => %s' % (str(a.size), str((newx,newy))))
-    a = a.resize((newx,newy ), Image.ANTIALIAS)
+    a = a.resize((newx,newy), Image.ANTIALIAS)
+    # XXX TODO rework rescale
+    if portrait:
+#      scale = float(newy)/840
+      scale = 1
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])

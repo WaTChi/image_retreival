@@ -41,6 +41,7 @@ class Img:
 def make_reader(querydir):
     if QUERY == 'query4':
         return AndroidReader(querydir)
+    INFO(querydir)
     def iter():
         for file in util.getSiftFileNames(querydir):
             image = Img()
