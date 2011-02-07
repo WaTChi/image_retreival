@@ -8,7 +8,7 @@ LOCAL_CACHING = True
 CACHE_PATH = os.path.expanduser('/var/tmp')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
 
-if os.getenv('USER') == 'www-data':
+if os.getenv('SERVER_PROTOCOL'):
   STDOUT = sys.stderr
 else:
   STDOUT = sys.stdout

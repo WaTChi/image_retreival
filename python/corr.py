@@ -86,7 +86,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
-  def drawline(match, color='hsl(20,100%,50%)', w=1):
+  def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
     draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
 
@@ -153,10 +153,10 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
 
   if showLine:
       for match in red:
-        drawline(match, 'red')
+        drawline(match, 'red', w=1)
         drawcircle(match, colorize(rot_delta(match)))
       for match in green:
-        drawline(match, 'green')
+        drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match)))
 
   # ImageDraw :(
