@@ -182,7 +182,7 @@ class ddObject():
     def __init__(self):
         #Construct request headers
         self.requestURL = EARTHMINE_URL
-        self.httpObject = httplib2.Http(".cache")
+        self.httpObject = httplib2.Http()
         self.headers={"x-earthmine-auth-id": DD_KEY}
         self.JSONData = ""
         self.JSONEncoder = json.JSONEncoder(ensure_ascii=False)
@@ -294,7 +294,7 @@ class ddObject():
             pass
         else:
             fullURL = self.signRequest()
-            self.httpObject = httplib2.Http(".cache") 
+            self.httpObject = httplib2.Http()
             try:
                 resp, content = self.httpObject.request(fullURL, 'POST',
                                                         headers=self.headers,
