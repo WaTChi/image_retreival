@@ -47,6 +47,7 @@ def indextype(params):
     return '%s%s%s' % (params['algorithm'], distname, des)
 
 def searchtype(params):
+  assert len(params) == len(PARAMS_DEFAULT)
   nn = params['num_neighbors']
   nn = '' if nn == 1 else (',nn=%d' % nn)
   vote_method = '' if params['vote_method'] == 'highest' else ',%s' % params['vote_method']
@@ -76,6 +77,7 @@ def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num
 # Note that the vote method chosen is responsible for this list.
 class Query(threading.Thread):
   def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
+    assert len(params) == len(PARAMS_DEFAULT)
     threading.Thread.__init__(self)
     self.qpath = os.path.join(qdir, qfile)
     self.cellpath = os.path.join(celldir, cell)
@@ -152,14 +154,9 @@ class Query(threading.Thread):
       if coord3d is None: # no option but to accept
         passes_ratio_test = True
       else:
-        fd = util.filter_dist_exceeds(map3d, mapping, dataset, results[i], coord3d, 10.0, enumerate(dist_array[1:], 1))
-        if len(fd) == 0:
+        dist2 = util.select_dist_exceeds(map3d, mapping, dataset, results[i], coord3d, 10.0, enumerate(dist_array[1:], 1))
+        if dist2 is None or dist_array[0]/dist2 < 0.95:
           passes_ratio_test = True
-        else:
-          for j2, dist2 in fd:
-            if dist_array[0]/dist2 < 0.8:
-              passes_ratio_test = True
-              break
       if not passes_ratio_test:
         ratio += 1
         reject += 1

@@ -28,6 +28,19 @@ class ImageInfo:
     """Return None if not supported."""
     raise NotImplementedError
 
+class ComputedImageInfo(ImageInfo):
+  """computes pose from db matches"""
+  def __init__(self, image):
+    # Steps:
+    #  sift extract
+    #  query
+    #  homography
+    #  posit
+    raise NotImplementedError
+
+  def get_pixel_locations(self, pixels):
+    return None
+
 class AndroidImageInfo(ImageInfo):
   """for images from AndroidReader"""
   def __init__(self, image):

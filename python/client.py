@@ -15,17 +15,20 @@ cellradius = 236.6
 ambiguity = 50
 matchdistance = 25
 ncells = 7
-maindir = os.path.expanduser('~/shiraz')
+#maindir = os.path.expanduser('~/shiraz')
+maindir = os.path.expanduser('~etzeng/shiraz')
 dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
-matchdir = os.path.expanduser('~/results/%s' % query.searchtype(params))
+#matchdir = os.path.expanduser('~/results/%s' % query.searchtype(params))
+matchdir = "/tmp/results/%s" % query.searchtype(params)
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
 if not os.path.isdir(matchdir):
     os.makedirs(matchdir)
 
-def match(siftfile, imagefile):
+def match(siftfile, imagefile, lat=None, lon=None):
     querydir = os.path.dirname(siftfile)
     siftfile = os.path.basename(siftfile)
-    lat, lon = info.getQuerySIFTCoord(siftfile)
+    if lat == None or lon == None:
+        lat, lon = info.getQuerySIFTCoord(siftfile)
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:ncells] if dist < cellradius + ambiguity+matchdistance]
@@ -52,23 +55,33 @@ def match(siftfile, imagefile):
     matches = comb_matches[matchedimg + 'sift.txt']
     return matchedimg, matches
 
-def draw_corr(queryimgpath, matchedimg, matches):
+def draw_corr(queryimgpath, matchedimg, matches, matchoutpath=None):
     F, inliers = corr.find_corr(matches)
     matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-    matchoutpath = os.path.expanduser('~/client-out.png')
+    if matchoutpath == None:
+        matchoutpath = os.path.expanduser('~/client-out.png')
     corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
     return F, inliers
 
+def preprocess_image(inputfile, outputfile=None, width=768, height=512):
+    """Use the convert utility to preprocess an image."""
+    if outputfile == None:
+        outputfile = inputfile.rsplit(".",1)[0] + ".pgm"
+    os.system("convert {0} -resize {2}x{3} {1}".format(inputfile, outputfile, width, height))
+    return outputfile
+
+SIFTEXEC = os.path.join(maindir, 'Research/app/siftDemoV4/sift')
+
+def extract_features(inputfile, outputfile=None, siftexec=SIFTEXEC):
+    """Call the sift utility to extract sift features."""
+    if outputfile == None:
+        outputfile = inputfile.rsplit(".",1)[0] + "sift.txt"
+    os.system("{0} <{1} >{2}".format(siftexec, inputfile, outputfile))
+    return outputfile
+
 if __name__ == '__main__':
-#    sift = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853sift.txt')
-#    image = os.path.expanduser('~/shiraz/DSC_7595,37.87015,-122.26853.JPG')
     sift = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223sift.txt')
     image = os.path.expanduser('~/shiraz/DSC_7638,37.87162,-122.27223.JPG')
-#    sift = os.path.expanduser('~/shiraz/DSC_7746,37.87203,-122.27022sift.txt')
-#    image = os.path.expanduser('~/shiraz/DSC_7746,37.87203,-122.27022.jpg')
-#    sift = os.path.expanduser('~/shiraz/DSC_7712,37.87125,-122.26820sift.txt')
-#    image = os.path.expanduser('~/shiraz/DSC_7712,37.87125,-122.26820.jpg')
-#    sift = os.path.expanduser('~/shiraz/DSC_7765,37.87228,-122.26843sift.txt')
-#    image = os.path.expanduser('~/shiraz/DSC_7765,37.87228,-122.26843.JPG')
     matchedimg, matches = match(sift, image)
     draw_corr(image, matchedimg, matches)
+

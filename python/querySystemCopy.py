@@ -19,7 +19,7 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query3'
+QUERY = 'query1'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -27,10 +27,12 @@ try:
         import multiprocessing
         NUM_THREADS = multiprocessing.cpu_count()
     drawtopcorr = 'NO_DRAW' not in os.environ
+    drawfailures = 'DRAW_FAIL' in os.environ
 except:
     import multiprocessing
     NUM_THREADS = multiprocessing.cpu_count()
     drawtopcorr = 1
+    drawfailures = 0
 
 class Img:
     def __init__(self):
@@ -72,9 +74,9 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         os.makedirs(udir)
     queryimgpath = os.path.join(querydir, query + '.jpg')
     i = 0
-    for matchedimg, score in ranked_matches:
-        if score != topentry[1]:
-            break
+    for matchedimg, score in ranked_matches[:1]:
+#        if score != topentry[1]:
+#            break
 #        i += 1 # XXX tmp image analysis code to spit out top 10
 #        if i > 9:
 #            break;
@@ -129,7 +131,7 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr
 #    write_scores(querysift, combined, "/media/data/combined")
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
     match = g or y or r or b or o
-    if drawtopcorr or not match:
+    if drawtopcorr or (not match and drawfailures):
         draw_top_corr(querydir, querysift.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
     return [g, y, r, b, o]
     
@@ -253,7 +255,7 @@ def characterize(querydir, dbdir, mainOutputDir, n, drawtopcorr, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
-    if drawtopcorr:
+    if drawtopcorr or drawfailures:
         if os.path.exists(resultsdir):
             shutil.rmtree(resultsdir)
         os.makedirs(resultsdir)
@@ -322,8 +324,8 @@ params.update({
   'checks': 1024,
   'trees': 1,
   'distance_type': 'euclidean',
-  'vote_method': 'ratio',
-  'num_neighbors': 10,
+  'vote_method': 'filter',
+  'num_neighbors': 1,
   'dist_threshold': 70000,
   'confstring': '',
 })
