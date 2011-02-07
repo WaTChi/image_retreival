@@ -14,6 +14,7 @@ import query2Groundtruth
 import util
 import query
 import datetime
+import corr
 
 HOME = os.path.expanduser('~')
 
@@ -105,14 +106,43 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
 #    combined = combine_topn_votes(outputFilePaths, float('inf'))
 ##    combined = filter_in_range(newlat, newlon, combined, querysift)
 ##    write_scores(querysift, combined, "/media/data/combined")
+    comb_matches = corr.combine_matches(outputFilePaths)
+    combined = combine_ransac(comb_matches)
     results = {}
     for n in topnresults:
-#        result = check_topn_img(querysift, combined, n)
-#        results[n] = reduce(lambda x,y: x or y, result)
-        results[n]=False
+        result = check_topn_img(querysift, combined, n)
+        results[n] = reduce(lambda x,y: x or y, result)
+#        results[n]=False
 #    if copytopmatch:
 #        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, results[1])
     return results
+
+def combine_ransac(counts):
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    filtered = {}
+    bound = -1
+    num_filt = 0
+    for siftfile, matches in sorted_counts:
+      siftfile = siftfile[:-8]
+      if len(matches) < bound or num_filt > 20:
+        INFO('stopped after filtering %d' % num_filt)
+        break
+      num_filt += 1
+      F, inliers = corr.find_corr(matches)
+      bound = max(sum(inliers), bound)
+      pts = np.ndarray(len(matches), np.object)
+      pts[0:len(matches)] = matches
+      if any(inliers):
+        filtered[siftfile] = list(np.compress(inliers, pts))
+    rsorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    def condense(list):
+        return map(lambda x: (x[0], len(x[1])), list)
+    def condense2(list):
+        return map(lambda x: (x[0][:-8], len(x[1])), list)
+    if not rsorted_counts:
+      INFO('W: postcomb ransac rejected everything, not filtering')
+      return condense2(sorted_counts)
+    return condense(rsorted_counts)
 
 def filter_in_range(qlat, qlon, ranked_matches, querysift):
     #qlat, qlon = info.getQuerySIFTCoord(querysift)
@@ -174,9 +204,9 @@ def _skew_location(center, radius):
     length = 2*radius
     points = []
     corner = info.moveLocation(center[0], center[1], (2**.5)*radius, -45)
-    for i in range(length+5):
+    for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
-        for j in range(length+5):
+        for j in range(length+1):
             point = info.moveLocation(row[0],row[1], j, 90)
             if info.distance(center[0],center[1], point[0], point[1]) <= radius:
                 #newquerysift = querysift.split(',')[0]+','+str(point[0])+','+str(point[1])+'sift.txt'
@@ -254,7 +284,8 @@ verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
-fuzzydir = os.path.join(maindir, 'query3_fuzzy2/')
+QUERY='query3'
+fuzzydir = os.path.join(maindir, QUERY+'_fuzzy/')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 params = query.PARAMS_DEFAULT.copy()
 params.update({
@@ -266,13 +297,9 @@ params.update({
 })
 if __name__ == "__main__":
     querydir = os.path.join(maindir, 'query3/')
-    dbdir = os.path.join(maindir, 'Research/cellsg=100,r=d=236.6/')
-    #for ahvaz
-#    matchdir = HOME+'/.gvfs/sftp for zhangz on 128.32.43.34/home/zhangz/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params))
-    #for gorgan
-    matchdir = HOME+'/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query3', 'query3', query.searchtype(params))
-    #for q2
-#    matchdir = os.path.join(maindir, 'Research/results(%s)/matchescells(g=100,r=d=236.6),%s,%s' % ('query2', 'query2', query.searchtype(params)))
+    dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
+   #for gorgan
+    matchdir = os.path.join(maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     if len(sys.argv) > 4:
         print "USAGE: {0} QUERYDIR DBDIR OUTPUTDIR".format(sys.argv[0])
         sys.exit()
@@ -292,87 +319,3 @@ if __name__ == "__main__":
         print querydir
         print dbdir
         print matchdir
-
-
-#def combine_until_dup(outputFilePaths, topn):
-#    #combines up to topn results from each query in outputFilePaths
-#    for n in range(1, topn + 1):
-#        combined = combine_topn_dup(outputFilePaths, n)
-#        if combined[0][1] > 1:
-#            break
-#    return combined
-#
-#def combine_topn_dup(outputFilePaths, topn):
-#    #combines topn results from each query in outputFilePaths
-#    dupCount = {}
-#    for outputFilePath in outputFilePaths:
-#        for score, img in get_top_results(outputFilePath, topn):
-#            dupCount[img] = dupCount.get(img, 0) + 1
-#    dupCountLst = dupCount.items()
-#    dupCountLst.sort(key=lambda x: x[1], reverse=True)
-#    return dupCountLst
-#
-#def check_top_score(querysift, dupCountLst):
-#    topCount = dupCountLst[0][1]
-#    g = 0
-#    y = 0
-#    r = 0
-#    b = 0
-#    o = 0
-#    count = 0
-#    for entry in dupCountLst:
-#        if entry[1] != topCount:
-#            print "# of imgs w/ top vote ({0}): {1}".format(topCount, count)
-#            break
-#        count += 1
-#        g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
-#        y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
-#        r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
-#        b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
-#        o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
-#    return [g > 0, y > 0, r > 0, b > 0, o > 0]
-
-#def copy_query(querydir, querysift, outdir):
-#    if  not os.path.exists(outdir):
-#        os.makedirs(outdir)
-#    img = '%s.JPG' % querysift.split('sift')[0]
-#    shutil.copy(os.path.join(querydir, img), outdir)
-
-#def check_top(query_str, groundTruth_dict, outputFilePath, n=1):
-#    if  not os.path.exists(outputFilePath):
-#        raise OSError("{p} does not exist.".format(p=outputFilePath))
-#    file = open(outputFilePath)
-#    top_results = []
-#    line = file.next()
-#    score1, img = parse_result_line(line)
-#    top_results.append(img)
-#    uniquevotecount = 0
-#    for line in file:
-#        score2, img = parse_result_line(line)
-#        if score2 != score1:
-#            score1 = score2
-#            uniquevotecount += 1
-#            if uniquevotecount >= n:
-#                break
-#        top_results.append(img)
-#    for img in top_results:
-#        if check_truth(query_str.split('sift')[0], img, groundTruth_dict):
-#            return True
-#    return False
-
-#def weigh_cells(ranked_matches, dbdir, nClosestCells):
-#    weighted_matches = []
-#    for matchedimg, score in ranked_matches:
-#        lat = float(matchedimg.split(",")[0])
-#        lon = float(matchedimg.split(",")[1][0:-5])
-#        closest_cells = util.getclosestcells(lat, lon, dbdir)
-#        cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius]
-#        numoverlap = len(cells_in_range)
-#        if numoverlap == 3:
-#            weighted_matches.append((matchedimg, score * 4))
-#        elif numoverlap == 4:
-#            weighted_matches.append((matchedimg, score * 3))
-##        else:
-##            print "ERROR! weigh_cells has more overlap than it's supposed to: {0}, {1}".format(numoverlap, matchedimg)
-#    weighted_matches.sort(key=lambda x: x[1], reverse=True)
-#    return weighted_matches

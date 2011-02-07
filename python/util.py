@@ -206,13 +206,14 @@ def writeCellCoords(path='/home/zhangz/shiraz/Research/cells/g=100,r=d=236.6', f
         f.write(',' + lon + '-' + lat + ',' + lon + ',' + lat + '' + '\n')
     f.close()
 
-def writeGridCoords(center = (37.872436,-122.272609), fname='/home/zhangz/shiraz/Research/google earth visuals/grid.txt'):
+def writeGridCoords(center = (37.872436,-122.272609), fname='/home/zhangz/shiraz/Research/google earth visuals/tmp.txt'):
     import querySystem
     f = open(fname, "w")
     for lat, lon in querySystem._skew_location(center, 75):
         lat = str(lat)
         lon = str(lon)
         f.write(',' + ',' + lon + ',' + lat + '' + '\n')
+    f.close()
 
 def writeQueryCoords(querydir, fname):
     """writes coordinates for all querysift in path into a file fname for use in google earth"""
@@ -225,6 +226,7 @@ def writeQueryCoords(querydir, fname):
         lat = str(lat)
         lon = str(lon)
         f.write(',' + querysift.split(',')[0] + ',' + lon + ',' + lat + '' + '\n')
+    f.close()
 
 def writedbImgCoords(dbdir="E:/Research/collected_images/earthmine-new,culled/37.871955,-122.270829/",
                      fname = "E:/dl.txt"):
@@ -384,13 +386,13 @@ def python_to_matlab_groundTruth(d, fname):
             f.write( "{0}\n{1}\n".format(key, '\n'.join(d[key])))
         else:
             f.write( "{0}\n".format(key))
-python_to_matlab_groundTruth(groundtruthG.matches, "gt3G")
-python_to_matlab_groundTruth(groundtruthY.matches, "gt3Y")
-python_to_matlab_groundTruth(groundtruthR.matches, "gt3R")
-python_to_matlab_groundTruth(groundtruthB.matches, "gt3B")
-python_to_matlab_groundTruth(groundtruthO.matches, "gt3O")
-python_to_matlab_groundTruth(query1Groundtruth.matches, "gt1")
-python_to_matlab_groundTruth(query2Groundtruth.matches, "gt2")
+#python_to_matlab_groundTruth(groundtruthG.matches, "gt3G")
+#python_to_matlab_groundTruth(groundtruthY.matches, "gt3Y")
+#python_to_matlab_groundTruth(groundtruthR.matches, "gt3R")
+#python_to_matlab_groundTruth(groundtruthB.matches, "gt3B")
+#python_to_matlab_groundTruth(groundtruthO.matches, "gt3O")
+#python_to_matlab_groundTruth(query1Groundtruth.matches, "gt1")
+#python_to_matlab_groundTruth(query2Groundtruth.matches, "gt2")
 
 #def dupCount(file):
 #    counter = {}

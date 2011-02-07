@@ -315,7 +315,7 @@ matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 topnresults = 1
 verbosity = 1
-resultsdir = os.path.expanduser('~/topmatches')
+resultsdir = os.path.expanduser('~/shiraz/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
