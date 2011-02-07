@@ -3,20 +3,20 @@
 from config import *
 import random
 import time
-import image, imagedraw
+import Image, ImageDraw
 import render_tags
 import numpy as np
 import cv
 import os
 
-max_pixel_deviation = 5
-confidence_level = .99999
-rot_threshold_radians = 0.2
+MAX_PIXEL_DEVIATION = 5
+CONFIDENCE_LEVEL = .99999
+ROT_THRESHOLD_RADIANS = 0.2
 
-def combine_matches(outputfilepaths):
-  """returns dictionary of siftfile => matches"""
+def combine_matches(outputFilePaths):
+  """Returns dictionary of siftfile => matches"""
   comb = {}
-  for res in outputfilepaths:
+  for res in outputFilePaths:
     detailed = res + '-detailed.npy'
     for image, matches in np.load(detailed):
       assert type(matches) == list
@@ -32,54 +32,54 @@ def rot_delta(m):
   return min((a-b) % rot, (b-a) % rot)
 
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
-def find_corr(matches, hom=false):
+def find_corr(matches, hom=False):
   matches = list(matches)
-  f = cv.createmat(3, 3, cv.cv_64f)
-  cv.setzero(f)
+  F = cv.CreateMat(3, 3, cv.CV_64F)
+  cv.SetZero(F)
   if not matches or (hom and len(matches) < 4):
-    return f, []
-  inliers = cv.createmat(1, len(matches), cv.cv_8u)
-  cv.setzero(inliers)
-  pts_q = cv.createmat(len(matches), 1, cv.cv_64fc2)
-  pts_db = cv.createmat(len(matches), 1, cv.cv_64fc2)
+    return F, []
+  inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
+  cv.SetZero(inliers)
+  pts_q = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
+  pts_db = cv.CreateMat(len(matches), 1, cv.CV_64FC2)
   for i, m in enumerate(matches):
-    cv.set2d(pts_q, i, 0, cv.scalar(*m['query'][:2]))
-    cv.set2d(pts_db, i, 0, cv.scalar(*m['db'][:2]))
+    cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
+    cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
 
   # ransac for fundamental matrix. rotation filtering
-  # todo custom ransac including rotation in model
-  # todo custom ransac including sift feature size in model
+  # TODO custom RANSAC including rotation in model
+  # TODO custom RANSAC including SIFT feature size in model
   if not hom:
-    cv.findfundamentalmat(pts_q, pts_db, f, status=inliers, param1=max_pixel_deviation, param2=confidence_level)
+    cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
     inliers = np.asarray(inliers)[0]
     for i, m in enumerate(matches):
       if inliers[i]:
-        if rot_delta(m) > rot_threshold_radians:
-          inliers[i] = false
-    return f, inliers
+        if rot_delta(m) > ROT_THRESHOLD_RADIANS:
+          inliers[i] = False
+    return F, inliers
 
   # homography only. no rotation check
-  cv.findhomography(pts_db, pts_q, f, method=cv.cv_ransac, ransacreprojthreshold=max_pixel_deviation, status=inliers)
-  return f, np.asarray(inliers)[0]
+  cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
+  return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, showline=true, showtag=true):
+def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showtag=True):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-  a = image.open(q_img)
-  if a.mode != 'rgb':
-    a = a.convert('rgb')
+  a = Image.open(q_img)
+  if a.mode != 'RGB':
+    a = a.convert('RGB')
   scale=1
   if a.size[0]> 768 or a.size[1] > 512:
     newy=512
     newx=(a.size[0]*newy/a.size[1])
     scale = float(newy)/a.size[1]
-    info('resizing image %s => %s' % (str(a.size), str((newx,newy))))
-    a = a.resize((newx,newy ), image.antialias)
-  assert a.mode == 'rgb'
-  b = image.open(db_img)
+    INFO('resizing image %s => %s' % (str(a.size), str((newx,newy))))
+    a = a.resize((newx,newy ), Image.ANTIALIAS)
+  assert a.mode == 'RGB'
+  b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
-  target = image.new('rgba', (a.size[0] + b.size[0], height))
+  target = Image.new('RGBA', (a.size[0] + b.size[0], height))
 
   def drawline(match, color='hsl(20,100%,50%)', w=1):
     db = [match['db'][1] + a.size[0], match['db'][0]]
@@ -89,9 +89,9 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showline=true, showta
     draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline=col)
     draw.ellipse((match['db'][1] + a.size[0] - match['db'][2], match['db'][0] - match['db'][2], match['db'][1] + a.size[0] + match['db'][2], match['db'][0] + match['db'][2]), outline=col)
 
-  draw = imagedraw.draw(target)
+  draw = ImageDraw.Draw(target)
 
-  db = render_tags.tagcollection(os.path.expanduser(os.path.expanduser('~/shiraz/Research/app/src/tags.csv')))
+  db = render_tags.TagCollection(os.path.expanduser('~/shiraz/Research/app/dev/tags.csv'))
   source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()

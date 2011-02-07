@@ -1,7 +1,6 @@
 # An implementation of the EarthMine DirectData API using their
 # HTTP Request Protocol
 
-# Use httplib2
 import httplib2
 import urllib
 import time
@@ -11,7 +10,6 @@ import math
 import numpy
 import os
 from PIL import Image
-
 
 #DD_KEY="v12ypuyn9a2renzw9ivvu5fg"
 #DD_SECRET="Q4xfUF0vqO"
