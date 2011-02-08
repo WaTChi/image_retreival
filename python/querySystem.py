@@ -63,7 +63,14 @@ def parse_result_line(line):
 def check_truth(query_str, result_str, groundTruth_dict):
     return result_str in groundTruth_dict[query_str]
 
+def derive_key(closest_cells, querysift):
+    return (querysift,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
+
+cache = {}
 def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, closest_cells, params, copy_top_n_percell=0):
+    key = derive_key(closest_cells[0:nClosestCells], querysift)
+    if key in cache:
+        return cache[key]
     outputFilePaths = []
     print len(closest_cells)
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
@@ -89,6 +96,7 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     for n in topnresults:
         result = check_topn_img(querysift, combined, n)
         results[n] = reduce(lambda x,y: x or y, result)
+    cache[key] = results
     return results
 
 def combine_ransac(counts):
@@ -171,6 +179,7 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
     for n in topnresults:
         results[n]=0
     count = 0
+    start = time.time()
     for queryfile in files:
         print "checking: {0}".format(queryfile)
 #        for newlat, newlon in [info.getQuerySIFTCoord(queryfile)]:
@@ -182,6 +191,7 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
             for n in topnresults:
                 results[n]+=result[n]
             if verbosity > 0:
+                INFO('speed is %f' % ((time.time()-start)/count))
                 for n in topnresults:
                     print "matched {0}\t out of {1}\t in the top {2}\t amb: {3}, ncells:{4}".format(results[n], count, n, ambiguity, ncells)
         print datetime.datetime.today().strftime("time: %l:%M:%S")

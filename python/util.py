@@ -285,11 +285,15 @@ def makecells(lat=37.875134477254974, lon=-122.27778058982598, length=1000, inpu
         # f.write(',,' + str(lon) + ',' + str(lat) + '' + '\n')
     # f.close()
 
+dircache = {} # assume invariant across run
 def getclosestcells(lat, lon, celldir):
-    if not os.path.exists(celldir):
-        print "ERR: celldir does not exist: {0}".format(celldir)
-        return []
-    dirs = getdirs(celldir)
+    if celldir in dircache:
+        dirs = dircache[celldir]
+    else:
+        if not os.path.exists(celldir):
+            print "ERR: celldir does not exist: {0}".format(celldir)
+            return []
+        dirs = dircache[celldir] = getdirs(celldir)
     closest_cells = []
     for dir in dirs:
         lat2, lon2 = dir.split(',')
