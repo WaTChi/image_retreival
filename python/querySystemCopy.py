@@ -4,6 +4,9 @@ import shutil
 import sys
 import time
 
+QUERY = 'query4'
+topnresults = 1
+
 from config import *
 from android import AndroidReader
 import info
@@ -19,7 +22,6 @@ import groundtruthR
 import groundtruthY
 import util
 
-QUERY = 'query1'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -90,10 +92,8 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
-def write_scores(querysift, ranked_matches, outdir):
-    if  not os.path.exists(outdir):
-        os.makedirs(outdir)
-    outfile = open(os.path.join(outdir, querysift + ".top"), 'w')
+def write_scores(querysift, ranked_matches, outpath):
+    outfile = open(outpath, 'w')
     for matchedimg, score in ranked_matches:
         outfile.write(str(score))
         outfile.write('\t')
@@ -104,6 +104,9 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr
     closest_cells = util.getclosestcells(lat, lon, dbdir)
     outputFilePaths = []
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
+    # query.py filter assumption
+    for cell, dist in cells_in_range:
+        assert cell != '37.8732916946,-122.279128355'
     if verbosity > 0:
         print "checking query: {0} \t against {1} \t cells".format(querysift, len(cells_in_range))
     for cell, dist in cells_in_range:
@@ -118,18 +121,20 @@ def query2(querydir, querysift, dbdir, mainOutputDir, nClosestCells, drawtopcorr
     # start query
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
     # end query
-    for cell, dist in cells_in_range:
-        latcell, loncell = cell.split(',')
-        latcell = float(latcell)
-        loncell = float(loncell)
-        actualdist = info.distance(lat, lon, latcell, loncell)
-        outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
-#    combined = combine_until_dup(outputFilePaths, 1000)
+#    for cell, dist in cells_in_range:
+#       latcell, loncell = cell.split(',')
+#       latcell = float(latcell)
+#       loncell = float(loncell)
+#       actualdist = info.distance(lat, lon, latcell, loncell)
+#       outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
     comb_matches = corr.combine_matches(outputFilePaths)
     combined = combine_ransac(comb_matches)
 #    combined = combine_topn_votes(outputFilePaths, float('inf'))
 #    combined = filter_in_range(combined, querysift)
-#    write_scores(querysift, combined, "/media/data/combined")
+
+## For Aaron's analysis
+#    outputFilePath = os.path.join(mainOutputDir, querysift + ',ncells=' + str(len(cells_in_range)) + ".combined.res")
+#    write_scores(querysift, combined, outputFilePath)
     [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
     match = g or y or r or b or o
     if drawtopcorr or (not match and drawfailures):
@@ -185,9 +190,12 @@ def combine_ransac(counts):
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if len(matches) < bound or num_filt > 20:
-        INFO('stopped after filtering %d' % num_filt)
+      if num_filt > 30:
         break
+#      if len(matches) < bound or num_filt > 20:
+#        assert topnresults == 1
+#        INFO('stopped after filtering %d' % num_filt)
+#        break
       num_filt += 1
       F, inliers = corr.find_corr(matches)
       bound = max(sum(inliers), bound)
@@ -313,12 +321,11 @@ def get_num_imgs_in_range(range, celldir, querydir='/home/zhangz/.gvfs/data on 1
     print "average # of imgs within {0} meters of query: {1}".format(range, float(total_in_range)/len(queries))
 
 cellradius = 236.6
-ambiguity = 50
+ambiguity = 75
 matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
-topnresults = 1
 verbosity = 1
-resultsdir = os.path.expanduser('~/shiraz/topmatches')
+resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
@@ -342,6 +349,5 @@ if __name__ == "__main__":
         querydir = sys.argv[1]
         dbdir = sys.argv[2]
         matchdir = sys.argv[3]
-    topnresults = 1
     INFO("matchdir=%s" % matchdir)
     characterize(querydir, dbdir, matchdir, ncells, drawtopcorr, params)

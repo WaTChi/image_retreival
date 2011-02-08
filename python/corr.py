@@ -52,9 +52,13 @@ def find_corr(matches, hom=False):
   if not hom:
     cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
     inliers = np.asarray(inliers)[0]
+    # TODO find ransac rotation consensus
+    # right now assuming delta_roll = 0
+    # also means rewriting rot_delta to account for pos/neg
+    ransac_rot = 0
     for i, m in enumerate(matches):
       if inliers[i]:
-        if rot_delta(m) > ROT_THRESHOLD_RADIANS:
+        if abs(rot_delta(m) - ransac_rot) > ROT_THRESHOLD_RADIANS:
           inliers[i] = False
     return F, inliers
 
@@ -79,8 +83,8 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
     a = a.resize((newx,newy), Image.ANTIALIAS)
     # XXX TODO rework rescale
     if portrait:
-#      scale = float(newy)/840
-      scale = 1
+      scale = float(newy)/840
+#      scale = 1
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])

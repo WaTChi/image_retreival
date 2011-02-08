@@ -15,8 +15,8 @@ cellradius = 236.6
 ambiguity = 50
 matchdistance = 25
 ncells = 7
-#maindir = os.path.expanduser('~/shiraz')
-maindir = os.path.expanduser('~etzeng/shiraz')
+maindir = os.path.expanduser('~/shiraz')
+#maindir = os.path.expanduser('~etzeng/shiraz')
 dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
 #matchdir = os.path.expanduser('~/results/%s' % query.searchtype(params))
 matchdir = "/tmp/results/%s" % query.searchtype(params)
