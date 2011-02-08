@@ -72,8 +72,10 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     if key in cache:
         return cache[key]
     outputFilePaths = []
-    print len(closest_cells)
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
+    # query.py filter assumption
+    for cell, dist in cells_in_range:
+        assert cell != '37.8732916946,-122.279128355'
     latquery, lonquery = info.getQuerySIFTCoord(querysift)
     if verbosity > 0:
         print "checking query: {0} \t against {1} \t cells".format(querysift, len(cells_in_range))
@@ -215,7 +217,7 @@ ambiguity = 75
 matchdistance = 25
 ncells =  8  #if ambiguity+matchdistance<100, 8 is max possible by geometry
 topnresults = [1,2,5,10]
-verbosity = 1
+verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
