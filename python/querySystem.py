@@ -90,8 +90,7 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
 #     end query
     comb_matches = corr.combine_matches(outputFilePaths)
-    combined = combine_ransac(comb_matches)
-    print combined
+    combined = combine_ransac(comb_matches, 20)
     results = {}
     for n in topnresults:
         result = check_topn_img(querysift, combined, n)
@@ -99,14 +98,14 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     cache[key] = results
     return results
 
-def combine_ransac(counts):
+def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     filtered = {}
     bound = -1
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if len(matches) < bound or num_filt > 20:
+      if num_filt > min_filt and (len(matches) < bound or num_filt > 20):
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
@@ -215,7 +214,7 @@ ambiguity = 75
 matchdistance = 25
 ncells =  8  #if ambiguity+matchdistance<100, 8 is max possible by geometry
 topnresults = [1,2,5,10]
-verbosity = 1
+verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
