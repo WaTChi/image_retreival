@@ -29,7 +29,7 @@ PARAMS_DEFAULT = {
   'distance_type': 'euclidean',
 # use >1 for weighted
   'num_neighbors': 1,
-# highest, ransac, top_n, matchonce
+# highest, ransac, ratio, matchonce, filter
   'vote_method': 'highest',
 # custom configuration notation
   'confstring': '',

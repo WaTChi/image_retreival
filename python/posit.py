@@ -15,7 +15,9 @@ locsar = filter(lambda x: x[1], rawlocs.items())
 
 # change 3d coordinate systems
 c = map(lambda x: ({'x':x[0][0], 'y':x[0][1]}, x[1]), locsar)
-locpairs = em.ddImageLocstoLPT(v, c)
+#locpairs = em.ddImageLocstoLPT(v, c)
+
+locpairs = [[(0,1), (0,1,1)], [(1,1), (1,1,1)]]
 
 pts2d = map(lambda x: x[0], locpairs)
 pts3d = map(lambda x: tuple(x[1]), locpairs)
@@ -42,7 +44,6 @@ for i in range(0, 3):
 #camera matrix
 cameratrans = cv.CreateMat(3, 3, cv.CV_64F)
 cv.SetIdentity(cameratrans)
-
 
 #convert rotMatrix to rotVector
 rotVec = cv.CreateMat(3, 1, cv.CV_64F)

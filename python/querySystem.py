@@ -4,6 +4,7 @@ import shutil
 import sys
 import time
 
+from config import *
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -18,6 +19,41 @@ import corr
 import numpy as np
 
 HOME = os.path.expanduser('~')
+QUERY = 'query3'
+try:
+    if 'NUM_THREADS' in os.environ:
+        NUM_THREADS = int(os.environ['NUM_THREADS'])
+    else:
+        import multiprocessing
+        NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 'NO_DRAW' not in os.environ
+    drawfailures = 'DRAW_FAIL' in os.environ
+except:
+    import multiprocessing
+    NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 1
+    drawfailures = 0
+
+def parse_result_line(line):
+    score = line.split('\t')[0]
+    img = line.split('\t')[1].split('sift')[0]
+    return score, img
+
+class Img:
+    def __init__(self):
+        self.lat, self.lon, self.sift = None, None, None
+
+def make_reader(querydir):
+    if QUERY == 'query4':
+        return AndroidReader(querydir)
+    INFO(querydir)
+    def iter():
+        for file in util.getSiftFileNames(querydir):
+            image = Img()
+            image.sift = file
+            image.lat, image.lon = info.getQuerySIFTCoord(file)
+            yield image
+    return iter()
 
 def parse_result_line(line):
     score = line.split('\t')[0]
@@ -27,57 +63,9 @@ def parse_result_line(line):
 def check_truth(query_str, result_str, groundTruth_dict):
     return result_str in groundTruth_dict[query_str]
 
-def copy_topn_results(imgdir, outdir, filepath, topn=4):
-    if  os.path.exists(outdir):
-        shutil.rmtree(outdir)
-    os.makedirs(outdir)
-    file = open(filepath)
-    lines = []
-    for line in file:
-        lines.append(line)
-    for line in lines[0:4]:
-        score = line.split('\t')[0]
-        img = line.split('\t')[1].split('sift')[0]
-        shutil.copy(os.path.join(imgdir, ('%s.jpg' % img)), os.path.join(outdir, '%s-%s.jpg' % (score, img)))
-
-def copy_top_match(querydir, query, ranked_matches, match):
-    topentry = ranked_matches[0]
-    matchedimg = topentry[0]
-    score = topentry[1]
-
-    dup = "dup" + str(len(ranked_matches) == 1 or score == ranked_matches[1][1])
-
-    qlat = float(query.split(',')[1])
-    qlon = float(query.split(',')[2])
-    clat = float(matchedimg.split(",")[0])
-    clon = float(matchedimg.split(",")[1][0:-5])
-    distance = info.distance(qlat, qlon, clat, clon)
-
-    queryimgpath = os.path.join(querydir, query + '.JPG')
-    queryoutpath = os.path.join(resultsdir, query + ';query;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-    shutil.copy(queryimgpath, queryoutpath)
-    for matchedimg, score in ranked_matches:
-        if score != topentry[1]:
-            break
-        clat = float(matchedimg.split(",")[0])
-        clon = float(matchedimg.split(",")[1][0:-5])
-        distance = info.distance(qlat, qlon, clat, clon)
-        matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matchoutpath = os.path.join(resultsdir, query + ';match;gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-        shutil.copy(matchimgpath, matchoutpath)
-
-def write_scores(querysift, ranked_matches, outdir):
-    if  not os.path.exists(outdir):
-        os.makedirs(outdir)
-    outfile = open(os.path.join(outdir, querysift + ".top"), 'w')
-    for matchedimg, score in ranked_matches:
-        outfile.write(str(score))
-        outfile.write('\t')
-        outfile.write(matchedimg)
-        outfile.write('\n')
-
 def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, closest_cells, params, copy_top_n_percell=0):
     outputFilePaths = []
+    print len(closest_cells)
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
     latquery, lonquery = info.getQuerySIFTCoord(querysift)
     if verbosity > 0:
@@ -92,30 +80,15 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
         outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
 #     start query
-    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params)
+    query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
 #     end query
-    if copy_top_n_percell > 0:
-        for cell, dist in cells_in_range:
-            latcell, loncell = cell.split(',')
-            latcell = float(latcell)
-            loncell = float(loncell)
-            actualdist = info.distance(latquery, lonquery, latcell, loncell)
-            outputFilePath = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist)  + ".res")
-            outputDir = os.path.join(mainOutputDir, querysift + ',' + cell + ',' + str(actualdist))
-            copy_topn_results(os.path.join(dbdir, cell), outputDir, outputFilePath, 4)
-##    combined = combine_until_dup(outputFilePaths, 1000)
-#    combined = combine_topn_votes(outputFilePaths, float('inf'))
-##    combined = filter_in_range(newlat, newlon, combined, querysift)
-##    write_scores(querysift, combined, "/media/data/combined")
     comb_matches = corr.combine_matches(outputFilePaths)
     combined = combine_ransac(comb_matches)
+    print combined
     results = {}
     for n in topnresults:
         result = check_topn_img(querysift, combined, n)
         results[n] = reduce(lambda x,y: x or y, result)
-#        results[n]=False
-#    if copytopmatch:
-#        copy_top_match(querydir, querysift.split('sift.txt')[0], combined, results[1])
     return results
 
 def combine_ransac(counts):
@@ -126,7 +99,7 @@ def combine_ransac(counts):
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
       if len(matches) < bound or num_filt > 20:
-#        INFO('stopped after filtering %d' % num_filt)
+        INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
       F, inliers = corr.find_corr(matches)
@@ -145,41 +118,6 @@ def combine_ransac(counts):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
-def filter_in_range(qlat, qlon, ranked_matches, querysift):
-    #qlat, qlon = info.getQuerySIFTCoord(querysift)
-    filtered_matches = []
-    for matchedimg, score in ranked_matches:
-        clat = float(matchedimg.split(",")[0])
-        clon = float(matchedimg.split(",")[1][0:-5])
-        distance = info.distance(qlat, qlon, clat, clon)
-        if distance < ambiguity+matchdistance:
-            filtered_matches.append((matchedimg, score))
-#    filtered_matches.sort(key=lambda x: x[1], reverse=True)
-    return filtered_matches
-
-
-def get_top_results(outputFilePath, n):
-    file = open(outputFilePath)
-    top_results = []
-    i = 0
-    for line in file:
-        if i >= n:
-            break
-        score, img = parse_result_line(line)
-        top_results.append((score, img))
-        i += 1
-    file.close()
-    return top_results
-
-def combine_topn_votes(outputFilePaths, topn):
-    #returns true if query if in topn of results
-    dupCount = {}
-    for outputFilePath in outputFilePaths:
-        for score, img in get_top_results(outputFilePath, topn):
-            dupCount[img] = dupCount.get(img, 0) + float(score)
-    dupCountLst = dupCount.items()
-    dupCountLst.sort(key=lambda x: x[1], reverse=True)
-    return dupCountLst
 
 def check_topn_img(querysift, dupCountLst, topnres=1):
     g = 0
@@ -224,14 +162,10 @@ def load_locations(querysift):
         points.append((lat,lon))
     return points
 
-def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, params):
+def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
     start = time.time()
     if not os.path.exists(mainOutputDir):
         os.makedirs(mainOutputDir)
-    if copytopmatch:
-        if os.path.exists(resultsdir):
-            shutil.rmtree(resultsdir)
-        os.makedirs(resultsdir)
     files = util.getSiftFileNames(querydir)
     results={}
     for n in topnresults:
@@ -266,22 +200,12 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, copytopmatch, par
         match_rate = float(total_count) / count
         print "matched {0}\t out of {1}\t = {2}\t in the top {3}".format(total_count, count, match_rate, n)
 
-#def get_num_imgs_in_range(range, celldir, querydir=HOME + '/.gvfs/data on 128.32.43.40/query3/'):
-#    queries = util.getSiftFileNames(querydir)
-#    total_in_range=0
-#    for querysift in queries:
-#        lat, lon = info.getQuerySIFTCoord(querysift)
-#        cell, dist = util.getclosestcell(lat, lon, celldir)
-#        numinrange = util.getNumJPGInRange(lat, lon, os.path.join(celldir,cell), range)
-#        total_in_range+=numinrange
-#    print "average # of imgs within {0} meters of query: {1}".format(range, float(total_in_range)/len(queries))
-
 cellradius = 236.6
-ambiguity = 0
+ambiguity = 75
 matchdistance = 25
-ncells =  7  #if ambiguity+matchdistance<100, 7 is max possible by geometry
-topnresults = [1, 2,5,10]
-verbosity = 0
+ncells =  8  #if ambiguity+matchdistance<100, 8 is max possible by geometry
+topnresults = [1,2,5,10]
+verbosity = 1
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
@@ -291,9 +215,11 @@ dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/3
 params = query.PARAMS_DEFAULT.copy()
 params.update({
   'checks': 1024,
-  'algorithm': 'kdtree',
-  'trees': 4,
-  'vote_method': 'highest',
+  'trees': 1,
+  'distance_type': 'euclidean',
+  'vote_method': 'filter',
+  'num_neighbors': 1,
+  'dist_threshold': 70000,
   'confstring': '',
 })
 if __name__ == "__main__":
@@ -314,8 +240,7 @@ if __name__ == "__main__":
         print querydir
         print dbdir
         print matchdir
-        #get_num_imgs_in_range(ambiguity+matchdistance, dbdir)
-        characterize_fuzzy(querydir, dbdir, matchdir, ncells, copytopmatch, params)
+        characterize_fuzzy(querydir, dbdir, matchdir, ncells, params)
         print "ambiguity:{0}".format(n)
         print querydir
         print dbdir
