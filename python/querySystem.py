@@ -4,6 +4,9 @@ import shutil
 import sys
 import time
 
+HOME = os.path.expanduser('~')
+QUERY = 'query1'
+
 from config import *
 import groundtruthB
 import groundtruthG
@@ -11,6 +14,7 @@ import groundtruthO
 import groundtruthR
 import groundtruthY
 import info
+import query1GroundTruth
 import query2Groundtruth
 import util
 import query
@@ -18,8 +22,6 @@ import datetime
 import corr
 import numpy as np
 
-HOME = os.path.expanduser('~')
-QUERY = 'query3'
 try:
     if 'NUM_THREADS' in os.environ:
         NUM_THREADS = int(os.environ['NUM_THREADS'])
@@ -127,7 +129,6 @@ def combine_ransac(counts, min_filt=0):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
-
 def check_topn_img(querysift, dupCountLst, topnres=1):
     g = 0
     y = 0
@@ -135,13 +136,20 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
     b = 0
     o = 0
     for entry in dupCountLst[0:topnres]:
-#        g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
-
-        g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
-        y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
-        r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
-        b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
-        o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        if QUERY == 'query1':
+            g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
+        elif QUERY == 'query3' or QUERY == 'queryeric':
+            g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
+            y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
+            r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
+            b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
+            o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+        elif QUERY == 'query2':
+            g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
+        elif QUERY == 'query4':
+            pass
+        else:
+            assert False
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
 
 def skew_location(querysift, radius):
@@ -220,7 +228,6 @@ verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
-QUERY='query3'
 fuzzydir = os.path.join(maindir, QUERY+'_fuzzy/')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 params = query.PARAMS_DEFAULT.copy()
@@ -234,7 +241,7 @@ params.update({
   'confstring': '',
 })
 if __name__ == "__main__":
-    querydir = os.path.join(maindir, 'query3/')
+    querydir = os.path.join(maindir, '%s/' % QUERY)
     dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
    #for gorgan
     matchdir = os.path.join(maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
