@@ -192,11 +192,12 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
     for queryfile in files:
         print "checking: {0}".format(queryfile)
 #        for newlat, newlon in [info.getQuerySIFTCoord(queryfile)]:
-        for newlat, newlon in skew_location(queryfile, ambiguity):
-#        for newlat, newlon in load_locations(queryfile):
+#        for newlat, newlon in skew_location(queryfile, ambiguity):
+        for newlat, newlon in load_locations(queryfile):
             closest_cells = util.getclosestcells(newlat, newlon, dbdir)
             count += 1
             result = run_query(newlat, newlon, querydir, queryfile, dbdir, mainOutputDir, ncells, copytopmatch, closest_cells, params)
+            print result
             for n in topnresults:
                 results[n]+=result[n]
             if verbosity > 0:
@@ -228,7 +229,7 @@ verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
 maindir = HOME + "/shiraz"
-fuzzydir = os.path.join(maindir, QUERY+'_fuzzy/')
+fuzzydir = os.path.join(maindir, 'fuzzylocs/%s' % QUERY)
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 params = query.PARAMS_DEFAULT.copy()
 params.update({
