@@ -1,6 +1,6 @@
 # Set some parameters here, then run one of the two:
 #
-# context.match(img, [lat], [lon])
+# context.match(sift, matchdir, [lat], [lon])
 # context.characterize()
 
 import os
@@ -22,6 +22,20 @@ maindir = os.path.expanduser('~/shiraz')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
 dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
 
+try:
+    if 'NUM_THREADS' in os.environ:
+        NUM_THREADS = int(os.environ['NUM_THREADS'])
+    else:
+        import multiprocessing
+        NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 'NO_DRAW' not in os.environ
+    drawfailures = 'DRAW_FAIL' in os.environ
+except:
+    import multiprocessing
+    NUM_THREADS = multiprocessing.cpu_count()
+    drawtopcorr = 1
+    drawfailures = 0
+
 import shutil
 import time
 
@@ -38,20 +52,6 @@ import groundtruthO
 import groundtruthR
 import groundtruthY
 import util
-
-try:
-    if 'NUM_THREADS' in os.environ:
-        NUM_THREADS = int(os.environ['NUM_THREADS'])
-    else:
-        import multiprocessing
-        NUM_THREADS = multiprocessing.cpu_count()
-    drawtopcorr = 'NO_DRAW' not in os.environ
-    drawfailures = 'DRAW_FAIL' in os.environ
-except:
-    import multiprocessing
-    NUM_THREADS = multiprocessing.cpu_count()
-    drawtopcorr = 1
-    drawfailures = 0
 
 class Img:
     def __init__(self):
@@ -73,12 +73,10 @@ def make_reader(querydir):
 def check_truth(query_str, result_str, groundTruth_dict):
     return result_str in groundTruth_dict[query_str]
 
-def match(siftfile, lat=None, lon=None):
-    # guess coordinate of query
-    querydir = os.path.dirname(siftfile)
-    siftfile = os.path.basename(siftfile)
-    if lat == None or lon == None:
-        lat, lon = info.getQuerySIFTCoord(siftfile)
+def match(siftpath, matchdir, lat, lon):
+    assert os.path.basename(siftpath) != siftpath
+    querydir = os.path.dirname(siftpath)
+    siftfile = os.path.basename(siftpath)
 
     # compute closest cells
     closest_cells = util.getclosestcells(lat, lon, dbdir)
@@ -88,6 +86,7 @@ def match(siftfile, lat=None, lon=None):
     for cell, dist in cells_in_range:
         assert cell != '37.8732916946,-122.279128355'
 
+    x = time.time()
     # compute output file paths for the cells
     outputFilePaths = []
     for cell, dist in cells_in_range:
@@ -107,20 +106,21 @@ def match(siftfile, lat=None, lon=None):
 
     # write out Aaron's data
     if write_comb_scores:
-        outputFilePath = os.path.join(mainOutputDir, querysift + ',ncells=' + str(len(cells_in_range)) + ".combined.res")
-        write_scores(querysift, combined, outputFilePath)
+        outputFilePath = os.path.join(matchdir, siftfile + ',ncells=' + str(len(cells_in_range)) + ".combined.res")
+        write_scores(siftfile, combined, outputFilePath)
 
     # compile statistics
-    [g, y, r, b, o] = check_topn_img(querysift, combined, topnresults)
-    match = g or y or r or b or o
+    stats = check_topn_img(siftfile, combined, topnresults)
+    match = any(stats)
 
     # maybe draw output file
     if drawtopcorr or (not match and drawfailures):
-        draw_top_corr(querydir, querysift.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
+        draw_top_corr(querydir, siftfile.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
 
     # return statistics and top result
-    matches = comb_matches[combined[0][0] + 'sift.txt']
-    return [g, y, r, b, o], matchedimg, matches
+    matchedimg = combined[0][0]
+    matches = comb_matches[matchedimg + 'sift.txt']
+    return stats, matchedimg, matches
 
 def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
     topentry = ranked_matches[0]
@@ -199,7 +199,7 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
         elif QUERY == 'query4':
             pass
         else:
-            assert False
+            return []
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
     
 def characterize():
@@ -208,8 +208,8 @@ def characterize():
     INFO("matchdir=%s" % matchdir)
     querydir = os.path.join(maindir, '%s/' % QUERY)
     start = time.time()
-    if not os.path.exists(mainOutputDir):
-        os.makedirs(mainOutputDir)
+    if not os.path.exists(matchdir):
+        os.makedirs(matchdir)
     if drawtopcorr or drawfailures:
         if os.path.exists(resultsdir):
             shutil.rmtree(resultsdir)
@@ -224,7 +224,8 @@ def characterize():
     for image in reader:
         queryfile = image.sift
         count += 1
-        [g, y, r, b, o], matchedimg, matches = match(queryfile, image.lat, image.lon)
+        querypath = os.path.join(querydir, queryfile)
+        [g, y, r, b, o], matchedimg, matches = match(querypath, matchdir, image.lat, image.lon)
         if g:
             g_count += 1
             if verbosity > 0:
