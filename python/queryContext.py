@@ -158,15 +158,14 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
 
-def combine_ransac(counts):
+def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     filtered = {}
     bound = -1
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if len(matches) < bound or num_filt > 20:
-        assert topnresults == 1
+      if num_filt > min_filt and (len(matches) < bound or num_filt > 20):
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
