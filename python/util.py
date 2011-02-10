@@ -381,7 +381,7 @@ import groundtruthY
 import groundtruthR
 import groundtruthB
 import groundtruthO
-import query1Groundtruth
+import query1GroundTruth
 import query2Groundtruth
 def python_to_matlab_groundTruth(d, fname):
     f = open(fname,"w")
