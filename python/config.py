@@ -53,7 +53,7 @@ def INFO(x):
   print >> STDOUT, datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
-#  INFO(x)
+  INFO(x)
   pass
 
 # vim: et sw=2

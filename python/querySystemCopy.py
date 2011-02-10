@@ -4,7 +4,7 @@ import shutil
 import sys
 import time
 
-QUERY = 'query4'
+QUERY = 'query3'
 topnresults = 1
 
 from config import *
@@ -130,12 +130,10 @@ def combine_ransac(counts):
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if num_filt > 30:
+      if len(matches) < bound or num_filt > 20:
+        assert topnresults == 1
+        INFO('stopped after filtering %d' % num_filt)
         break
-#      if len(matches) < bound or num_filt > 20:
-#        assert topnresults == 1
-#        INFO('stopped after filtering %d' % num_filt)
-#        break
       num_filt += 1
       F, inliers = corr.find_corr(matches)
       bound = max(sum(inliers), bound)

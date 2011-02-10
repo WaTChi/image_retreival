@@ -5,7 +5,8 @@ import sys
 import time
 
 HOME = os.path.expanduser('~')
-QUERY = 'query1'
+QUERY = 'query2'
+ncells = 8
 
 from config import *
 import groundtruthB
@@ -70,14 +71,16 @@ def derive_key(closest_cells, querysift):
 
 cache = {}
 def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nClosestCells, copytopmatch, closest_cells, params, copy_top_n_percell=0):
-    key = derive_key(closest_cells[0:nClosestCells], querysift)
+    cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
+    key = derive_key(cells_in_range, querysift)
     if key in cache:
         return cache[key]
     outputFilePaths = []
-    cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:nClosestCells] if dist < cellradius + ambiguity+matchdistance]
-    # query.py filter assumption
-    for cell, dist in cells_in_range:
-        assert cell != '37.8732916946,-122.279128355'
+#    # query.py filter assumption
+#    # I think it doesn't matter too much since ties are
+#    # resolved in favor of the query feature.
+#    for cell, dist in cells_in_range:
+#        assert cell != '37.8732916946,-122.279128355'
     latquery, lonquery = info.getQuerySIFTCoord(querysift)
     if verbosity > 0:
         print "checking query: {0} \t against {1} \t cells".format(querysift, len(cells_in_range))
@@ -94,7 +97,29 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
 #     end query
     comb_matches = corr.combine_matches(outputFilePaths)
-    combined = combine_ransac(comb_matches, 20)
+    combined = combine_ransac(comb_matches, 9999999)
+
+    # For Aaron's analysis
+    table = {}
+    for line in open(os.path.join(dbdir, 'cellmap.txt')):
+        a, b = line.split()
+        table[b] = int(a)
+    def cellsetstr(cells):
+        cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
+        return '-'.join(cells)
+    outputFilePath = os.path.join(mainOutputDir, 'fuzz', querysift + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    d = os.path.dirname(outputFilePath)
+    if not os.path.exists(d):
+        os.makedirs(d)
+    def save(outputFilePath):
+        with open(outputFilePath, 'w') as outfile:
+            for matchedimg, score in combined:
+                outfile.write(str(score))
+                outfile.write('\t')
+                outfile.write(matchedimg)
+                outfile.write('\n')
+    save_atomic(save, outputFilePath)
+
     results = {}
     for n in topnresults:
         result = check_topn_img(querysift, combined, n)
@@ -197,7 +222,6 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
             closest_cells = util.getclosestcells(newlat, newlon, dbdir)
             count += 1
             result = run_query(newlat, newlon, querydir, queryfile, dbdir, mainOutputDir, ncells, copytopmatch, closest_cells, params)
-            print result
             for n in topnresults:
                 results[n]+=result[n]
             if verbosity > 0:
@@ -223,7 +247,6 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
 cellradius = 236.6
 ambiguity = 75
 matchdistance = 25
-ncells =  8  #if ambiguity+matchdistance<100, 8 is max possible by geometry
 topnresults = [1,2,5,10]
 verbosity = 0
 copytopmatch = False
