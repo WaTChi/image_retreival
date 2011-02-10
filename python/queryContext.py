@@ -9,6 +9,13 @@ import query
 
 QUERY = None # set before calling characterize()
 params = query.PARAMS_DEFAULT.copy()
+params.update({
+  'checks': 1024,
+  'trees': 1,
+  'vote_method': 'filter',
+  'num_neighbors': 1,
+  'confstring': '',
+})
 topnresults = 1
 num_images_to_print = 1
 write_comb_scores = 0
