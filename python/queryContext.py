@@ -17,9 +17,12 @@ params.update({
   'confstring': '',
 })
 topnresults = 1
+cacheEnable = 0 # instance-local caching of results
+ransac_min_filt = 1
 num_images_to_print = 1
-write_comb_scores = 0
+locator_function = lambda image: (image.lat, image.lon) # for fuzz
 cellradius = 236.6
+match_callback = None
 ambiguity = 75
 matchdistance = 25
 ncells = 7 # if ambiguity<100, 7 is max possible by geometry
@@ -28,6 +31,7 @@ resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
 dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
+cache = {}
 
 try:
     if 'NUM_THREADS' in os.environ:
@@ -80,6 +84,32 @@ def make_reader(querydir):
 def check_truth(query_str, result_str, groundTruth_dict):
     return result_str in groundTruth_dict[query_str]
 
+def skew_location(image):
+    length = 2*ambiguity
+    points = []
+    corner = info.moveLocation(image.lat, image.lon, (2**.5)*ambiguity, -45)
+    for i in range(length+1):
+        row = info.moveLocation(corner[0], corner[1], i, 180)
+        for j in range(length+1):
+            point = info.moveLocation(row[0],row[1], j, 90)
+            if info.distance(image.lat,image.lon, point[0], point[1]) <= ambiguity:
+                points.append(point)
+    return points
+
+def load_locations(image):
+    querysift = image.sift
+    file = open(os.path.join(fuzzydir, querysift.split("sift.txt")[0])+'.fuz')
+    points = []
+    for line in file:
+        lat, lon = line.strip().split('\t')
+        lat = float(lat)
+        lon = float(lon)
+        points.append((lat,lon))
+    return points
+
+def derive_key(closest_cells, querysift):
+    return (querysift,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
+
 def match(siftpath, matchdir, lat, lon):
     assert os.path.basename(siftpath) != siftpath
     querydir = os.path.dirname(siftpath)
@@ -93,7 +123,12 @@ def match(siftpath, matchdir, lat, lon):
     for cell, dist in cells_in_range:
         assert cell != '37.8732916946,-122.279128355'
 
-    x = time.time()
+    # cache for fuzz runs
+    if cacheEnable:
+        key = derive_key(cells_in_range, querysift)
+        if key in cache:
+            return cache[key]
+
     # compute output file paths for the cells
     outputFilePaths = []
     for cell, dist in cells_in_range:
@@ -109,14 +144,8 @@ def match(siftpath, matchdir, lat, lon):
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
-    combined = combine_ransac(comb_matches)
+    combined = combine_ransac(comb_matches, ransac_min_filt)
 
-    # write out Aaron's data
-    if write_comb_scores:
-        outputFilePath = os.path.join(matchdir, siftfile + ',ncells=' + str(len(cells_in_range)) + ".combined.res")
-        write_scores(siftfile, combined, outputFilePath)
-
-    # compile statistics
     stats = check_topn_img(siftfile, combined, topnresults)
     match = any(stats)
 
@@ -127,6 +156,10 @@ def match(siftpath, matchdir, lat, lon):
     # return statistics and top result
     matchedimg = combined[0][0]
     matches = comb_matches[matchedimg + 'sift.txt']
+    if cacheEnable:
+        cache[key] = (stats, matchedimg, matches)
+    if match_callback:
+        match_callback(siftfile, matchdir, stats, matchedimg, matches, cells_in_range)
     return stats, matchedimg, matches
 
 def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
@@ -229,32 +262,33 @@ def characterize():
     count = 0
     for image in reader:
         queryfile = image.sift
-        count += 1
-        querypath = os.path.join(querydir, queryfile)
-        [g, y, r, b, o], matchedimg, matches = match(querypath, matchdir, image.lat, image.lon)
-        if g:
-            g_count += 1
-            if verbosity > 0:
-                print "G match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-        elif y:
-            y_count += 1
-            if verbosity > 0:
-                print "Y match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-        elif r:
-            r_count += 1
-            if verbosity > 0:
-                print "R match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-        elif b:
-            b_count += 1
-            if verbosity > 0:
-                print "B match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-        elif o:
-            o_count += 1
-            if verbosity > 0:
-                print "O match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
-        else:
-            if verbosity > 0:
-                print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+        for loc in locator_function(image):
+            count += 1
+            querypath = os.path.join(querydir, queryfile)
+            [g, y, r, b, o], matchedimg, matches = match(querypath, matchdir, image.lat, image.lon)
+            if g:
+                g_count += 1
+                if verbosity > 0:
+                    print "G match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+            elif y:
+                y_count += 1
+                if verbosity > 0:
+                    print "Y match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+            elif r:
+                r_count += 1
+                if verbosity > 0:
+                    print "R match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+            elif b:
+                b_count += 1
+                if verbosity > 0:
+                    print "B match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+            elif o:
+                o_count += 1
+                if verbosity > 0:
+                    print "O match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+            else:
+                if verbosity > 0:
+                    print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
     end = time.time()
     elapsed = end - start
     if verbosity > 0:
@@ -262,4 +296,6 @@ def characterize():
     total_count = g_count + y_count + r_count + b_count + o_count
     match_rate = float(total_count) / count
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
+
+    print "amb: {0}, ncells: {1}".format(ambiguity, ncells)
 
