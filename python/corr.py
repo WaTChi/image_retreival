@@ -11,7 +11,7 @@ import os
 
 MAX_PIXEL_DEVIATION = 5
 CONFIDENCE_LEVEL = .99999
-ROT_THRESHOLD_RADIANS = 0.1 # .1 ~ 5 deg
+ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
 best_rot = 0
 
 def combine_matches(outputFilePaths):
@@ -26,11 +26,11 @@ def combine_matches(outputFilePaths):
       comb[image].extend(matches)
   return comb
 
-def rot_delta(m):
-  a = m['query'][3]
+def rot_delta(m, correction=0):
+  a = m['query'][3] + correction
   b = m['db'][3]
   rot = 2*np.pi
-  return (a-b) % rot
+  return min((a-b) % rot, (b-a) % rot)
 
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
 def find_corr(matches, hom=False):
@@ -53,19 +53,12 @@ def find_corr(matches, hom=False):
     cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
     inliers = np.asarray(inliers)[0]
     global best_rot
+# TODO use homography to find correct orientation
+# this will fix assumption that db,query have same roll
     best_rot = (-9999, 0)
-    for degree in range(0,360,5):
-      score = 0
-      ransac_rot = degree*np.pi/180
-      for i, m in enumerate(matches):
-        if inliers[i]:
-          if abs(rot_delta(m) - ransac_rot) > ROT_THRESHOLD_RADIANS:
-            score -= 1
-        best_rot = max(best_rot, (score, ransac_rot))
     for i, m in enumerate(matches):
       if inliers[i]:
-        if abs(rot_delta(m) - best_rot[1]) > ROT_THRESHOLD_RADIANS:
-          score -= 1
+        if abs(rot_delta(m, best_rot[1])) > ROT_THRESHOLD_RADIANS:
           inliers[i] = False
     return F, inliers
 
@@ -165,10 +158,10 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
   if showLine:
       for match in red:
         drawline(match, 'red', w=1)
-        drawcircle(match, colorize(rot_delta(match) - best_rot[1]))
+        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
-        drawcircle(match, colorize(rot_delta(match) - best_rot[1]))
+        drawcircle(match, colorize(rot_delta(match), best_rot[1]))
 
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)
