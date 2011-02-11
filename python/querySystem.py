@@ -10,7 +10,7 @@ context.params.update({
   'confstring': '',
 })
 
-context.print_per = 10000
+context.print_per = 1000
 context.ambiguity = 75
 context.topnresults = [1,2,5,10]
 context.locator_function = context.skew_location

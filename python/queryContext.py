@@ -130,19 +130,21 @@ def load_location(image):
 def derive_key(closest_cells, querysift):
     return (querysift,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
 
-def match(siftpath, matchdir, lat, lon):
+# newlat and newlon are skewed locs
+def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
     assert os.path.basename(siftpath) != siftpath
     assert initialized, "You must call vars_init() first"
     querydir = os.path.dirname(siftpath)
     siftfile = os.path.basename(siftpath)
 
     # compute closest cells
-    closest_cells = util.getclosestcells(lat, lon, dbdir)
+    closest_cells = util.getclosestcells(newlat or lat, newlon or lon, dbdir)
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:ncells] if dist < cellradius + ambiguity + matchdistance]
 
-    # query.py filter assumption
-    for cell, dist in cells_in_range:
-        assert cell != '37.8732916946,-122.279128355'
+# Not really needed
+#    # query.py filter assumption
+#    for cell, dist in cells_in_range:
+#        assert cell != '37.8732916946,-122.279128355'
 
     # cache for fuzz runs
     if cacheEnable:
@@ -313,7 +315,7 @@ def characterize():
         for loc in locator_function(image):
             count += 1
             querypath = os.path.join(querydir, queryfile)
-            [g, y, r, b, o], matchedimg, matches, combined = match(querypath, matchdir, loc[0], loc[1])
+            [g, y, r, b, o], matchedimg, matches, combined = match(querypath, matchdir, image.lat, image.lon, loc[0], loc[1])
             # compile statistics
             # top n
             for n in topnresults:

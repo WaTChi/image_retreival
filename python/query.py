@@ -58,7 +58,7 @@ def searchtype(params):
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
-  INFO("running queries with up to %d threads" % num_threads)
+  INFO_TIMING("running queries with up to %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
     thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
     threads.append(thread)
@@ -91,8 +91,6 @@ class Query(threading.Thread):
   def run(self):
     if os.path.exists(self.outfile) and os.path.exists(self.dump):
       return
-    else:
-      exit()
     if self.barrier:
       self.barrier.acquire()
     self.flann = pyflann.FLANN()
