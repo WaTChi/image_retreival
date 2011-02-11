@@ -1,5 +1,7 @@
-# Set some parameters here, then run one of the two:
-#
+# Workflow:
+# import queryContext as context
+# [Set whatever variables you want in context]
+# context.vars_init()
 # context.match(sift, matchdir, [lat], [lon])
 # context.characterize()
 
@@ -16,11 +18,13 @@ params.update({
   'num_neighbors': 1,
   'confstring': '',
 })
-topnresults = 1
+count = 0
+start = 0
 cacheEnable = 0 # instance-local caching of results
 ransac_min_filt = 1
+print_per = 1
 num_images_to_print = 1
-locator_function = lambda image: (image.lat, image.lon) # for fuzz
+locator_function = lambda image: [(image.lat, image.lon)]
 cellradius = 236.6
 match_callback = None
 ambiguity = 75
@@ -29,8 +33,24 @@ ncells = 7 # if ambiguity<100, 7 is max possible by geometry
 verbosity = 1
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('~/shiraz')
-dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
-dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
+topnresults = []
+initialized = False
+
+# computed based on maindir, QUERY
+def vars_init():
+    global initialized
+    global dbdump
+    global dbdir
+    global fuzzydir
+    global results
+    initialized = True
+    dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
+    dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
+    fuzzydir = os.path.join(maindir, 'fuzzylocs/%s' % QUERY)
+    results = {}
+    for n in topnresults:
+        results[n]=0
+
 cache = {}
 
 try:
@@ -96,7 +116,7 @@ def skew_location(image):
                 points.append(point)
     return points
 
-def load_locations(image):
+def load_location(image):
     querysift = image.sift
     file = open(os.path.join(fuzzydir, querysift.split("sift.txt")[0])+'.fuz')
     points = []
@@ -112,6 +132,7 @@ def derive_key(closest_cells, querysift):
 
 def match(siftpath, matchdir, lat, lon):
     assert os.path.basename(siftpath) != siftpath
+    assert initialized, "You must call vars_init() first"
     querydir = os.path.dirname(siftpath)
     siftfile = os.path.basename(siftpath)
 
@@ -125,7 +146,7 @@ def match(siftpath, matchdir, lat, lon):
 
     # cache for fuzz runs
     if cacheEnable:
-        key = derive_key(cells_in_range, querysift)
+        key = derive_key(cells_in_range, siftfile)
         if key in cache:
             return cache[key]
 
@@ -146,7 +167,8 @@ def match(siftpath, matchdir, lat, lon):
     comb_matches = corr.combine_matches(outputFilePaths)
     combined = combine_ransac(comb_matches, ransac_min_filt)
 
-    stats = check_topn_img(siftfile, combined, topnresults)
+    # top 1
+    stats = check_topn_img(siftfile, combined, 1)
     match = any(stats)
 
     # maybe draw output file
@@ -157,10 +179,12 @@ def match(siftpath, matchdir, lat, lon):
     matchedimg = combined[0][0]
     matches = comb_matches[matchedimg + 'sift.txt']
     if cacheEnable:
-        cache[key] = (stats, matchedimg, matches)
+        cache[key] = (stats, matchedimg, matches, combined)
     if match_callback:
-        match_callback(siftfile, matchdir, stats, matchedimg, matches, cells_in_range)
-    return stats, matchedimg, matches
+        match_callback(siftfile, matchdir, stats, matchedimg, combined, cells_in_range)
+
+    # done
+    return stats, matchedimg, matches, combined
 
 def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
     topentry = ranked_matches[0]
@@ -240,12 +264,36 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
         else:
             return []
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
+
+def dump_combined_matches(siftfile, matchdir, stats, matchedimg, matches, cells_in_range):
+    # For Aaron's analysis
+    table = {}
+    for line in open(os.path.join(dbdir, 'cellmap.txt')):
+        a, b = line.split()
+        table[b] = int(a)
+    def cellsetstr(cells):
+        cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
+        return '-'.join(cells)
+    outputFilePath = os.path.join(matchdir, 'fuzz', siftfile + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    d = os.path.dirname(outputFilePath)
+    if not os.path.exists(d):
+        os.makedirs(d)
+    def save(outputFilePath):
+        with open(outputFilePath, 'w') as outfile:
+            for matchedimg, score in matches:
+                outfile.write(str(score))
+                outfile.write('\t')
+                outfile.write(matchedimg)
+                outfile.write('\n')
+    save_atomic(save, outputFilePath)
     
 def characterize():
     assert QUERY
+    assert initialized, "You must call vars_init() first"
     matchdir = os.path.join(maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (QUERY, QUERY, query.searchtype(params)))
     INFO("matchdir=%s" % matchdir)
     querydir = os.path.join(maindir, '%s/' % QUERY)
+    global start # XXX
     start = time.time()
     if not os.path.exists(matchdir):
         os.makedirs(matchdir)
@@ -259,36 +307,47 @@ def characterize():
     r_count = 0
     b_count = 0
     o_count = 0
-    count = 0
+    global count # XXX
     for image in reader:
         queryfile = image.sift
         for loc in locator_function(image):
             count += 1
             querypath = os.path.join(querydir, queryfile)
-            [g, y, r, b, o], matchedimg, matches = match(querypath, matchdir, image.lat, image.lon)
+            [g, y, r, b, o], matchedimg, matches, combined = match(querypath, matchdir, loc[0], loc[1])
+            # compile statistics
+            # top n
+            for n in topnresults:
+                result = check_topn_img(queryfile, combined, n)
+                results[n] += reduce(lambda x,y: x or y, result)
+            if count % print_per == 0 and verbosity > 0:
+                INFO('speed is %f' % ((time.time()-start)/count))
+                for n in topnresults:
+                    print "matched {0}\t out of {1}\t in the top {2}\t amb: {3}, ncells:{4}".format(results[n], count, n, ambiguity, ncells)
+
             if g:
                 g_count += 1
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "G match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
             elif y:
                 y_count += 1
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "Y match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
             elif r:
                 r_count += 1
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "R match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
             elif b:
                 b_count += 1
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "B match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
             elif o:
                 o_count += 1
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "O match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
             else:
-                if verbosity > 0:
+                if verbosity > 0 and count % print_per == 0:
                     print "No match-g:{0} y:{1} r:{2} b:{3} o:{4} out of {5}".format(g_count, y_count, r_count, b_count, o_count, count)
+
     end = time.time()
     elapsed = end - start
     if verbosity > 0:

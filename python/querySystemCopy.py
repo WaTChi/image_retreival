@@ -10,4 +10,5 @@ context.params.update({
   'confstring': '',
 })
 
+context.vars_init()
 context.characterize()

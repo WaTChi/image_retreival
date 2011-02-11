@@ -8,6 +8,7 @@ matchdir = '/tmp/client/%s' % query.searchtype(context.params)
 if not os.path.exists(matchdir):
     os.makedirs(matchdir)
 SIFTEXEC = os.path.join(context.maindir, 'Research/app/siftDemoV4/sift')
+context.vars_init()
 
 def preprocess_image(inputfile, outputfile=None, width=768, height=512):
     """Use the convert utility to preprocess an image."""
@@ -26,7 +27,7 @@ def extract_features(inputfile, outputfile=None, siftexec=SIFTEXEC):
 def match(siftfile, lat=None, lon=None):
     if lat == None or lon == None:
         lat, lon = info.getQuerySIFTCoord(siftfile)
-    stats, matchedimg, matches = context.match(siftfile, matchdir, lat, lon)
+    stats, matchedimg, matches, combined = context.match(siftfile, matchdir, lat, lon)
     return matchedimg, matches
 
 def draw_corr(queryimgpath, matchedimg, matches, matchoutpath=None):
