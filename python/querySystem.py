@@ -9,7 +9,6 @@ context.params.update({
   'dist_threshold': 70000,
   'confstring': '',
 })
-
 context.print_per = 1000
 context.ambiguity = 75
 context.topnresults = [1,2,5,10]
@@ -17,6 +16,7 @@ context.locator_function = context.skew_location
 #context.match_callback = context.dump_combined_matches
 context.cacheEnable = 1
 context.ransac_min_filt = 100
+
 context.vars_init()
 context.characterize()
 
