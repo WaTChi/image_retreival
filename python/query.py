@@ -13,7 +13,6 @@ import corr
 from multiprocessing import cpu_count
 import time
 import pyflann
-import pixels
 import threading
 import numpy as np
 import os
@@ -23,14 +22,14 @@ PARAMS_DEFAULT = {
   'trees': 1,
   'checks': 1024,
   'dist_threshold': 70000,
-# sift or chog
+# sift or chog or surf
   'descriptor': 'sift',
 # euclidean, manhattan, minkowski, hik, hellinger, cs, kl
   'distance_type': 'euclidean',
 # use >1 for weighted
   'num_neighbors': 1,
 # highest, ransac, ratio, matchonce, filter
-  'vote_method': 'highest',
+  'vote_method': 'filter',
 # custom configuration notation
   'confstring': '',
 }
@@ -59,7 +58,7 @@ def searchtype(params):
 def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
-  INFO("running queries with up to %d threads" % num_threads)
+  INFO_TIMING("running queries with up to %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
     thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
     threads.append(thread)
@@ -148,9 +147,7 @@ class Query(threading.Thread):
       elif dist_array[0] > self.params['dist_threshold']:
         reject += 1
         continue
-      dist0 = dist_array[0]
       image = mapping[dataset[results[i][0]]['index']]
-      coord = dataset[results[i][0]]['geom']
       coord3d = map3d[results[i][0]]
       passes_ratio_test = False
       if coord3d is None: # no option but to accept
@@ -185,7 +182,6 @@ class Query(threading.Thread):
     counts = {} # map from img to counts
     closed = set()
     for i, dist_array in enumerate(dists):
-      best = dist_array[0]
       marked = set()
       for j, dist in enumerate(dist_array):
         if results[i][j] in closed:

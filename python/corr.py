@@ -11,7 +11,8 @@ import os
 
 MAX_PIXEL_DEVIATION = 5
 CONFIDENCE_LEVEL = .99999
-ROT_THRESHOLD_RADIANS = 0.2
+ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
+best_rot = 0
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -25,8 +26,35 @@ def combine_matches(outputFilePaths):
       comb[image].extend(matches)
   return comb
 
-def rot_delta(m):
-  a = m['query'][3]
+MAX_SPATIAL_ERROR = 0
+def getSpatiallyOrdered(matches, axis, inliers):
+  """return length of max increasing subseq"""
+  indices = map(lambda (i,m): (m['db'][axis], m['query'][axis], i), filter(lambda (j,m): inliers[j], enumerate(matches)))
+  if not indices:
+    return inliers
+  indices.sort() # by db order
+  # now find subseq by query order
+  L = [None]*len(indices)
+  def edgesof(j):
+    for i in range(j):
+      if indices[i][1] <= indices[j][1] + MAX_SPATIAL_ERROR:
+        yield i
+  def merge((c1, l1), (c2, l2)):
+    return (c1 + c2, l1 + l2)
+  for j in range(len(indices)):
+    E = list(edgesof(j))
+    if E:
+      L[j] = merge((1, [indices[j][2]]), max([L[i] for i in E]))
+    else:
+      L[j] = (1, [indices[j][2]])
+  best = set(max(L)[1])
+  for i in range(len(inliers)):
+    if i not in best:
+      inliers[i] = False
+  return inliers
+
+def rot_delta(m, correction=0):
+  a = m['query'][3] + correction
   b = m['db'][3]
   rot = 2*np.pi
   return min((a-b) % rot, (b-a) % rot)
@@ -46,20 +74,23 @@ def find_corr(matches, hom=False):
     cv.Set2D(pts_q, i, 0, cv.Scalar(*m['query'][:2]))
     cv.Set2D(pts_db, i, 0, cv.Scalar(*m['db'][:2]))
 
-  # ransac for fundamental matrix. rotation filtering
-  # TODO custom RANSAC including rotation in model
-  # TODO custom RANSAC including SIFT feature size in model
+# ransac for fundamental matrix. rotation filtering
+# TODO multiple RANSAC to get smaller/larger features
   if not hom:
     cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
     inliers = np.asarray(inliers)[0]
-    # TODO find ransac rotation consensus
-    # right now assuming delta_roll = 0
-    # also means rewriting rot_delta to account for pos/neg
-    ransac_rot = 0
+    global best_rot
+# TODO use homography to find correct orientation
+# this will fix assumption that db,query have same roll
+    best_rot = (-9999, 0)
     for i, m in enumerate(matches):
       if inliers[i]:
-        if abs(rot_delta(m) - ransac_rot) > ROT_THRESHOLD_RADIANS:
+        if abs(rot_delta(m, best_rot[1])) > ROT_THRESHOLD_RADIANS:
           inliers[i] = False
+## reduces performance for GT %
+## TODO check if it increases localization %
+#    inliers = getSpatiallyOrdered(matches, 0, inliers)
+#    inliers = getSpatiallyOrdered(matches, 1, inliers)
     return F, inliers
 
   # homography only. no rotation check
@@ -158,10 +189,10 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
   if showLine:
       for match in red:
         drawline(match, 'red', w=1)
-        drawcircle(match, colorize(rot_delta(match)))
+        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
-        drawcircle(match, colorize(rot_delta(match)))
+        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
 
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)
