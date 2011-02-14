@@ -3,7 +3,9 @@ import util
 import os
 import corr
 import query
+import time
 from querySystemCopy import combine_ransac, Img, draw_top_corr
+from config import INFO
 
 params = query.PARAMS_DEFAULT.copy()
 params.update({
@@ -40,7 +42,9 @@ def match(siftfile, imagefile, lat=None, lon=None):
         outputFilePath = os.path.join(matchdir, siftfile + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
     # start query
+    timer = time.time()
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, siftfile, outputFilePaths, params)
+    INFO("--> Running query: " + str(time.time()-timer) + "s")
     # end query
     for cell, dist in cells_in_range:
         latcell, loncell = cell.split(',')
@@ -48,8 +52,12 @@ def match(siftfile, imagefile, lat=None, lon=None):
         loncell = float(loncell)
         actualdist = info.distance(lat, lon, latcell, loncell)
         outputFilePath = os.path.join(matchdir, siftfile + ',' + cell + ',' + str(actualdist)  + ".res")
+    combtime = time.time()
     comb_matches = corr.combine_matches(outputFilePaths)
+    INFO("--> COMB: " + str(time.time() - combtime) + "s")
+    rtime = time.time()
     combined = combine_ransac(comb_matches)
+    INFO("--> RANSAC: " + str(time.time() - rtime) + "s")
     topentry = combined[0]
     matchedimg = topentry[0]
     matches = comb_matches[matchedimg + 'sift.txt']
@@ -65,18 +73,22 @@ def draw_corr(queryimgpath, matchedimg, matches, matchoutpath=None):
 
 def preprocess_image(inputfile, outputfile=None, width=768, height=512):
     """Use the convert utility to preprocess an image."""
+    timer = time.time()
     if outputfile == None:
         outputfile = inputfile.rsplit(".",1)[0] + ".pgm"
     os.system("convert {0} -resize {2}x{3} {1}".format(inputfile, outputfile, width, height))
+    INFO("--> Image conversion: " + str(time.time()-timer) + "s")
     return outputfile
 
 SIFTEXEC = os.path.join(maindir, 'Research/app/siftDemoV4/sift')
 
 def extract_features(inputfile, outputfile=None, siftexec=SIFTEXEC):
     """Call the sift utility to extract sift features."""
+    timer = time.time()
     if outputfile == None:
         outputfile = inputfile.rsplit(".",1)[0] + "sift.txt"
     os.system("{0} <{1} >{2}".format(siftexec, inputfile, outputfile))
+    INFO("--> Feature extraction: " + str(time.time()-timer) + "s")
     return outputfile
 
 if __name__ == '__main__':

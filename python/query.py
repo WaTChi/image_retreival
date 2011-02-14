@@ -101,7 +101,9 @@ class Query(threading.Thread):
     qtime = time.time()
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
+    vtime = time.time()
     sorted_counts = self.vote(queryset, dataset, mapping, results, dists)
+    INFO_TIMING("voting took %f seconds" % (time.time() - vtime))
     save_atomic(lambda d: np.save(d, sorted_counts), self.dump)
     votes = [(len(matches), img) for img, matches in sorted_counts]
     def write_votes(d):
