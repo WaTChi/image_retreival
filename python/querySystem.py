@@ -94,6 +94,10 @@ def run_query(newlat, newlon, querydir, querysift, dbdir, mainOutputDir, nCloses
     query.run_parallel(dbdir, [c for c,d in cells_in_range], querydir, querysift, outputFilePaths, params, NUM_THREADS)
 #     end query
     comb_matches = corr.combine_matches(outputFilePaths)
+
+#    def condense2(list):
+#        return map(lambda x: (x[0][:-8], len(x[1])), list)
+#    combined = condense2(sorted(comb_matches.iteritems(), key=lambda x: len(x[1]), reverse=True))
     combined = combine_ransac(comb_matches, 20)
     results = {}
     for n in topnresults:
@@ -222,12 +226,12 @@ def characterize_fuzzy(querydir, dbdir, mainOutputDir, ncells, params):
 cellradius = 236.6
 ambiguity = 75
 matchdistance = 25
-ncells =  8  #if ambiguity+matchdistance<100, 8 is max possible by geometry
+ncells =  10 #if ambiguity+matchdistance<100, 8 is max possible by geometry
 topnresults = [1,2,5,10]
 verbosity = 0
 copytopmatch = False
 resultsdir = '/media/data/topmatches'
-maindir = HOME + "/shiraz"
+maindir = "/media/DATAPART2"
 fuzzydir = os.path.join(maindir, QUERY+'_fuzzy/')
 dbdump = os.path.join(maindir, "Research/collected_images/earthmine-new,culled/37.871955,-122.270829")
 params = query.PARAMS_DEFAULT.copy()

@@ -231,7 +231,7 @@ ambiguity = 75
 matchdistance = 25
 ncells = 7   #if ambiguity<100, 7 is max possible by geometry
 verbosity = 1
-resultsdir = os.path.expanduser('~/topmatches')
+resultsdir = os.path.expanduser('~/shiraz/topmatches')
 maindir = os.path.expanduser('~/shiraz')
 params = query.PARAMS_DEFAULT.copy()
 params.update({
@@ -256,4 +256,4 @@ if __name__ == "__main__":
         dbdir = sys.argv[2]
         matchdir = sys.argv[3]
     INFO("matchdir=%s" % matchdir)
-    characterize(querydir, dbdir, matchdir, ncells, False, params)
+    characterize(querydir, dbdir, matchdir, ncells, True, params)

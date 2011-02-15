@@ -85,28 +85,31 @@ for m=1:M
     % Iterate through each class to update classifier
     for c=1:C
         
-        % Get class features
+        % Get class features and associated weights
         cidx = ( c == classes );
         f = feat(cidx);
-        
-        % Update classifier if there are features associated with class
         if ~isempty(f)
-            
-            % Get weights and number of features
-            w = weights(cidx);
-            nf = length(f);
-
-            % Get feature bins and accumulate results
-            fbin = ceil(f/spacing);
-            b = 1:B;
-            bin_add = double( repmat(fbin,[1,B]) == repmat(b,[nf,1]) )' * w;
-            bins(:,c) = bins(:,c) + bin_add;
-
-            % Add to nsamps if the first iteration
-            if m==1
-                classifier.nsamps(c) = classifier.nsamps(c) + sum(w);
-            end
-            
+        w = weights(cidx);
+        nf = length(f);
+        
+        % Get feature bins and accumulate results
+        fbin = ceil(f/spacing);
+        b = 1:B;
+        try
+            bin_add = ( repmat(fbin,[1,B]) == repmat(b,[nf,1]) )' * w;
+        catch e
+            B
+            fbin
+            nf
+            b'
+            w
+            throw(e)
+        end
+        bins(:,c) = bins(:,c) + bin_add;
+        
+        % Add to nsamps if the first iteration
+        if m==1
+            classifier.nsamps(c) = classifier.nsamps(c) + sum(w);
         end
         
     end

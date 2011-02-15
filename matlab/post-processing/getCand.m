@@ -1,62 +1,47 @@
-function [cand,cand_vote] = getCand(lat,lon,img_lat,img_lon,image,vote,filter,exN)
+function [cand,cand_vote,cand_lat,cand_lon] = getCand(cell_idx,query,vdir)
 
-% [candIdx] = getCand(lat,lon,img_lat,img_lon,vote,filt_dist,exN)
+% [cand,cand_vote,cand_lat,cand_lon] = getCand(cell_idx,query,vdir)
 % 
 % DESCRIPTION
-%   This function gets up to 10 candidate images (eliminating ties) by
-%   looking at combined vote totals and applying a distance filter.
-% 
-% INPUTS
-%   lat:        Latitude of reported location
-%   lon:        Longitude of reported location
-%   img_lat:    List of image latitude coordinates (descending votes)
-%   img_lon:    List of image longitude coordinates (descending votes)
-%   image:      List of images (descending vote order)
-%   vote:       List of vote totals for the images (descending order)
-%   filter:   	Type of filter: 'none' or 'cutoff' or 'exponential'
-%   exN:        Boolean that decides between exactly N and up to 10
-% 
-% OUTPUTS
-%   candIdx:    Indices in [image,vote] which are the candidates
+%   This function reads the cell combination vote results and the candidate
+%   locations for a given query and cell combination.
 
-N = 10; % maximum number of candidate images
-cand = cell(11,1);
-cand_vote = zeros(N+1,1);
-filt_vote = zeros(N+1,1);
-
-nimg = length(vote);
-k=1;
-minf_vote = 0;
-minf_idx = 1;
-while k <= nimg && vote(k) > minf_vote
-    img_dist = latlonDistance(lat,lon,img_lat(k),img_lon(k));
-    if strcmp(filter,'cutoff')
-        w = (img_dist<100);
-    elseif strcmp(filter,'exponential')
-        w = exp(-img_dist/50);
-    else
-        w = 1;
+% Get cell combination filename string
+cell_idx = find(cell_idx)';
+for j=1:9
+    i = find(j==cell_idx);
+    if ~isempty(i)
+        idx = find(cell_idx < 10*j,1,'last');
+        cell_idx = [ cell_idx(1:i-1,1) ; cell_idx(i+1:idx,1) ; ...
+                   cell_idx(i,1) ; cell_idx(idx+1:end,1) ];
     end
-    if w*vote(k) > minf_vote
-        filt_vote(minf_idx) = w*vote(k);
-        cand_vote(minf_idx) = vote(k);
-        cand(minf_idx) = image(k);
-        [minf_vote,minf_idx] = min(filt_vote);
-    end
-    k = k+1;
 end
+filestr = 'combined,';
+for j=1:length(cell_idx)
+    filestr = [filestr,num2str(cell_idx(j)),'-'];
+end
+filestr = [filestr(1:end-1),'.res'];
 
-[cand_vote,perm] = sort(cand_vote,'descend');
-cand = cand(perm);
+% Get cell combination vote results for this group
+vote_file = struct2cell(dir(vdir));
+vote_file = vote_file(1,:)';
+vote_file = vote_file(~cellfun('isempty',strfind(vote_file,['DSC_',num2str(query)])));
+vote_file = vote_file(~cellfun('isempty',strfind(vote_file,filestr)));
+if isempty(vote_file)
+    disp(filestr)
+    error('Combination results not found.')
+end
+[cand_vote,cand] = textread([vdir,vote_file{1}],'%d%s');
 
-if exN
-    cand = cand(1:N);
-    cand_vote = cand_vote(1:N);
-else
-    if cand_vote(N) == cand_vote(N+1)
-        n = find( cand_vote == cand_vote(N) , 1 , 'first' ) - 1;
-        candIdx = candIdx(1:n);
-    else
-        candIdx = candIdx(1:N);
-    end
+% Get candidate locations and add sift.txt to the end of each candidate
+comma_idx = strfind(cand,',');
+ncand = length(cand);
+cand_lat = zeros(ncand,1);
+cand_lon = zeros(ncand,1);
+for k=1:ncand
+    cand_lat(k) = str2double( ...
+        cand{k}( 1:comma_idx{k}-1 ) );
+    cand_lon(k) = str2double( ...
+        cand{k}( comma_idx{k}+1:end-5 ) );
+    cand{k} = [cand{k},'sift.txt'];
 end
