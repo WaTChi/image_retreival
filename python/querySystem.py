@@ -1,6 +1,6 @@
 import queryContext as context
 
-context.QUERY = 'query3'
+context.QUERY = 'query1'
 context.params.update({
   'checks': 1024,
   'trees': 1,
@@ -12,8 +12,8 @@ context.params.update({
 context.print_per = 1000
 context.ambiguity = 75
 context.topnresults = [1,2,5,10]
-context.locator_function = context.skew_location
-#context.match_callback = context.dump_combined_matches
+context.locator_function = context.load_location
+context.match_callback = context.dump_combined_matches
 context.cacheEnable = 1
 context.ransac_min_filt = 100
 

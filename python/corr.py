@@ -131,7 +131,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser('~/shiraz/Research/app/dev/tags.csv'))
+  db = render_tags.TagCollection(os.path.expanduser('/media/DATAPART2/Research/app/dev/tags.csv'))
   source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
