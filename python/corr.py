@@ -97,7 +97,7 @@ def find_corr(matches, hom=False):
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showtag=True):
+def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showtag=True):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
@@ -131,7 +131,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser('~/shiraz/Research/app/dev/tags.csv'))
+  db = render_tags.TagCollection(os.path.expanduser('/media/DATAPART2/Research/app/dev/tags.csv'))
   source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()

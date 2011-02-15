@@ -3,7 +3,7 @@ function [results] = post_process(method,reset)
 % [results] = post_process(method)
 % 
 % First coded 8 Jan 2011 by Aaron Hallquist
-% Latest revision 28 Jan 2011 by Aaron Hallquist
+% Latest revision 11 Feb 2011 by Aaron Hallquist
 % 
 % DESCRIPTION
 %   This function computes the post-processing results on the input query
@@ -16,24 +16,19 @@ function [results] = post_process(method,reset)
 %       .set:           Integer indicating which query set to use
 %       .cell_dist:     Maximum distance between location and cell center
 %                       to search that cell. If equal to zero, we use no
-%                       combination and only the nearest cell is searched
+%                       combination and only the nearest cell is searched.
+%                       This is now optional with default = 336.6
 %       .decision:      Decision method. Current modes supported...
-%           'linear-a.b':   Linear combination of votes and scores.
-%                           - If 'linear' is chosen, the a.b parameter
-%                             refers to the ratio score weight. The vote
-%                             score weight will be 1, while the ratio score
-%                             weight will be str2double('a.b')
 %           'bayes-xyz':    Uses Naive Bayes classifier : must be trained
 %                           - If 'bayes' is chosen, the 'xyz' parameter
 %                             refers to which features will be used in the
 %                             bayes decision.
 %                               - 'd' for distance
 %                               - 'v' for vote
-%                               - 'r' for ratio score
 %                           - e.g. 'dv' decides based on distance and vote
-%                             while 'vs' is based on vote and ratio score
+%                             while 'v' is based on vote only
 %       .distribution:  Noisy location distribution. Currently supports:
-%           'exact':    Using the camera GPS coordinate only
+%           'exact-':   Using the camera GPS coordinate only
 %           'unif-x':   Generates noisy locations in a uniform distribution
 %                       - Distribution parameter .param must be specified,
 %                         indicating the maximum radius from GPS location
@@ -50,8 +45,6 @@ function [results] = post_process(method,reset)
 %                 results structure (depends on the contents of method)
 
 % Fixed parameters
-ncand = 100; % number of candidate images from vote only
-nfilt = 25; % number of images to filter down to from candidates
 ntop = 10; % maximum top n for results
 
 % Set reset flag
@@ -60,17 +53,14 @@ if nargin < 2
 end
 
 % Fixed directory
-dbDir = 'E:\Research\collected_images\earthmine-fa10.1,culled\37.871955,-122.270829\';
-gtDir = 'E:\Research\app\code\matlab\ground-truth\';
+gtDir = 'E:\matlab_local\ground-truth\';
 
 % Adjusted directories based on inputs
-qDir = ['E:\query',num2str(method.set),'\'];
-vDir = ['E:\Research\results\query',num2str(method.set), ...
-    '\matchescells(g=100,r=d=236.6),query',num2str(method.set), ...
-    ',kdtree4,threshold=70k,searchparam=1024\'];
+qDir = ['Z:\query',num2str(method.set),'\'];
+vDir = ['E:\matlab_local\results\query',num2str(method.set),'\'];
 
-% Ratio score code initialization
-run 'C:\vlfeat-0.9.9\toolbox\vl_setup'
+% Get list of cells and cell locations
+[~,cLat,cLon] = getCells;
 
 % Code dependencies
 addpath('.\..\util\')
@@ -87,10 +77,13 @@ distr = method.distribution(1:idx-1);
 distr_prm = str2double(method.distribution(idx+1:end));
 
 % Get a list of queries
-query = dir(qDir);
-query = strvcat(query(3:end).name);
-query = unique(str2double(cellstr(query(:,5:8)))); % query numbers
-query(isnan(query)) = [];
+query = struct2cell(dir(qDir));
+query = query(1,:)';
+sift_idx = ~cellfun('isempty',strfind(query,'sift.txt'));
+hdf5_idx = ~cellfun('isempty',strfind(query,'.hdf5'));
+query_name = query( sift_idx & ~hdf5_idx );
+query = strvcat(query_name); % query numbers
+query = str2double(cellstr(query(:,5:8)));
 nq = length(query); % number of queries
 
 % Load results structure
@@ -99,28 +92,24 @@ results_file = ['.\',decision,'\query',num2str(method.set),distr, ...
 if reset
     results.run = cell(1,0);
     results.match = zeros(ntop,0);
-    results.total = zeros(ntop,0);
+    results.total = zeros(1,0);
     results.match_pct = zeros(ntop,0);
     results.query_pct = zeros(nq,0);
+    results.match_top = zeros(10,0);
+    results.false_top = zeros(10,0);
 else
     try
         load(results_file)
     catch
         results.run = cell(1,0);
         results.match = zeros(ntop,0);
-        results.total = zeros(ntop,0);
+        results.total = zeros(1,0);
         results.match_pct = zeros(ntop,0);
         results.query_pct = zeros(nq,0);
+        results.query_top = zeros(nq,0);
+        results.match_top = zeros(10,0);
+        results.false_top = zeros(10,0);
     end
-end
-
-% Load query ratio scores
-scores_file = ['.\scores\query',num2str(method.set),'_scores.mat'];
-try
-    load(scores_file)
-catch
-    query_scores.scores = cell(nq,1);
-    query_scores.number = query;
 end
 
 % Load the classifier if necessary
@@ -140,11 +129,17 @@ end
 % ---------------------------------------------
     
 % Initialize variables
-cell_dist = method.cell_dist;
+if ~isfield(method,'cell_dist')
+    cell_dist = 336.6;
+else
+    cell_dist = method.cell_dist;
+end
+div = 25; % used to determine sample spacing; nsamps ~ pi * div^2
+total = 0;
 match = zeros(ntop,1);
-total = zeros(ntop,1);
-match_pct = zeros(ntop,1);
 query_pct = zeros(nq,1);
+match_top = zeros(10,1);
+false_top = zeros(10,1);
 
 % Set run
 
@@ -154,114 +149,99 @@ fprintf('\nRunning post processing...\n')
 for k=1:nq
 
     fprintf(['\nProcessing query ',num2str(k),'... '])
+    
+    % Get the number of features
+    featid = fopen([qDir,query_name{k}]);
+    nfeat = fscanf(featid,'%d',1);
+    fclose(featid);
 
     % Get ground truth matches
     gt = getGT(query(k),method.set,gtDir);
 
-    % Get list of cells and cell locations
-    [qCell,cLat,cLon] = getCells(query(k),vDir);
-
-    % Get query sift file name and query location
-    idx = strfind(qCell{1},',');
-    query_name = qCell{1}(1:idx(3)-1);
-    qLat = str2double(query_name(idx(1)+1:idx(2)-1));
-    qLon = str2double(query_name(idx(2)+1:end-8));
+    % Get query location
+    idx = strfind(query_name{k},',');
+    qLat = str2double(query_name{k}(idx(1)+1:idx(2)-1));
+    qLon = str2double(query_name{k}(idx(2)+1:end-8));
 
     % Get fuzzy point locations
     if strcmp(distr,'exact')
         lats = qLat; lons = qLon;
     elseif strcmp(distr,'unif')
         rad = distr_prm;
-        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
+        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/div);
     else % if strcmp(dist,'expo')
         rad = 4*distr_prm;
-        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/25);
+        [lats,lons] = getFuzzyLocs(qLat,qLon,rad,rad/div);
     end
 
     % Create cell groupings from fuzzy points and iterate through them
     cellgroups = groupFuzzy(lats,lons,cLat,cLon,cell_dist);
 
     ma = 0;
-    to = 0;
     for cg=cellgroups
 
-        % Combine cells in this grouping
-        comb_cells = qCell(cg.idx);
-        [cand,cand_vote,cand_lat,cand_lon,nfeat] = cellCombine(comb_cells,vDir,ncand);
+        % Get cell combination results, files, and candidate locations
+        [cand,cand_vote,cand_lat,cand_lon] = getCand(cg.idx,query(k),vDir);
+        cand_vote = cand_vote / nfeat;
 
         % Iterate through each fuzzy point and post process
         for j=1:cg.npts
             
-            % Get the candidate distances and filter down to nfilt
-            if strcmp(decision,'linear')
-                cand = cand(1:nfilt);
-                cand_vote = cand_vote(1:nfilt);
-            else
-                cand_dist = latlonDistance(cg.lats(j),cg.lons(j),cand_lat,cand_lon);
-                param = [cand_dist,cand_vote,nan(ncand,1)];
-                [cand,param,~] = rankNcand(cand,param,method,nfilt);
-                cand_dist = param(:,1);
-                cand_vote = param(:,2);
-            end
-            
-            % Get the candidate ratio scores | read from file if possible
-            idx = find(query_scores.number==query(k),1,'first');
-            img_scores = query_scores.scores{idx};
-            if ~iscell(img_scores)
-                img_scores = cell(0,2);
-            end
-            [cand_score,img_scores] = getRatioScores(...
-                cand,img_scores,query_name,qDir,dbDir);
-            query_scores.scores{idx} = img_scores;
-            cand_score = cand_score / nfeat;
+            % Get the candidate distances
+            cand_dist = latlonDistance(cg.lats(j),cg.lons(j),cand_lat,cand_lon);
 
             % Post process the features parameters to get a final ranking
-            if strcmp(decision,'linear')
-                param = [cand_vote,cand_score];
-            else % if strcmp(decision,'bayes')
-                param = [cand_dist,cand_vote,cand_score];
-            end
-            cand = rankNcand(cand,param,method,ntop);
+            param = [cand_dist,cand_vote];
+            [cand_nres,~,s] = rankNcand(cand,param,method,ntop);
             
             % Check for matches
             m = zeros(ntop,1);
+            nres = min(ntop,length(cand_nres));
             cand_idx = 1;
-            while cand_idx<=ntop && ~textMatch(cand(cand_idx),gt)
+            while cand_idx<=nres && ~textMatch(cand_nres(cand_idx),gt)
                 cand_idx = cand_idx+1;
             end
-            m(cand_idx:end)=1;
+            if cand_idx <= nres
+                m(cand_idx:end)=1;
+            end
             
             % weigh result if exponential distribution
             if strcmp(distr,'expo')
                 d = latlonDistance(qLat,qLon,cg.lats(j),cg.lons(j));
-                weight = exp(-d/distr_prm);
-            else % exact or uniform
+                weight = 1 / (2*pi*(div/4)^2) * exp(-d/distr_prm);
+            elseif strcmp(distr,'unif')
+                weight = 1 / (pi*div^2);
+            else % strcmp(distr,'exact')
                 weight = 1;
             end
-                
+            
+            % Update match information
             match = match + weight*m;
+            top_idx = ceil(10*s(1));
+            if m(1)
+                match_top(top_idx) = match_top(top_idx) + weight;
+                ma = ma + weight;
+            else
+                false_top(top_idx) = false_top(top_idx) + weight;
+            end
             total = total + weight;
-
-            ma = ma + weight*m(1);
-            to = to + weight;
 
         end
 
     end
 
-    query_pct(k) = ma / to;
-    
-    % store query ratio scores
-    save(scores_file,'query_scores')
+    query_pct(k) = ma / total;
 
 end
 
 % store results
 results.run{1,end+1} = decis_prm;
+results.total(1,end+1) = total;
 results.match(:,end+1) = match;
-results.total(:,end+1) = total;
-results.match_pct(:,end+1) = match./total;
+results.match_pct(:,end+1) = match / total;
 results.query_pct(:,end+1) = query_pct;
+results.match_top(:,end+1) = match_top / total;
+results.false_top(:,end+1) = false_top / total;
 
 save(results_file,'results')
 

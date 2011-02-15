@@ -14,3 +14,7 @@ lon2 = pi/180 * lon2;
 
 d = radius * acos( sin(lat1).*sin(lat2) + ...
     cos(lat1).*cos(lat2).*cos(lon1-lon2) );
+
+if ~isreal(d)
+    d = 0;
+end

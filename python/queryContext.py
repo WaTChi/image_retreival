@@ -29,7 +29,7 @@ cellradius = 236.6
 match_callback = None
 ambiguity = 75
 matchdistance = 25
-ncells = 7 # if ambiguity<100, 7 is max possible by geometry
+ncells = 10 # if ambiguity<100, 9 is max possible by geometry
 verbosity = 1
 resultsdir = os.path.expanduser('~/topmatches')
 maindir = os.path.expanduser('/media/DATAPART2')
@@ -203,12 +203,10 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
     udir = os.path.join(resultsdir, query)
     if not os.path.exists(udir):
         os.makedirs(udir)
-    queryimgpath = os.path.join(querydir, query + '.jpg')
+    queryimgpath = os.path.join(querydir, query + '.JPG')
     i = 0
-    for matchedimg, score in ranked_matches[:1]:
+    for matchedimg, score in ranked_matches[:num_images_to_print]:
         i += 1
-        if i > num_images_to_print:
-            break
         clat = float(matchedimg.split(",")[0])
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
@@ -219,8 +217,9 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
         H, inliers = corr.find_corr(matches, hom=True)
         H = np.matrix(np.asarray(H))
-        with open(os.path.join(udir, 'homography.txt'), 'w') as f:
-            print >> f, H
+        if i == 1:
+            with open(os.path.join(udir, 'homography.txt'), 'w') as f:
+                print >> f, H
 
 def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)

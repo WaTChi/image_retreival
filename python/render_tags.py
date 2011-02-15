@@ -69,6 +69,10 @@ class EarthmineImageInfo(ImageInfo):
     self.focal_length = 0.8625 * self.image.size[0]
     center = geom.center((0,0), self.image.size)
     cloc = self.get_pixel_location(center)
+    if not cloc:
+      self.pitch = 0
+      INFO("WARNING: Earthmine returned None for center pixel; set pitch=0")
+      return
     hyp = geom.distance3d(cloc, self.info['view-location'])
     d_alt = cloc['alt'] - self.alt
     self.pitch = np.arcsin(d_alt/hyp)

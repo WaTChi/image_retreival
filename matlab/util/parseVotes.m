@@ -20,7 +20,6 @@ function [qVote,qPhoto] = parseVotes(filename,vote_dir)
 %   qPhoto:     Cell array of database files
 
 % Read and parse vote data
-[vote_dir,filename]
 vote_data = textread([vote_dir,filename],'%s');
 vote_data = reshape(vote_data,[2,length(vote_data)/2])';
 qVote = str2num(strvcat(vote_data(:,1)));
