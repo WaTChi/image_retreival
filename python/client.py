@@ -1,6 +1,8 @@
 import os
 import corr
 import info
+import time
+from config import *
 import query
 import queryContext as context
 
