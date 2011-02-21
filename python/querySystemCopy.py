@@ -1,6 +1,6 @@
 import queryContext as context
 
-context.QUERY = 'query3'
+context.QUERY = 'query4'
 context.params.update({
   'checks': 1024,
   'trees': 1,
@@ -10,6 +10,8 @@ context.params.update({
   'confstring': '',
 })
 
-context.num_images_to_print = 5
+context.num_images_to_print = 1
+context.put_into_dirs = 0
+context.showHom = 1
 context.vars_init()
 context.characterize()

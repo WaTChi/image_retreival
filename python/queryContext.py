@@ -24,6 +24,8 @@ cacheEnable = 0 # instance-local caching of results
 ransac_min_filt = 1
 print_per = 1
 num_images_to_print = 1
+put_into_dirs = 0
+showHom = 0
 locator_function = lambda image: [(image.lat, image.lon)]
 cellradius = 236.6
 match_callback = None
@@ -199,11 +201,16 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
     clon = float(matchedimg.split(",")[1][0:-5])
     distance = info.distance(qlat, qlon, clat, clon)
 
-#    udir = os.path.join(resultsdir, str(match))
-    udir = os.path.join(resultsdir, query)
+    if put_into_dirs:
+        udir = os.path.join(resultsdir, query)
+    else:
+        udir = resultsdir
     if not os.path.exists(udir):
         os.makedirs(udir)
-    queryimgpath = os.path.join(querydir, query + '.JPG')
+    queryimgpath = os.path.join(querydir, query + '.jpg')
+    if not os.path.exists(queryimgpath):
+        queryimgpath = os.path.join(querydir, query + '.JPG')
+        assert os.path.exists(queryimgpath)
     i = 0
     for matchedimg, score in ranked_matches[:num_images_to_print]:
         i += 1
@@ -214,12 +221,13 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matches = comb_matches[matchedimg + 'sift.txt']
         F, inliers = corr.find_corr(matches)
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
+        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, showHom=showHom)
         H, inliers = corr.find_corr(matches, hom=True)
         H = np.matrix(np.asarray(H))
         if i == 1:
             with open(os.path.join(udir, 'homography.txt'), 'w') as f:
                 print >> f, H
+            np.save(os.path.join(udir, 'matches.npy'), matches)
 
 def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
