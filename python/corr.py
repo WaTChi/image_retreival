@@ -97,7 +97,7 @@ def find_corr(matches, hom=False):
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showtag=True, showHom=False):
+def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, showtag=True, showHom=False):
   # create image
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
@@ -256,9 +256,13 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=True, showta
     xdrawline((dests[0], dests[2]), 'yellow')
     xdrawcircle(dests[0], 'yellow')
     xdrawcircle(pts[0], 'yellow', off=a.size[0])
-    det = "det = %s" % str(np.linalg.det(H))
-    draw.rectangle([(0,0), (150,10)], fill='black')
-    draw.text((0,0), det)
+    det = np.linalg.det(H)
+    detstr = " det H = %s" % det
+    truematch = det > .01
+    guess = " guess = %s match" % truematch
+    draw.rectangle([(0,0), (150,20)], fill='black')
+    draw.text((0,0), detstr)
+    draw.text((0,10), guess)
 
   target.save(out_img, 'jpeg', quality=90)
 

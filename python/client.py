@@ -41,7 +41,7 @@ def draw_corr(queryimgpath, matchedimg, matches, matchoutpath=None):
     matchimgpath = os.path.join(context.dbdump, '%s.jpg' % matchedimg)
     if matchoutpath == None:
         matchoutpath = os.path.expanduser('~/client-out.jpg')
-    corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers)
+    corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, F)
     return F, inliers
 
 if __name__ == '__main__':

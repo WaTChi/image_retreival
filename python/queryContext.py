@@ -221,7 +221,7 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         matches = comb_matches[matchedimg + 'sift.txt']
         F, inliers = corr.find_corr(matches)
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, showHom=showHom)
+        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, F, showHom=showHom)
         H, inliers = corr.find_corr(matches, hom=True)
         H = np.matrix(np.asarray(H))
         if i == 1:
