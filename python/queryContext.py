@@ -203,7 +203,7 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
     udir = os.path.join(resultsdir, query)
     if not os.path.exists(udir):
         os.makedirs(udir)
-    queryimgpath = os.path.join(querydir, query + '.JPG')
+    queryimgpath = os.path.join(querydir, query + '.jpg')
     i = 0
     for matchedimg, score in ranked_matches[:num_images_to_print]:
         i += 1

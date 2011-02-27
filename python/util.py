@@ -20,7 +20,7 @@ def select_dist_exceeds(map3d, mapping, dataset, results, origin3d, thresh, enum
             return dist
     return None
 
-def countuniqimages(celldir="E:\Research\cellsg=100,r=d=236.6"):
+def countuniqimages(celldir="/media/DATAPART2/Research/cells/g=100,r=d=236.6"):
     names = set()
     cells = getdirs(celldir)
     for cell in cells:

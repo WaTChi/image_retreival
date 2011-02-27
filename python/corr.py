@@ -99,6 +99,7 @@ def find_corr(matches, hom=False):
 
 def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showtag=True):
   # create image
+  print q_img
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
   a = Image.open(q_img)
