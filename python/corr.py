@@ -97,7 +97,7 @@ def find_corr(matches, hom=False):
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showtag=True):
+def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, showtag=True, showHom=False):
   # create image
   print q_img
   assert os.path.exists(q_img)
@@ -125,6 +125,15 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
   def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
     draw.line([match['query'][1], match['query'][0]] + db, fill=color, width=w)
+
+  def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0):
+    start = [start[0] + off, start[1]]
+    stop = [stop[0] + off, stop[1]]
+    draw.line(start + stop, fill=color, width=8)
+
+  def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
+    r = 50
+    draw.ellipse((y-r+off, x-r, y+r+off, x+r), outline=col)
 
   def drawcircle(match, col='hsl(20,100%,50%)'):
     draw.ellipse((match['query'][1] - match['query'][2], match['query'][0] - match['query'][2], match['query'][1] + match['query'][2], match['query'][0] + match['query'][2]), outline=col)
@@ -210,6 +219,51 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, showLine=False, showt
   tagfilled.paste(b2, (a.size[0],0))
   if showtag:
     target.paste(tagfilled, mask=tags)
+
+  if showHom:
+    pts = [(384,256), (384,361), (489, 256)]
+    dests = []
+    for (y,x) in pts:
+      dest = H*np.matrix([x,y,1]).transpose()
+      try:
+        dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+      except ZeroDivisionError:
+        dest = (0,0)
+      except ValueError:
+        dest = (0,0)
+      dest = (dest[1]*scale, dest[0]*scale)
+      dests.append(dest)
+
+    while dests[0][0] < 100:
+      dests[0] = dests[0][0] + 100, dests[0][1]
+      dests[1] = dests[1][0] + 100, dests[1][1]
+      dests[2] = dests[2][0] + 100, dests[2][1]
+    while dests[0][0] > a.size[0] - 100:
+      dests[0] = dests[0][0] - 100, dests[0][1]
+      dests[1] = dests[1][0] - 100, dests[1][1]
+      dests[2] = dests[2][0] - 100, dests[2][1]
+    while dests[0][1] > a.size[1] - 100:
+      dests[0] = dests[0][0], dests[0][1] - 100
+      dests[1] = dests[1][0], dests[1][1] - 100
+      dests[2] = dests[2][0], dests[2][1] - 100
+    while dests[0][1] < 100:
+      dests[0] = dests[0][0], dests[0][1] + 100
+      dests[1] = dests[1][0], dests[1][1] + 100
+      dests[2] = dests[2][0], dests[2][1] + 100
+
+    xdrawline((pts[0], pts[1]), 'green', off=a.size[0])
+    xdrawline((pts[0], pts[2]), 'yellow', off=a.size[0])
+    xdrawline((dests[0], dests[1]), 'green')
+    xdrawline((dests[0], dests[2]), 'yellow')
+    xdrawcircle(dests[0], 'yellow')
+    xdrawcircle(pts[0], 'yellow', off=a.size[0])
+    det = np.linalg.det(H)
+    detstr = " det H = %s" % det
+    truematch = det > .01
+    guess = " guess = %s match" % truematch
+    draw.rectangle([(0,0), (150,20)], fill='black')
+    draw.text((0,0), detstr)
+    draw.text((0,10), guess)
 
   target.save(out_img, 'jpeg', quality=90)
 
