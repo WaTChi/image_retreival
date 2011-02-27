@@ -8,6 +8,7 @@
 import os
 import os.path
 import query
+from reader import get_reader
 
 QUERY = None # set before calling characterize()
 params = query.PARAMS_DEFAULT.copy()
@@ -218,13 +219,20 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
-        matches = comb_matches[matchedimg + 'sift.txt']
+        # rematch for precise fit
+#        matches = comb_matches[matchedimg + 'sift.txt']
+        reader = get_reader(params['descriptor'])
+        querysiftpath = os.path.join(querydir, query + 'sift.txt')
+        matchsiftpath = os.path.join(dbdump, matchedimg + 'sift.txt')
+        matches = corr.rematch(reader, querysiftpath, matchsiftpath)
+
         F, inliers = corr.find_corr(matches)
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
         corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, F, showHom=showHom)
+
         H, inliers = corr.find_corr(matches, hom=True)
         H = np.matrix(np.asarray(H))
-        if i == 1:
+        if i == 1 and showHom:
             with open(os.path.join(udir, 'homography.txt'), 'w') as f:
                 print >> f, H
             np.save(os.path.join(udir, 'matches.npy'), matches)

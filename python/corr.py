@@ -2,6 +2,7 @@
 
 from config import *
 import random
+import pyflann
 import time
 import Image, ImageDraw
 import render_tags
@@ -9,8 +10,11 @@ import numpy as np
 import cv
 import os
 
+fail, ok = 0, 0
 MAX_PIXEL_DEVIATION = 5
+FALLBACK_PIXEL_DEVIATIONS = [2,1]
 CONFIDENCE_LEVEL = .99999
+BAD_HOMOGRAPHY_DET_THRESHOLD = .01
 ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
 best_rot = 0
 
@@ -25,6 +29,21 @@ def combine_matches(outputFilePaths):
         comb[image] = []
       comb[image].extend(matches)
   return comb
+
+def rematch(reader, querysift, dbsift):
+  INFO('Attempting rematch between %s and %s' % (querysift, dbsift))
+  start = time.time()
+  q = reader.load_file(querysift)
+  db = reader.load_file(dbsift)
+  flann = pyflann.FLANN()
+  results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
+  matches = []
+  for i in range(0,len(results)):
+    if dists[i] < 70000:
+      matches.append({'db': db[results[i]]['geom'].copy(),
+                      'query': q[i]['geom'].copy()})
+  INFO_TIMING("rematch took %f" % (time.time() - start))
+  return matches
 
 MAX_SPATIAL_ERROR = 0
 def getSpatiallyOrdered(matches, axis, inliers):
@@ -60,7 +79,16 @@ def rot_delta(m, correction=0):
   return min((a-b) % rot, (b-a) % rot)
 
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
-def find_corr(matches, hom=False):
+def find_corr(matches, hom=False, ransac_pass=True):
+  if hom:
+    if ransac_pass:
+      F, inliers = _find_corr(matches)
+      matches = np.compress(inliers, matches)
+    return _find_corr(matches, hom=True)
+  else:
+    return _find_corr(matches)
+
+def _find_corr(matches, hom=False):
   matches = list(matches)
   F = cv.CreateMat(3, 3, cv.CV_64F)
   cv.SetZero(F)
@@ -94,12 +122,37 @@ def find_corr(matches, hom=False):
     return F, inliers
 
   # homography only. no rotation check
+  global fail, ok
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
+
+### try rounds of homography calculations ###
+  i = 0
+  while i < len(FALLBACK_PIXEL_DEVIATIONS):
+    det = np.linalg.det(F)
+    if det < BAD_HOMOGRAPHY_DET_THRESHOLD:
+      cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=FALLBACK_PIXEL_DEVIATIONS[i], status=inliers)
+      i += 1
+    else:
+      if i > 0:
+        INFO('SUCCESS in revising homography')
+      break
+  if i >= len(FALLBACK_PIXEL_DEVIATIONS):
+    INFO('FAILED to revise homography')
+    fail += 1
+#    cv.FindHomography(pts_db, pts_q, F, method=cv.CV_LMEDS, status=inliers)
+#    if np.linalg.det(F) >= BAD_HOMOGRAPHY_DET_THRESHOLD:
+#      INFO('(!!!) LMEDS worked where RANSAC did not')
+#    else:
+#      INFO('LMEDS also failed')
+  else:
+    ok += 1
+  INFO('homography success %d/%d' % (ok,(ok+fail)))
+
   return F, np.asarray(inliers)[0]
 
 def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, showtag=True, showHom=False):
   # create image
-  print q_img
+  INFO(q_img)
   assert os.path.exists(q_img)
   assert os.path.exists(db_img)
   a = Image.open(q_img)
@@ -149,7 +202,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
   oldmatches = matches
   oldinliers = inliers
   matches = np.compress(inliers, matches)
-  H, inliers = find_corr(matches, hom=True)
+  H, inliers = find_corr(matches, hom=True, ransac_pass=False)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -197,9 +250,9 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
       return 'red'
 
   if showLine:
-      for match in red:
-        drawline(match, 'red', w=1)
-        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+#      for match in red:
+#        drawline(match, 'red', w=1)
+#        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match, best_rot[1])))
@@ -259,7 +312,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
     xdrawcircle(pts[0], 'yellow', off=a.size[0])
     det = np.linalg.det(H)
     detstr = " det H = %s" % det
-    truematch = det > .01
+    truematch = det > BAD_HOMOGRAPHY_DET_THRESHOLD
     guess = " guess = %s match" % truematch
     draw.rectangle([(0,0), (150,20)], fill='black')
     draw.text((0,0), detstr)
