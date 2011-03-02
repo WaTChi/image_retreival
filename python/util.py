@@ -383,6 +383,7 @@ import groundtruthB
 import groundtruthO
 import query1GroundTruth
 import query2Groundtruth
+import query4GroundTruth
 def python_to_matlab_groundTruth(d, fname):
     f = open(fname,"w")
     for key in d:
@@ -397,6 +398,7 @@ def python_to_matlab_groundTruth(d, fname):
 #python_to_matlab_groundTruth(groundtruthO.matches, "gt3O")
 #python_to_matlab_groundTruth(query1Groundtruth.matches, "gt1")
 #python_to_matlab_groundTruth(query2Groundtruth.matches, "gt2")
+python_to_matlab_groundTruth(query4GroundTruth.matches, "gt4")
 
 #def dupCount(file):
 #    counter = {}

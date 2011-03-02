@@ -85,6 +85,7 @@ import groundtruthG
 import groundtruthO
 import groundtruthR
 import groundtruthY
+import query4GroundTruth
 import util
 
 class Img:
@@ -282,7 +283,7 @@ def check_topn_img(querysift, dupCountLst, topnres=1):
         elif QUERY == 'query2':
             g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
         elif QUERY == 'query4':
-            pass
+            g += check_truth(querysift.split('sift')[0], entry[0], query4GroundTruth.matches)
         else:
             return []
     return [g > 0, y > 0, r > 0, b > 0, o > 0]

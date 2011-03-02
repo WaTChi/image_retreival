@@ -557,7 +557,7 @@ def ddGetImageLocs(view, conn):
     return locs
 
 def ddImageLocstoLPT(view, locs):
-    # Translate location for each pixel into x,y,z where (0,0,alt) is the camera center.
+    # Translate location for each pixel into x,y,z where (0,0,0) is the camera center.
     # First, convert ECEF-geodetic to ECEF-rectangular
     originR = ddViewLocationToECEFR(view["view-location"])
     #Compute rotations and translations to center origin at 0 and make a
