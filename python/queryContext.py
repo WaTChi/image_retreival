@@ -25,6 +25,7 @@ cacheEnable = 0 # instance-local caching of results
 ransac_min_filt = 1
 print_per = 1
 num_images_to_print = 1
+corrfilter_printed = 0 # keep trying for homTrue until num_images_to_print
 put_into_dirs = 0
 showHom = 0
 locator_function = lambda image: [(image.lat, image.lon)]
@@ -212,8 +213,12 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         queryimgpath = os.path.join(querydir, query + '.JPG')
         assert os.path.exists(queryimgpath)
     i = 0
+    data = {}
     for matchedimg, score in ranked_matches[:num_images_to_print]:
         i += 1
+        if corrfilter_printed and data.get('success'):
+            INFO('filtering done at i=%d' % (i-1))
+            break # we are done
         clat = float(matchedimg.split(",")[0])
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
@@ -229,17 +234,17 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         # concat db matches
         matches.extend(db_matches)
 
-        data = {}
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(None) + ';' + matchedimg + '.jpg')
         H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, data=data)
-        new = os.path.join(udir, query[4:8] + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(data.get('unique_features')) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+        qpart = query if QUERY == 'query4' else query[4:8]
+        new = os.path.join(udir, qpart + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(data.get('unique_features')) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
         os.rename(matchoutpath, new)
 
         if showHom:
             if put_into_dirs:
                 identifier = str(i);
             else:
-                identifier = query[4:8] + ':' + str(i)
+                identifier = qpart + ':' + str(i)
             H = np.matrix(np.asarray(H))
             with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
                 print >> f, H

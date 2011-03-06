@@ -10,7 +10,6 @@ import numpy as np
 import cv
 import os
 
-fail, ok = 0, 0
 MAX_PIXEL_DEVIATION = 5
 FALLBACK_PIXEL_DEVIATIONS = [2,1]
 CONFIDENCE_LEVEL = .9999999
@@ -108,12 +107,10 @@ def find_corr(matches, hom=False, ransac_pass=True, data={}):
 
 def _find_corr(matches, hom=False, data={}, MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIATION, FALLBACK_PIXEL_DEVIATIONS=FALLBACK_PIXEL_DEVIATIONS, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=ROT_THRESHOLD_RADIANS):
   data['success'] = False # by default
-  global fail, ok
   matches = list(matches)
   F = cv.CreateMat(3, 3, cv.CV_64F)
   cv.SetZero(F)
   if not matches or (hom and len(matches) < 4):
-    fail += 1
     return F, []
   inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
   cv.SetZero(inliers)
@@ -154,23 +151,13 @@ def _find_corr(matches, hom=False, data={}, MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIAT
       cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=FALLBACK_PIXEL_DEVIATIONS[i], status=inliers)
       i += 1
     else:
-#      if i > 0:
-#        INFO('SUCCESS in revising homography')
       break
   if i >= len(FALLBACK_PIXEL_DEVIATIONS):
-#    INFO('FAILED to revise homography')
     cv.FindHomography(pts_db, pts_q, F, method=cv.CV_LMEDS, status=inliers)
     if isHomographyGood(F):
-#      INFO('(!!!) LMEDS worked where RANSAC did not')
       data['success'] = True
-      ok += 1
-    else:
-      fail += 1
-#      INFO('LMEDS also failed')
   else:
     data['success'] = True
-    ok += 1
-  INFO('homography success %d/%d' % (ok,(ok+fail)))
 
   return F, np.asarray(inliers)[0]
 
@@ -228,11 +215,12 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
     # XXX TODO rework rescale
     if portrait:
       scale = float(newy)/840
-#      scale = 1
   assert a.mode == 'RGB'
   b = Image.open(db_img)
   height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+  if scale != 1:
+    INFO("scale is %f" % scale)
 
   def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
