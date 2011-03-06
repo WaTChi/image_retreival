@@ -63,12 +63,10 @@ try:
         import multiprocessing
         NUM_THREADS = multiprocessing.cpu_count()
     drawtopcorr = 'NO_DRAW' not in os.environ
-    drawfailures = 'DRAW_FAIL' in os.environ
 except:
     import multiprocessing
     NUM_THREADS = multiprocessing.cpu_count()
     drawtopcorr = 1
-    drawfailures = 0
 
 import shutil
 import time
@@ -178,8 +176,8 @@ def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
     match = any(stats)
 
     # maybe draw output file
-    if drawtopcorr or (not match and drawfailures):
-        draw_top_corr(querydir, siftfile.split('sift.txt')[0], combined, match, lat, lon, comb_matches)
+    if drawtopcorr:
+        draw_top_corr(querydir, siftfile.split('sift.txt')[0], combined, lat, lon, comb_matches)
 
     # return statistics and top result
     matchedimg = combined[0][0]
@@ -192,7 +190,7 @@ def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
     # done
     return stats, matchedimg, matches, combined
 
-def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_matches):
+def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
     topentry = ranked_matches[0]
     matchedimg = topentry[0]
     score = topentry[1]
@@ -220,20 +218,26 @@ def draw_top_corr(querydir, query, ranked_matches, match, qlat, qlon, comb_match
         clon = float(matchedimg.split(",")[1][0:-5])
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
+        match = any(check_img(query + 'sift.txt', ranked_matches[i-1]))
+        print match
         # rematch for precise fit
-#        matches = comb_matches[matchedimg + 'sift.txt']
+        db_matches = comb_matches[matchedimg + 'sift.txt']
+        matches = db_matches
         reader = get_reader(params['descriptor'])
         querysiftpath = os.path.join(querydir, query + 'sift.txt')
         matchsiftpath = os.path.join(dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(reader, querysiftpath, matchsiftpath)
+        # concat db matches
+        matches.extend(db_matches)
 
-        F, inliers = corr.find_corr(matches)
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + '(' + str(int(score)) + ');gt' + str(match)  + ';' + dup + ';' + matchedimg + ';' + str(score) + ';' + str(distance) + '.jpg')
-        corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, F, showHom=showHom)
+        success = [None]
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(success[0]) + ';' + matchedimg + '.jpg')
+        H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, success=success)
+        new = os.path.join(udir, query[4:8] + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(success[0]) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+        os.rename(matchoutpath, new)
 
-        H, inliers = corr.find_corr(matches, hom=True)
-        H = np.matrix(np.asarray(H))
         if i == 1 and showHom:
+            H = np.matrix(np.asarray(H))
             with open(os.path.join(udir, 'homography.txt'), 'w') as f:
                 print >> f, H
             np.save(os.path.join(udir, 'matches.npy'), matches)
@@ -265,28 +269,30 @@ def combine_ransac(counts, min_filt=0):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
-def check_topn_img(querysift, dupCountLst, topnres=1):
-    g = 0
-    y = 0
-    r = 0
-    b = 0
-    o = 0
-    for entry in dupCountLst[0:topnres]:
-        if QUERY == 'query1':
-            g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
-        elif QUERY == 'query3' or QUERY == 'queryeric':
-            g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
-            y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
-            r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
-            b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
-            o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
-        elif QUERY == 'query2':
-            g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
-        elif QUERY == 'query4':
-            g += check_truth(querysift.split('sift')[0], entry[0], query4GroundTruth.matches)
-        else:
-            return []
+def check_img(querysift, entry):
+    g,y,r,b,o = 0,0,0,0,0
+    if QUERY == 'query1':
+        g += check_truth(querysift.split('sift')[0], entry[0], query1GroundTruth.matches)
+    elif QUERY == 'query3' or QUERY == 'queryeric':
+        g += check_truth(querysift.split('sift')[0], entry[0], groundtruthG.matches)
+        y += check_truth(querysift.split('sift')[0], entry[0], groundtruthY.matches)
+        r += check_truth(querysift.split('sift')[0], entry[0], groundtruthR.matches)
+        b += check_truth(querysift.split('sift')[0], entry[0], groundtruthB.matches)
+        o += check_truth(querysift.split('sift')[0], entry[0], groundtruthO.matches)
+    elif QUERY == 'query2':
+        g += check_truth(querysift.split('sift')[0], entry[0], query2Groundtruth.matches)
+    elif QUERY == 'query4':
+        g += check_truth(querysift.split('sift')[0], entry[0], query4GroundTruth.matches)
+    else:
+        return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
+
+def check_topn_img(querysift, dupCountLst, topnres=1):
+    record = [0]*5
+    for entry in dupCountLst[0:topnres]:
+        new = check_img(querysift, entry)
+        record = map(lambda a,b: a + b, record, new)
+    return map(bool, record)
 
 def dump_combined_matches(siftfile, matchdir, stats, matchedimg, matches, cells_in_range):
     # For Aaron's analysis
@@ -320,7 +326,7 @@ def characterize():
     start = time.time()
     if not os.path.exists(matchdir):
         os.makedirs(matchdir)
-    if drawtopcorr or drawfailures:
+    if drawtopcorr:
         if os.path.exists(resultsdir):
             shutil.rmtree(resultsdir)
         os.makedirs(resultsdir)

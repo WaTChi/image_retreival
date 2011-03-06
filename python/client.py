@@ -37,12 +37,11 @@ def match(siftfile, lat=None, lon=None):
     return matchedimg, matches
 
 def draw_corr(queryimgpath, matchedimg, matches, matchoutpath=None):
-    F, inliers = corr.find_corr(matches)
     matchimgpath = os.path.join(context.dbdump, '%s.jpg' % matchedimg)
     if matchoutpath == None:
         matchoutpath = os.path.expanduser('~/client-out.jpg')
-    corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, inliers, F)
-    return F, inliers
+    H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath)
+    return H, inliers
 
 if __name__ == '__main__':
     sift = os.path.expanduser('~/shiraz/query1/DSC_7638,37.87162,-122.27223sift.txt')

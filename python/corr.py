@@ -13,8 +13,8 @@ import os
 fail, ok = 0, 0
 MAX_PIXEL_DEVIATION = 5
 FALLBACK_PIXEL_DEVIATIONS = [2,1]
-CONFIDENCE_LEVEL = .99999
-BAD_HOMOGRAPHY_DET_THRESHOLD = .01
+CONFIDENCE_LEVEL = .9999999
+BAD_HOMOGRAPHY_DET_THRESHOLD = .005
 ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
 best_rot = 0
 
@@ -30,18 +30,32 @@ def combine_matches(outputFilePaths):
       comb[image].extend(matches)
   return comb
 
+def hashmatch(m):
+  d = m['db']
+  q = m['query']
+  o = 0
+  for i in d:
+    o += i
+  for i in q:
+    o += i
+  return o
+
+# eqv of 70k, euclidean, matchonce
 def rematch(reader, querysift, dbsift):
-  INFO('Attempting rematch between %s and %s' % (querysift, dbsift))
+#  INFO('Attempting rematch between %s and %s' % (querysift, dbsift))
   start = time.time()
   q = reader.load_file(querysift)
   db = reader.load_file(dbsift)
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
   matches = []
+  closed = set()
   for i in range(0,len(results)):
-    if dists[i] < 70000:
-      matches.append({'db': db[results[i]]['geom'].copy(),
-                      'query': q[i]['geom'].copy()})
+    if dists[i] < 70000 and results[i] not in closed:
+      closed.add(results[i])
+      atom = {'db': db[results[i]]['geom'].copy(),
+                      'query': q[i]['geom'].copy()}
+      matches.append(atom)
   INFO_TIMING("rematch took %f" % (time.time() - start))
   return matches
 
@@ -79,20 +93,27 @@ def rot_delta(m, correction=0):
   return min((a-b) % rot, (b-a) % rot)
 
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
-def find_corr(matches, hom=False, ransac_pass=True):
+# if you use ransac_pass, the inliers returned will come with
+#   a reduced set of matches
+# success - array len > 0 : success[0] indicates hom. estimated success
+# undefined behavior in ransac case
+def find_corr(matches, hom=False, ransac_pass=True, success=[False]):
   if hom:
     if ransac_pass:
-      F, inliers = _find_corr(matches)
+      F, inliers = _find_corr(matches, MAX_PIXEL_DEVIATION=50, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=30*np.pi/180)
       matches = np.compress(inliers, matches)
-    return _find_corr(matches, hom=True)
+    return (matches,) + _find_corr(matches, hom=True, success=success, MAX_PIXEL_DEVIATION=35, FALLBACK_PIXEL_DEVIATIONS=[15, 9, 5, 3, 1])
   else:
-    return _find_corr(matches)
+    return _find_corr(matches, success=success)
 
-def _find_corr(matches, hom=False):
+def _find_corr(matches, hom=False, success=[False], MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIATION, FALLBACK_PIXEL_DEVIATIONS=FALLBACK_PIXEL_DEVIATIONS, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=ROT_THRESHOLD_RADIANS):
+  global fail, ok
   matches = list(matches)
   F = cv.CreateMat(3, 3, cv.CV_64F)
   cv.SetZero(F)
   if not matches or (hom and len(matches) < 4):
+    success[0] = False
+    fail += 1
     return F, []
   inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
   cv.SetZero(inliers)
@@ -107,6 +128,8 @@ def _find_corr(matches, hom=False):
   if not hom:
     cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
     inliers = np.asarray(inliers)[0]
+    if rotation_filter_only:
+      inliers = [1 for i in inliers]
     global best_rot
 # TODO use homography to find correct orientation
 # this will fix assumption that db,query have same roll
@@ -122,35 +145,69 @@ def _find_corr(matches, hom=False):
     return F, inliers
 
   # homography only. no rotation check
-  global fail, ok
   cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=MAX_PIXEL_DEVIATION, status=inliers)
 
 ### try rounds of homography calculations ###
   i = 0
   while i < len(FALLBACK_PIXEL_DEVIATIONS):
-    det = np.linalg.det(F)
-    if det < BAD_HOMOGRAPHY_DET_THRESHOLD:
+    if not isHomographyGood(F):
       cv.FindHomography(pts_db, pts_q, F, method=cv.CV_RANSAC, ransacReprojThreshold=FALLBACK_PIXEL_DEVIATIONS[i], status=inliers)
       i += 1
     else:
-      if i > 0:
-        INFO('SUCCESS in revising homography')
+#      if i > 0:
+#        INFO('SUCCESS in revising homography')
       break
   if i >= len(FALLBACK_PIXEL_DEVIATIONS):
-    INFO('FAILED to revise homography')
-    fail += 1
-#    cv.FindHomography(pts_db, pts_q, F, method=cv.CV_LMEDS, status=inliers)
-#    if np.linalg.det(F) >= BAD_HOMOGRAPHY_DET_THRESHOLD:
+#    INFO('FAILED to revise homography')
+    cv.FindHomography(pts_db, pts_q, F, method=cv.CV_LMEDS, status=inliers)
+    if isHomographyGood(F):
 #      INFO('(!!!) LMEDS worked where RANSAC did not')
-#    else:
+      success[0] = True
+      ok += 1
+    else:
+      fail += 1
+      success[0] = False
 #      INFO('LMEDS also failed')
   else:
+    success[0] = True
     ok += 1
   INFO('homography success %d/%d' % (ok,(ok+fail)))
 
   return F, np.asarray(inliers)[0]
 
-def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, showtag=True, showHom=False):
+def isHomographyGood(H):
+  pts = [(384,256), (384,361), (489,256)]
+  det = np.linalg.det(H)
+  if det < BAD_HOMOGRAPHY_DET_THRESHOLD:
+    return False
+  scale = 1
+  dests = []
+  for (y,x) in pts:
+    dest = H*np.matrix([x,y,1]).transpose()
+    try:
+      dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+    except ZeroDivisionError:
+      dest = (0,0)
+    except ValueError:
+      dest = (0,0)
+    dest = (dest[1]*scale, dest[0]*scale)
+    dests.append(dest)
+  v1len = np.sqrt((dests[0][0] - dests[1][0])**2 + (dests[0][1] - dests[1][1])**2)
+  v2len = np.sqrt((dests[0][0] - dests[2][0])**2 + (dests[0][1] - dests[2][1])**2)
+  length_ratio = v1len / v2len
+  if length_ratio > 5 or 1/length_ratio > 5:
+    return False
+  a = (dests[1][0] - dests[0][0], dests[1][1] - dests[0][1])
+  b = (dests[2][0] - dests[0][0], dests[2][1] - dests[0][1])
+  aLen = (a[0]**2 + a[1]**2)**.5
+  bLen = (b[0]**2 + b[1]**2)**.5
+  angle_delta = np.arccos(np.dot(a, b)/(aLen*bLen))*180.0/np.pi
+  if angle_delta < 30 or angle_delta > 160:
+    return False
+  return True
+
+# returns H, inliers
+def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False, success=[False]):
   # create image
   INFO(q_img)
   assert os.path.exists(q_img)
@@ -164,7 +221,7 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
     newy = 512
     scale = float(newy)/a.size[1]
     newx = a.size[0]*scale
-    INFO('resizing image %s => %s' % (str(a.size), str((newx,newy))))
+    INFO_TIMING('resizing image %s => %s' % (str(a.size), str((newx,newy))))
     a = a.resize((newx,newy), Image.ANTIALIAS)
     # XXX TODO rework rescale
     if portrait:
@@ -199,17 +256,16 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
-  oldmatches = matches
-  oldinliers = inliers
-  matches = np.compress(inliers, matches)
-  H, inliers = find_corr(matches, hom=True, ransac_pass=False)
+  rsc_matches, H, inliers = find_corr(matches, hom=True, ransac_pass=True, success=success)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
-  #TODO: include outliers from homography in red, refactor stuff. the oldinlier/inlier stuff is confusing
-  green = np.compress(inliers, matches).tolist()
-  red = np.compress(map(lambda x: not x, oldinliers), oldmatches).tolist()
-  red += np.compress(map(lambda x: not x, inliers), matches).tolist()
+  green = np.compress(inliers, rsc_matches).tolist()
+  notred = set([hashmatch(m) for m in green])
+  red = []
+  for m in matches:
+    if hashmatch(m) not in notred:
+      red.append(m)
 
   for g in green:
       g['query'][0]*=scale
@@ -304,36 +360,21 @@ def draw_matches(matches, q_img, db_img, out_img, inliers, F, showLine=True, sho
       dests[1] = dests[1][0], dests[1][1] + 100
       dests[2] = dests[2][0], dests[2][1] + 100
 
-    xdrawline((pts[0], pts[1]), 'green', off=a.size[0])
+    xdrawline((pts[0], pts[1]), 'violet', off=a.size[0])
     xdrawline((pts[0], pts[2]), 'yellow', off=a.size[0])
-    xdrawline((dests[0], dests[1]), 'green')
+    xdrawline((dests[0], dests[1]), 'violet')
     xdrawline((dests[0], dests[2]), 'yellow')
     xdrawcircle(dests[0], 'yellow')
     xdrawcircle(pts[0], 'yellow', off=a.size[0])
     det = np.linalg.det(H)
     detstr = " det H = %s" % det
-    truematch = det > BAD_HOMOGRAPHY_DET_THRESHOLD
+    truematch = isHomographyGood(H)
     guess = " guess = %s match" % truematch
     draw.rectangle([(0,0), (150,20)], fill='black')
     draw.text((0,0), detstr)
     draw.text((0,10), guess)
 
   target.save(out_img, 'jpeg', quality=90)
-
-if __name__ == '__main__':
-#  mdir = '/home/ericl/shiraz/'
-  mdir = '/home/eric/.gvfs/sftp for ericl on gorgan/home/ericl/shiraz/'
-  res = mdir + 'Research/results/query3/matchescells(g=100,r=d=236.6),query3,kdtree1,threshold=70k,searchparam=1024/DSC_8848,37.872682,-122.268556sift.txt,37.8714488812,-122.266998471,193.626818312.res-detailed.npy'
-  votes = np.load(res)[0][1] # top image
-  start = time.time()
-  F, inliers = find_corr(votes)
-  INFO('F =\n'+str(np.asarray(F)))
-  n = sum(inliers)
-  d = len(inliers)
-  INFO("RANSAC left %d/%d (%d%%) inliers" % (n,d,100*n/d))
-  INFO_TIMING('RANSAC took %f seconds' % (time.time() - start))
-  q_img = mdir + 'query3/DSC_8848,37.872682,-122.268556.pgm'
-  db_img = mdir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8726500925,-122.268473956-0010.jpg'
-  draw_matches(votes, q_img, db_img, '/home/eric/Desktop/out.png', inliers)
+  return H, inliers
 
 # vim: et sw=2
