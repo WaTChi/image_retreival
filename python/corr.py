@@ -95,24 +95,24 @@ def rot_delta(m, correction=0):
 #matches - list of feature match pairs (dict) where each dict {'query':[x,y,scale, rot], 'db':[x,y,scale,rot]}
 # if you use ransac_pass, the inliers returned will come with
 #   a reduced set of matches
-# success - array len > 0 : success[0] indicates hom. estimated success
+# data - dictionary of information to be filled
 # undefined behavior in ransac case
-def find_corr(matches, hom=False, ransac_pass=True, success=[False]):
+def find_corr(matches, hom=False, ransac_pass=True, data={}):
   if hom:
     if ransac_pass:
       F, inliers = _find_corr(matches, MAX_PIXEL_DEVIATION=50, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=30*np.pi/180)
       matches = np.compress(inliers, matches)
-    return (matches,) + _find_corr(matches, hom=True, success=success, MAX_PIXEL_DEVIATION=35, FALLBACK_PIXEL_DEVIATIONS=[15, 9, 5, 3, 1])
+    return (matches,) + _find_corr(matches, hom=True, data=data, MAX_PIXEL_DEVIATION=35, FALLBACK_PIXEL_DEVIATIONS=[15, 9, 5, 3, 1])
   else:
-    return _find_corr(matches, success=success)
+    return _find_corr(matches, data=data)
 
-def _find_corr(matches, hom=False, success=[False], MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIATION, FALLBACK_PIXEL_DEVIATIONS=FALLBACK_PIXEL_DEVIATIONS, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=ROT_THRESHOLD_RADIANS):
+def _find_corr(matches, hom=False, data={}, MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIATION, FALLBACK_PIXEL_DEVIATIONS=FALLBACK_PIXEL_DEVIATIONS, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=ROT_THRESHOLD_RADIANS):
+  data['success'] = False # by default
   global fail, ok
   matches = list(matches)
   F = cv.CreateMat(3, 3, cv.CV_64F)
   cv.SetZero(F)
   if not matches or (hom and len(matches) < 4):
-    success[0] = False
     fail += 1
     return F, []
   inliers = cv.CreateMat(1, len(matches), cv.CV_8U)
@@ -162,14 +162,13 @@ def _find_corr(matches, hom=False, success=[False], MAX_PIXEL_DEVIATION=MAX_PIXE
     cv.FindHomography(pts_db, pts_q, F, method=cv.CV_LMEDS, status=inliers)
     if isHomographyGood(F):
 #      INFO('(!!!) LMEDS worked where RANSAC did not')
-      success[0] = True
+      data['success'] = True
       ok += 1
     else:
       fail += 1
-      success[0] = False
 #      INFO('LMEDS also failed')
   else:
-    success[0] = True
+    data['success'] = True
     ok += 1
   INFO('homography success %d/%d' % (ok,(ok+fail)))
 
@@ -206,8 +205,11 @@ def isHomographyGood(H):
     return False
   return True
 
+def count_unique_matches(matches):
+  return len(set(map(hashmatch, matches)))
+
 # returns H, inliers
-def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False, success=[False]):
+def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False, data={}):
   # create image
   INFO(q_img)
   assert os.path.exists(q_img)
@@ -256,7 +258,8 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
-  rsc_matches, H, inliers = find_corr(matches, hom=True, ransac_pass=True, success=success)
+  rsc_matches, H, inliers = find_corr(matches, hom=True, ransac_pass=True, data=data)
+  data['unique_features'] = count_unique_matches(np.compress(inliers, rsc_matches))
   H = np.matrix(np.asarray(H))
   tagmatches = []
 

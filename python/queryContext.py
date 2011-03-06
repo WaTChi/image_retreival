@@ -219,7 +219,6 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
         match = any(check_img(query + 'sift.txt', ranked_matches[i-1]))
-        print match
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matches = db_matches
@@ -230,17 +229,21 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         # concat db matches
         matches.extend(db_matches)
 
-        success = [None]
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(success[0]) + ';' + matchedimg + '.jpg')
-        H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, success=success)
-        new = os.path.join(udir, query[4:8] + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(success[0]) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+        data = {}
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(None) + ';' + matchedimg + '.jpg')
+        H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, data=data)
+        new = os.path.join(udir, query[4:8] + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(data.get('unique_features')) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
         os.rename(matchoutpath, new)
 
-        if i == 1 and showHom:
+        if showHom:
+            if put_into_dirs:
+                identifier = str(i);
+            else:
+                identifier = query[4:8] + ':' + str(i)
             H = np.matrix(np.asarray(H))
-            with open(os.path.join(udir, 'homography.txt'), 'w') as f:
+            with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
                 print >> f, H
-            np.save(os.path.join(udir, 'matches.npy'), matches)
+            np.save(os.path.join(udir, 'matches%s.npy' % identifier), matches)
 
 def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)

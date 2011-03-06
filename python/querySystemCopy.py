@@ -10,9 +10,9 @@ context.params.update({
   'confstring': '',
 })
 
-context.num_images_to_print = 1
+context.num_images_to_print = 2
 #context.corrfilter_printed = 1 # TODO implement
-context.put_into_dirs = 0
+context.put_into_dirs = 1
 context.showHom = 1
 context.vars_init()
 context.characterize()
