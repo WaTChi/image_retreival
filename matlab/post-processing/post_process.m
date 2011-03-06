@@ -53,11 +53,11 @@ if nargin < 2
 end
 
 % Fixed directory
-gtDir = 'E:\matlab_local\ground-truth\';
+gtDir = 'C:\matlab_local\ground-truth\';
 
 % Adjusted directories based on inputs
 qDir = ['Z:\query',num2str(method.set),'\'];
-vDir = ['E:\matlab_local\results\query',num2str(method.set),'\'];
+vDir = ['C:\matlab_local\results\query',num2str(method.set),'\'];
 
 % Get list of cells and cell locations
 [~,cLat,cLon] = getCells;
@@ -217,7 +217,7 @@ for k=1:nq
             
             % Update match information
             match = match + weight*m;
-            top_idx = ceil(10*s(1));
+            top_idx = max(1,ceil(10*s(1)));
             if m(1)
                 match_top(top_idx) = match_top(top_idx) + weight;
                 ma = ma + weight;
