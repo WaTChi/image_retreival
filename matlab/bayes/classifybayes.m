@@ -38,7 +38,7 @@ function [class,condP] = classifybayes(features,classifier,min_samp)
 % number of training samples in its associated bin (as fraction of total
 % samples)
 if nargin < 3
-    min_samp = 1e-7;
+    min_samp = 100;
 end
 total = sum(classifier.nsamps);
 
@@ -83,7 +83,7 @@ for j=1:J
     frct1 = (lb1-sb1+1)/B(1);
     frct2 = (lb2-sb2+1)/B(2);
     count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
-    while sum(count) < min_samp * total / (frct1*frct2)
+    while sum(count) < min_samp % * total / (frct1*frct2)
         frct1 = (lb1-sb1+1)/B(1);
         frct2 = (lb2-sb2+1)/B(2);
         if frct2 > frct1

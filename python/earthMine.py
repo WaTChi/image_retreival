@@ -623,6 +623,7 @@ def ddWriteDepthFile(ThreeDData, filename):
     f.close()
 
 def ddViewLocationToECEFR(viewLocation):
+    """returns earth-centered, earth-fixed, rectangular coordinates"""
     a = 6378137.0 #Equatorial Radius
     b = 6356752.3 #Polar Radius
     theta = math.radians(viewLocation["lat"])

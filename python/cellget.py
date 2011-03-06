@@ -15,7 +15,8 @@ def dbgmsg(string):
         print string
 
 def get_spots_in_square(lat, lon, halflength, x, y):
-    #fetches spots within square centered at lat,lon and halflength given.
+    #fetches views within square centered at specified lat,lon and halflength.
+    #x,y specifies width and height of fetched views.
     center = earthMine.ddLocation(lat, lon)    
     print "Getting list of views within {rad} meters...".format(rad=halflength)
     conn = earthMine.ddObject()
