@@ -25,7 +25,7 @@ class FlatXMLParser:
 
 class TaggedImage(object):
   def __init__(self, xmlfile, jpgfile):
-    self.id = 'IM_' + xmlfile[24:31].translate(None, '-_')
+    self.id = 'DSC_' + os.path.basename(xmlfile)[24:30].translate(None, '-_')
     self.jpg = jpgfile
     self.sift = jpgfile[:-4] + 'sift.txt'
     xml = FlatXMLParser(xmlfile)
@@ -44,7 +44,7 @@ class TaggedImage(object):
 
   def getCanonicalName(self):
     """Name in line with previous naming schemes."""
-    return "%s,%3.5f,%3.5f.jpg" % (self.id, self.gps_lat, self.gps_lon)
+    return "%s,%.6f,%.6f" % (self.id, self.gps_lat, self.gps_lon)
 
   def __str__(self):
     out = self.getCanonicalName()

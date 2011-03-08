@@ -13,6 +13,6 @@ context.params.update({
 context.num_images_to_print = 1
 context.corrfilter_printed = 0
 context.put_into_dirs = 0
-context.showHom = 1
+context.showHom = 0
 context.vars_init()
 context.characterize()

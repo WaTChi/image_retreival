@@ -1,7 +1,7 @@
 import queryContext as context
 
 def run():
-    context.QUERY = 'query4'
+    context.QUERY = 'query4-matlab'
     context.params.update({
       'checks': 1024,
       'trees': 1,
@@ -14,7 +14,7 @@ def run():
     context.ambiguity = 75
     context.topnresults = [1,2,5,10]
 #    context.locator_function = context.skew_location
-#    context.locator_function = context.load_location
+    context.locator_function = context.load_location
     context.match_callback = context.dump_combined_matches
     context.cacheEnable = 1
     context.ransac_min_filt = 100
