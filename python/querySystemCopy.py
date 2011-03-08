@@ -1,6 +1,6 @@
 import queryContext as context
 
-context.QUERY = 'query3'
+context.QUERY = 'query4'
 context.params.update({
   'checks': 1024,
   'trees': 1,
