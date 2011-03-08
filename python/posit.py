@@ -1,3 +1,5 @@
+import os
+import os.path
 #!/usr/bin/env python
 
 import cv
@@ -6,39 +8,11 @@ import pixels
 import tags as tg
 import render_tags
 import cloud
+import util
 
 
-db = tg.TagCollection('/media/DATAPART2/Research/app/code/tags.csv')
 
-img = "37.8695551919,-122.266734533-0004sift.txt"
-jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695551919,-122.266734533-0004.jpg'
-#img = "37.87274692,-122.268484938-0009sift.txt"
-#jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.87274692,-122.268484938-0009.jpg'
-#img = "37.8695529328,-122.268044238-0010sift.txt"
-#jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695529328,-122.268044238-0010.jpg'
-#img = "37.8696156756,-122.266254025-0009sift.txt"
-#jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696156756,-122.266254025-0009.jpg'
-#img = "37.8696422624,-122.267852592-0009sift.txt"
-#jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696422624,-122.267852592-0009.jpg'
-source = render_tags.EarthmineImageInfo(jpg, jpg[:-4] + '.info')
-timg = render_tags.TaggedImage(jpg, source, db)
-v = {'view-location':{'lat':timg.lat, 'lon':timg.lon, 'alt': timg.alt}}
-tags= timg.get_frustum()
-#for t in tags:
-#    print t
-timg.draw(timg.map_tags_camera(), '/media/DATAPART2/out.png')
-FOCAL_LENGTH=timg.focal_length
-FOCAL_LENGTH=2000
-print "FOCAL LENGTH: {0}".format(FOCAL_LENGTH)
-
-# read in points
-px = pixels.PixelMap('/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
-rawlocs = px.open(img)
-#filter out ones w/o 3d points
-locsar = filter(lambda x: x[1], rawlocs.items())
-def test():
-
-
+def test(locsar, tags, v):
 
     # change 3d coordinate systems
     c = map(lambda x: ({'x':x[0][0], 'y':x[0][1]}, x[1]), locsar)
@@ -55,7 +29,6 @@ def test():
     c = map(lambda x: ({'x':0, 'y':0}, {'lat':x.lat, 'lon':x.lon, 'alt':x.alt}), tags)
     taglocpairs = em.ddImageLocstoLPT(v, c)
     tagpts3d = map(lambda x: tuple(x[1] - translation3d), taglocpairs)
-
 
     positobj = cv.CreatePOSITObject(pts3d)
     rotMat, transVec = cv.POSIT(positobj, pts2d, FOCAL_LENGTH, (cv.CV_TERMCRIT_EPS, 0, 0.000001))
@@ -110,6 +83,7 @@ def test():
     print "avg xerror:\t {0}".format(sum(xerrors)/len(xerrors))
     print "avg yerror:\t {0}".format(sum(yerrors)/len(yerrors))
 
+
     #tag change 3d coordinate data format
     tagpts3d_mat = cv.CreateMat(len(tagpts3d), 1, cv.CV_64FC3)
     for i, m in enumerate(tagpts3d):
@@ -124,8 +98,64 @@ def test():
         ntags.append((tags[i], (0, (d2[i,0][0]+translation2d[0],d2[i,0][1]+translation2d[1]))))
     return ntags
 
-#timg.draw(test(), '/media/DATAPART2/out2.png')
+#cloud.setkey(api_key=2160, api_secretkey='d3497353fc98fc4f3d62561c925c97ecd910cfbb')
+#jid = cloud.call(test) #a jid identifies your job (a function)
+#timg.draw(cloud.result(jid), '/media/DATAPART2/out2.png')
 
-cloud.setkey(api_key=2160, api_secretkey='d3497353fc98fc4f3d62561c925c97ecd910cfbb')
-jid = cloud.call(test) #a jid identifies your job (a function)
-timg.draw(cloud.result(jid), '/media/DATAPART2/out2.png')
+
+db = tg.TagCollection('/media/DATAPART2/Research/app/code/tags.csv')
+
+imgdir='/media/DATAPART2/Research/cells/g=100,r=d=236.6/37.871448912,-122.269693992'
+
+imgdir='/media/DATAPART2/Research/cells/g=100,r=d=236.6/37.8714488812,-122.266998471'
+infodir='/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'
+for file in util.getJPGFileNames(imgdir)[0:100]:
+    jpg = os.path.join(imgdir, file)
+    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695551919,-122.266734533-0004.jpg'
+    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.87274692,-122.268484938-0009.jpg'
+    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695529328,-122.268044238-0010.jpg'
+    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696156756,-122.266254025-0009.jpg'
+    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696422624,-122.267852592-0009.jpg'
+    img=file[:-4]+'sift.txt'
+    info=os.path.join(infodir, file[:-4]+'.info')
+    out=file[:-4]+'tagged.png'
+    out2=file[:-4]+'gttagged.png'
+
+    if not (os.path.exists(info) and os.path.exists(jpg)):
+        continue
+
+    print img
+
+    try:
+        source = render_tags.EarthmineImageInfo(jpg, info)
+        timg = render_tags.TaggedImage(jpg, source, db)
+    except:
+        continue
+    v = {'view-location':{'lat':timg.lat, 'lon':timg.lon, 'alt': timg.alt}}
+    tags= timg.get_frustum()
+    #for t in tags:
+    #    print t
+    print out
+    print out2
+    try:
+        timg.draw(timg.map_tags_camera(), os.path.join('/media/DATAPART2/jz/posit3/',out2))
+    except:
+        print "error"
+    FOCAL_LENGTH=timg.focal_length
+    #FOCAL_LENGTH=2000
+    print "FOCAL LENGTH: {0}".format(FOCAL_LENGTH)
+
+    # read in points
+    px = pixels.PixelMap('/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+    rawlocs = px.open(img)
+    #filter out ones w/o 3d points
+    locsar = filter(lambda x: x[1], rawlocs.items())
+
+    print "num 3d pts: {0}".format(len(locsar))
+    print "num tags in frustrum: {0}".format(len(tags))
+
+    if len(locsar)>0 and len(tags)>5:
+        try:
+           timg.draw(test(locsar, tags, v), os.path.join('/media/DATAPART2/jz/posit3/',out))
+        except:
+            print "error"

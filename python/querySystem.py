@@ -13,7 +13,7 @@ def run():
     context.print_per = 1000
     context.ambiguity = 75
     context.topnresults = [1,2,5,10]
-    context.locator_function = context.skew_location
+#    context.locator_function = context.skew_location
 #    context.locator_function = context.load_location
     context.match_callback = context.dump_combined_matches
     context.cacheEnable = 1
