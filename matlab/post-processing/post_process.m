@@ -19,7 +19,15 @@ function [results] = post_process(method,reset)
 %                       combination and only the nearest cell is searched.
 %                       This is now optional with default = 336.6
 %       .decision:      Decision method. Current modes supported...
-%           'bayes-xyz':    Uses Naive Bayes classifier : must be trained
+%           'bayes-xyz':    Uses 2D Bayes classifier : must be trained
+%                           - If 'bayes' is chosen, the 'xyz' parameter
+%                             refers to which features will be used in the
+%                             bayes decision.
+%                               - 'd' for distance
+%                               - 'v' for vote
+%                           - e.g. 'dv' decides based on distance and vote
+%                             while 'v' is based on vote only
+%           'nbayes-xyz:    Uses Naive Bayes classifier : must be trained
 %                           - If 'bayes' is chosen, the 'xyz' parameter
 %                             refers to which features will be used in the
 %                             bayes decision.
@@ -56,7 +64,11 @@ end
 gtDir = 'C:\matlab_local\ground-truth\';
 
 % Adjusted directories based on inputs
-qDir = ['Z:\query',num2str(method.set),'\'];
+if method.set == 4
+    qDir = 'Z:\query4-matlab\';
+else
+    qDir = ['Z:\query',num2str(method.set),'\'];
+end
 vDir = ['C:\matlab_local\results\query',num2str(method.set),'\'];
 
 % Get list of cells and cell locations
@@ -114,8 +126,8 @@ end
 
 % Load the classifier if necessary
 if strcmp(decision,'bayes')
-    bayes_file = ['.\bayes\classifier\',distr, ...
-        num2str(dRound(method.cell_dist,0)),'_bayes.mat'];
+    bayes_file = ['.\',decision,'\classifier\',distr, ...
+        num2str(dRound(method.cell_dist,0)),'_',decision,'.mat'];
     try
         load(bayes_file)
     catch
@@ -179,7 +191,7 @@ for k=1:nq
 
     ma = 0;
     for cg=cellgroups
-
+        
         % Get cell combination results, files, and candidate locations
         [cand,cand_vote,cand_lat,cand_lon] = getCand(cg.idx,query(k),vDir);
         cand_vote = cand_vote / nfeat;
@@ -236,6 +248,11 @@ end
 
 % store results
 results.run{1,end+1} = decis_prm;
+% if strcmp(decision,'nbayes')
+%     results.run{1,end+1} = ['n-',decis_prm];
+% else
+%     results.run{1,end+1} = ['b-',decis_prm];
+% end
 results.total(1,end+1) = total;
 results.match(:,end+1) = match;
 results.match_pct(:,end+1) = match / total;

@@ -33,8 +33,9 @@ end
 
 % Set min_samp
 if nargin < 4
-    min_samp = .02;
+    min_samp = 1e-7;
 end
+total = sum(classifier.nsamps);
 
 % Set plot flag
 plotflag = (nargin<5);
@@ -50,24 +51,27 @@ prob1 = zeros(B);
 prob2 = zeros(B);
 
 % Get relative weighing via classify function bin expansion method
-min_samp = min_samp * sum(nsamps);
 for j=1:B(1)
+    
+    fprintf([num2str(j),'/',num2str(B(1)),'\n'])
     
     for k=1:B(2)
         
         % Expand bin region to satisfy min_samp
         sb1 = j; lb1 = j;
         sb2 = k; lb2 = k;
+        frct1 = (lb1-sb1+1)/B(1);
+        frct2 = (lb2-sb2+1)/B(2);
         count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
-        while sum(count) < min_samp
+        while sum(count) < min_samp * total / (frct1*frct2)
             frct1 = (lb1-sb1+1)/B(1);
             frct2 = (lb2-sb2+1)/B(2);
             if frct2 > frct1
                 sb1 = max(1,sb1-1);
-                lb1 = max(B(1),lb1+1);
+                lb1 = min(B(1),lb1+1);
             else
                 sb2 = max(1,sb2-1);
-                lb2 = max(B(2),lb2+1);
+                lb2 = min(B(2),lb2+1);
             end
             count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
         end
@@ -93,8 +97,8 @@ xlabel('Feature 1 values')
 ylabel('Feature 2 values')
 imagesc(x,y,prob1)
 colorbar
+caxis([0,mx])
 axis xy
-caxis(
 
 if plotflag
     figure
@@ -106,7 +110,9 @@ xlabel('Feature 1 values')
 ylabel('Feature 2 values')
 imagesc(x,y,prob2)
 colorbar
+caxis([0,mx])
 axis xy
+
 
 if plotflag
     figure

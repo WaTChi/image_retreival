@@ -25,10 +25,11 @@ filestr = [filestr(1:end-1),'.res'];
 % Get cell combination vote results for this group
 vote_file = struct2cell(dir(vdir));
 vote_file = vote_file(1,:)';
-vote_file = vote_file(~cellfun('isempty',strfind(vote_file,['DSC_',num2str(query)])));
+vote_file = vote_file(~cellfun('isempty',strfind(vote_file,['DSC_',num2str(query,'%04d')])));
 vote_file = vote_file(~cellfun('isempty',strfind(vote_file,filestr)));
 if isempty(vote_file)
     disp(filestr)
+    query
     error('Combination results not found.')
 end
 [cand_vote,cand] = textread([vdir,vote_file{1}],'%d%s');

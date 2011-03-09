@@ -12,30 +12,30 @@ import util
 
 
 
-def test(locsar, tags, v):
+def test(locsar, tags, viewpoint):
 
     # change 3d coordinate systems
-    c = map(lambda x: ({'x':x[0][0], 'y':x[0][1]}, x[1]), locsar)
-    locpairs = em.ddImageLocstoLPT(v, c)
+    c = map(lambda entry: ({'x':entry[0][0], 'y':entry[0][1]}, entry[1]), locsar)
+    locpairs = em.ddImageLocstoLPT(viewpoint, c)
     #translate to POSIT Specs
     pts2d = map(lambda x: x[0], locpairs)
+    #TODO: constant here
     translation2d = (384,256)
     pts2d = map(lambda x: (x[0][0]-translation2d[0], x[0][1]- translation2d[1]), locpairs)
     translation3d = locpairs[0][1]
     pts3d = map(lambda x: tuple(x[1] - translation3d), locpairs)
-    #pts3d = map(lambda x: tuple(x[1]), locpairs)
 
-    #convert tags to correct coordinate system
+    #convert tag coordinate system
     c = map(lambda x: ({'x':0, 'y':0}, {'lat':x.lat, 'lon':x.lon, 'alt':x.alt}), tags)
-    taglocpairs = em.ddImageLocstoLPT(v, c)
+    taglocpairs = em.ddImageLocstoLPT(viewpoint, c)
     tagpts3d = map(lambda x: tuple(x[1] - translation3d), taglocpairs)
 
+    #compute POSIT
     positobj = cv.CreatePOSITObject(pts3d)
     rotMat, transVec = cv.POSIT(positobj, pts2d, FOCAL_LENGTH, (cv.CV_TERMCRIT_EPS, 0, 0.000001))
 
-
-    print "rotation matrix:\t{0}".format(rotMat)
-    print "translation matrix:\t{0}".format(transVec)
+#    print "rotation matrix:\t{0}".format(rotMat)
+#    print "translation matrix:\t{0}".format(transVec)
 
     #change rotMat to cvMat
     rotMatCV = cv.CreateMat(3, 3, cv.CV_64F)
@@ -70,21 +70,19 @@ def test(locsar, tags, v):
     d2 = cv.CreateMat(pts3d_mat.rows, 1, cv.CV_64FC2)
     cv.ProjectPoints2(pts3d_mat, rotVec, transVecCV, cameratrans, distCoef, d2)
 
+    #compute self errors
     xerrors = []
     yerrors = []
     for i in range(0, d2.rows):
-    #    print "project to:\t {0}".format(d2[i,0])
-    #    print "2dloc:\t\t {0}".format(pts2d[i])
         xerror=abs(pts2d[i][0]-(d2[i,0][0]))
         yerror=abs(pts2d[i][1]-(d2[i,0][1]))
-    #    print "error:\t\t {0}, {1}".format(xerror, yerror)
         xerrors.append(xerror)
         yerrors.append(yerror)
     print "avg xerror:\t {0}".format(sum(xerrors)/len(xerrors))
     print "avg yerror:\t {0}".format(sum(yerrors)/len(yerrors))
 
 
-    #tag change 3d coordinate data format
+    #change tag 3d coordinate data format
     tagpts3d_mat = cv.CreateMat(len(tagpts3d), 1, cv.CV_64FC3)
     for i, m in enumerate(tagpts3d):
         cv.Set2D(tagpts3d_mat, i, 0, cv.Scalar(*m))
@@ -104,18 +102,10 @@ def test(locsar, tags, v):
 
 
 db = tg.TagCollection('/media/DATAPART2/Research/app/code/tags.csv')
-
-imgdir='/media/DATAPART2/Research/cells/g=100,r=d=236.6/37.871448912,-122.269693992'
-
 imgdir='/media/DATAPART2/Research/cells/g=100,r=d=236.6/37.8714488812,-122.266998471'
 infodir='/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'
 for file in util.getJPGFileNames(imgdir)[0:100]:
     jpg = os.path.join(imgdir, file)
-    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695551919,-122.266734533-0004.jpg'
-    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.87274692,-122.268484938-0009.jpg'
-    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8695529328,-122.268044238-0010.jpg'
-    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696156756,-122.266254025-0009.jpg'
-    #jpg = '/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829/37.8696422624,-122.267852592-0009.jpg'
     img=file[:-4]+'sift.txt'
     info=os.path.join(infodir, file[:-4]+'.info')
     out=file[:-4]+'tagged.png'
@@ -123,9 +113,6 @@ for file in util.getJPGFileNames(imgdir)[0:100]:
 
     if not (os.path.exists(info) and os.path.exists(jpg)):
         continue
-
-    print img
-
     try:
         source = render_tags.EarthmineImageInfo(jpg, info)
         timg = render_tags.TaggedImage(jpg, source, db)
@@ -133,10 +120,7 @@ for file in util.getJPGFileNames(imgdir)[0:100]:
         continue
     v = {'view-location':{'lat':timg.lat, 'lon':timg.lon, 'alt': timg.alt}}
     tags= timg.get_frustum()
-    #for t in tags:
-    #    print t
-    print out
-    print out2
+    
     try:
         timg.draw(timg.map_tags_camera(), os.path.join('/media/DATAPART2/jz/posit3/',out2))
     except:
