@@ -91,6 +91,9 @@ class Img:
     def __init__(self):
         self.lat, self.lon, self.sift = None, None, None
 
+class LocationOutOfRangeError(Exception):
+    """Raised when there are no cells near query location"""
+    pass
 # for test set runs
 def make_reader(querydir):
     if QUERY == 'query4':
@@ -143,6 +146,8 @@ def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
     # compute closest cells
     closest_cells = util.getclosestcells(newlat or lat, newlon or lon, dbdir)
     cells_in_range = [(cell, dist) for cell, dist in closest_cells[0:ncells] if dist < cellradius + ambiguity + matchdistance]
+    if not cells_in_range:
+        raise LocationOutOfRangeError
 
 # Not really needed
 #    # query.py filter assumption
@@ -350,7 +355,11 @@ def characterize():
         for loc in locator_function(image):
             count += 1
             querypath = os.path.join(querydir, queryfile)
-            [g, y, r, b, o], matchedimg, matches, combined = match(querypath, matchdir, image.lat, image.lon, loc[0], loc[1])
+            try:
+                [g, y, r, b, o], matchedimg, matches, combined = match(querypath, matchdir, image.lat, image.lon, loc[0], loc[1])
+            except LocationOutOfRangeError:
+                INFO('Exception: location out of cell range')
+                continue
             # compile statistics
             # top n
             for n in topnresults:
