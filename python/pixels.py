@@ -43,7 +43,7 @@ class PixelMap:
     return pixmap[x,y]
   
   def open(self, featurefile):
-    """Returns map of (x,y) => (lat, lon, alt)"""
+    """Returns map of (x,y) => {'lat':lat, lon, alt}"""
     name = os.path.basename(featurefile)[:-4] # gps coords, angle
     view = os.path.basename(featurefile)[:-8] # + descriptor type
     cached = os.path.join(self.datastore, name) + '.npy'

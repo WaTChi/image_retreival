@@ -36,13 +36,10 @@ class ImageInfo:
 
 class ComputedImageInfo(ImageInfo):
   """computes pose from db matches"""
-  def __init__(self, image):
-    # Steps:
-    #  sift extract
-    #  query
-    #  homography
-    #  posit
-    raise NotImplementedError
+  def __init__(self, image, lat, lon):
+    self.image = Image.open(image)
+    self.lat = lat
+    self.lon = lon
 
   def get_pixel_locations(self, pixels):
     return None
@@ -70,7 +67,7 @@ class NikonImageInfo(ImageInfo):
     self.roll = 0
     self.viewId = 0
     self.image = Image.open(image)
-    self.focal_length = 0.8625 * self.image.size[0]
+    self.focal_length = 700 # XXX arbitrary!
     center = geom.center((0,0), self.image.size)
     self.pitch = 0
 

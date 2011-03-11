@@ -2,6 +2,7 @@
 
 from config import *
 import random
+from config import maindir
 import pyflann
 import time
 import Image, ImageDraw
@@ -241,7 +242,7 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser('/media/DATAPART2/Research/app/dev/tags.csv'))
+  db = render_tags.TagCollection(os.path.expanduser(maindir + 'Research/app/dev/tags.csv'))
   source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()

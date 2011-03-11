@@ -4,32 +4,35 @@ import os
 import os.path
 
 import cv
+import geom
+import ImageDraw
 import earthMine as em
 import pixels
 import tags as tg
 import render_tags
-import cloud
+from config import maindir, INFO
+#import cloud
 import util
 
-
-
-def really_do_posit(locsar, tags, viewpoint, FOCAL_LENGTH):
+def really_do_posit(locsar, tags, viewpoint, FOCAL_LENGTH, refpoints = [], qimgsize=(0,0)):
 
     # change 3d coordinate systems
     c = map(lambda entry: ({'x':entry[0][0], 'y':entry[0][1]}, entry[1]), locsar)
     locpairs = em.ddImageLocstoLPT(viewpoint, c)
     #translate to POSIT Specs
     pts2d = map(lambda x: x[0], locpairs)
-    #TODO: constant here
-    translation2d = (384,256)
+    translation2d = (qimgsize[0]/2.0, qimgsize[1]/2.0)
     pts2d = map(lambda x: (x[0][0]-translation2d[0], x[0][1]- translation2d[1]), locpairs)
     translation3d = locpairs[0][1]
     pts3d = map(lambda x: tuple(x[1] - translation3d), locpairs)
 
     #convert tag coordinate system
     c = map(lambda x: ({'x':0, 'y':0}, {'lat':x.lat, 'lon':x.lon, 'alt':x.alt}), tags)
+    c2 = map(lambda x: ({'x':0, 'y':0}, {'lat':x['lat'], 'lon':x['lon'], 'alt':x['alt']}), refpoints)
     taglocpairs = em.ddImageLocstoLPT(viewpoint, c)
+    reflocpairs = em.ddImageLocstoLPT(viewpoint, c2)
     tagpts3d = map(lambda x: tuple(x[1] - translation3d), taglocpairs)
+    refpts3d = map(lambda x: tuple(x[1] - translation3d), reflocpairs)
 
     #compute POSIT
     positobj = cv.CreatePOSITObject(pts3d)
@@ -87,92 +90,134 @@ def really_do_posit(locsar, tags, viewpoint, FOCAL_LENGTH):
     tagpts3d_mat = cv.CreateMat(len(tagpts3d), 1, cv.CV_64FC3)
     for i, m in enumerate(tagpts3d):
         cv.Set2D(tagpts3d_mat, i, 0, cv.Scalar(*m))
+    refpts3d_mat = cv.CreateMat(len(refpts3d), 1, cv.CV_64FC3)
+    for i, m in enumerate(refpts3d):
+        cv.Set2D(refpts3d_mat, i, 0, cv.Scalar(*m))
     #project points
     d2 = cv.CreateMat(tagpts3d_mat.rows, 1, cv.CV_64FC2)
     cv.ProjectPoints2(tagpts3d_mat, rotVec, transVecCV, cameratrans, distCoef, d2)
+    d22 = cv.CreateMat(refpts3d_mat.rows, 1, cv.CV_64FC2)
+    cv.ProjectPoints2(refpts3d_mat, rotVec, transVecCV, cameratrans, distCoef, d22)
     ntags=[]
+    nrefs=[]
     for i in range(0, d2.rows):
-    #    print "project to:\t {0}".format(d2[i,0])
-    #    ntags.append((tags[i], (0, d2[i,0])))
         ntags.append((tags[i], (0, (d2[i,0][0]+translation2d[0],d2[i,0][1]+translation2d[1]))))
-    return ntags
+    for i in range(0, d22.rows):
+        nrefs.append((refpoints[i], (0, (d22[i,0][0]+translation2d[0],d22[i,0][1]+translation2d[1]))))
+    return ntags, nrefs
 
 #cloud.setkey(api_key=2160, api_secretkey='d3497353fc98fc4f3d62561c925c97ecd910cfbb')
 #jid = cloud.call(really_do_posit) #a jid identifies your job (a function)
 #timg.draw(cloud.result(jid), '/media/DATAPART2/out2.png')
 
+db = tg.TagCollection(maindir + 'Research/app/code/tags.csv')
 
-db = tg.TagCollection('/media/DATAPART2/Research/app/code/tags.csv')
-imgdir='/media/DATAPART2/Research/cells/g=100,r=d=236.6/37.8714488812,-122.266998471'
-infodir='/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'
-for file in util.getJPGFileNames(imgdir)[0:100]:
-    jpg = os.path.join(imgdir, file)
-    img=file[:-4]+'sift.txt'
-    info=os.path.join(infodir, file[:-4]+'.info')
-    out=file[:-4]+'tagged.png'
-    out2=file[:-4]+'gttagged.png'
+def f():
+	imgdir=maindir + 'Research/cells/g=100,r=d=236.6/37.8714488812,-122.266998471'
+	infodir=maindir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'
+	for file in util.getJPGFileNames(imgdir)[0:100]:
+	    jpg = os.path.join(imgdir, file)
+	    img=file[:-4]+'sift.txt'
+	    info=os.path.join(infodir, file[:-4]+'.info')
+	    out=file[:-4]+'tagged.png'
+	    out2=file[:-4]+'gttagged.png'
 
-    if not (os.path.exists(info) and os.path.exists(jpg)):
-        continue
-    try:
-        source = render_tags.EarthmineImageInfo(jpg, info)
-        timg = render_tags.TaggedImage(jpg, source, db)
-    except:
-        continue
-    v = {'view-location':{'lat':timg.lat, 'lon':timg.lon, 'alt': timg.alt}}
-    tags= timg.get_frustum()
-    
-    try:
-        timg.draw(timg.map_tags_camera(), os.path.join('/media/DATAPART2/jz/posit3/',out2))
-    except:
-        print "error"
-    FOCAL_LENGTH=timg.focal_length
-    #FOCAL_LENGTH=2000
-    print "FOCAL LENGTH: {0}".format(FOCAL_LENGTH)
+	    if not (os.path.exists(info) and os.path.exists(jpg)):
+		continue
+	    try:
+		source = render_tags.EarthmineImageInfo(jpg, info)
+		timg = render_tags.TaggedImage(jpg, source, db)
+	    except:
+		continue
+	    v = {'view-location':{'lat':timg.lat, 'lon':timg.lon, 'alt': timg.alt}}
+	    tags= timg.get_frustum()
+	    
+	    try:
+		timg.draw(timg.map_tags_camera(), os.path.join(maindir + 'jz/posit3/',out2))
+	    except:
+		print "error"
+	    FOCAL_LENGTH=timg.focal_length
+	    #FOCAL_LENGTH=2000
+	    print "FOCAL LENGTH: {0}".format(FOCAL_LENGTH)
 
-    # read in points
-    px = pixels.PixelMap('/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
-    rawlocs = px.open(img)
-    #filter out ones w/o 3d points
-    locsar = filter(lambda x: x[1], rawlocs.items())
+	    # read in points
+	    px = pixels.PixelMap(maindir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+	    rawlocs = px.open(img)
+	    #filter out ones w/o 3d points
+	    locsar = filter(lambda x: x[1], rawlocs.items())
 
-    print "num 3d pts: {0}".format(len(locsar))
-    print "num tags in frustrum: {0}".format(len(tags))
+	    print "num 3d pts: {0}".format(len(locsar))
+	    print "num tags in frustrum: {0}".format(len(tags))
 
-    if len(locsar)>0 and len(tags)>5:
-        try:
-           timg.draw(really_do_posit(locsar, tags, v, FOCAL_LENGTH), os.path.join('/media/DATAPART2/jz/posit3/',out))
-        except:
-            print "error"
+	    if len(locsar)>0 and len(tags)>5:
+		try:
+		   timg.draw(really_do_posit(locsar, tags, v, FOCAL_LENGTH), os.path.join(maindir + 'jz/posit3/',out))
+		except:
+		    print "error"
 
-px = pixels.PixelMap('/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+px = pixels.PixelMap(maindir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
 
-def do_posit(matches, db_img, qlat, qlon):
-    v = {'view-location':{'lat':qlat, 'lon':qlon, 'alt': 60.0}} # XXX false alt
+from PIL import Image
+from PIL.ExifTags import TAGS
+
+def get_exif(fn):
+    ret = {}
+    i = Image.open(fn)
+    info = i._getexif()
+    for tag, value in info.items():
+        decoded = TAGS.get(tag, tag)
+        ret[decoded] = value
+    return ret
+
+def do_posit(matches, db_img, qlat, qlon, queryimgpath, dbimgpath):
+    v = {'view-location':{'lat':qlat, 'lon':qlon, 'alt': 0}}
     tags = db.select_frustum(qlat, qlon, 0, 999, 100) # XXX 360deg
-    locs = px.open(db_img)
-    FOCAL_LENGTH = 2000 # XXX made up
+    locs = dict(filter(lambda (k,v): v, px.open(db_img).items()))
+
+    b = Image.open(dbimgpath)
+    w1, w2 = b.size[0]/3, b.size[0]*2/3
+    h1, h2 = b.size[1]/3, b.size[1]*2/3
+    sqpts = (w1, h1), (w1, h2), (w2, h2), (w2, h1)
+    sqpts2d = map(lambda p: geom.picknearest(locs, p[0], p[1]), sqpts)
+    sqpts = map(lambda p: locs[p], sqpts2d)
+    a = Image.open(queryimgpath)
+
+    # width * focal_length / sensor_width
+    FOCAL_LENGTH = a.size[0]*get_exif(queryimgpath)['FocalLength'][0]/237.0
+
     qfeats = {}
     for m in matches:
         d, q = m['db'], m['query']
-        l = locs[d[0], d[1]]
-        if l:
-            qfeats[q[0], q[1]] = l
+        k = int(d[0]), int(d[1])
+        if k in locs:
+            qfeats[q[0], q[1]] = locs[k]
     qfeats_array = qfeats.items()
-    if qfeats_array and len(tags) > 5:
-        try:
-           timg.draw(really_do_posit(qfeats_array, tags, v, FOCAL_LENGTH), os.path.expanduser('~/Desktop',out))
-        except:
-            print "error"
+    source = render_tags.ComputedImageInfo(queryimgpath, qlat, qlon)
+    img = render_tags.TaggedImage(None, source, db)
+    out = os.path.basename(queryimgpath)[:-4] + '.png'
+    if len(qfeats_array) > 4 and len(tags) > 5:
+        ntags, nrefs = really_do_posit(qfeats_array, tags, v, FOCAL_LENGTH, sqpts, a.size)
+        output = os.path.expanduser('~/Desktop/q/' + out)
+        a = img.taggedcopy(ntags, img.image)
+        draw = ImageDraw.Draw(a)
+        def xdrawline(draw, (start,stop), color='hsl(20,100%,50%)', off=0):
+            start = [start[0] + off, start[1]]
+            stop = [stop[0] + off, stop[1]]
+            draw.line(start + stop, fill=color, width=8)
+        s = lambda (x,y): (x,y) # IDENTITY
+        xdrawline(draw, (s(nrefs[0][1][1]), s(nrefs[1][1][1])), 'yellow')
+        xdrawline(draw, (s(nrefs[1][1][1]), s(nrefs[2][1][1])), 'red')
+        xdrawline(draw, (s(nrefs[2][1][1]), s(nrefs[3][1][1])), 'yellow')
+        xdrawline(draw, (s(nrefs[3][1][1]), s(nrefs[0][1][1])), 'yellow')
+        height = max(a.size[1], b.size[1])
 
-
-
-
-
-
-
-
-
-
-
+        draw = ImageDraw.Draw(b)
+        xdrawline(draw, (sqpts2d[0], sqpts2d[1]), 'yellow')
+        xdrawline(draw, (sqpts2d[1], sqpts2d[2]), 'red')
+        xdrawline(draw, (sqpts2d[2], sqpts2d[3]), 'yellow')
+        xdrawline(draw, (sqpts2d[3], sqpts2d[0]), 'yellow')
+        ab = Image.new('RGBA', (a.size[0] + b.size[0], height))
+        ab.paste(a, (0,0))
+        ab.paste(b, (a.size[0],0))
+        ab.save(output, 'png')
 

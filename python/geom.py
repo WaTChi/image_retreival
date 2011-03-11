@@ -4,6 +4,13 @@ import numpy as np
 import math
 from numpy import matrix, sin, cos, sqrt
 
+def euclideandist(x,y,x2,y2):
+  return ((x-x2)**2 + (y-y2)**2)**.5
+
+def picknearest(dict2d, x, y):
+  """Returns closest key in dict of (x,y) to (x,y)"""
+  return min(map(lambda k: (euclideandist(k[0],k[1],x,y),k), dict2d))[1]
+
 def lltom(lat1, lon1, lat2, lon2):
   """Returns lat2,lon2 relative to lat1,lon1 in meters.
      Does not handle wraparound at 360."""

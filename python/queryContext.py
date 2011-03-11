@@ -6,6 +6,10 @@
 # context.characterize()
 
 import os
+try:
+    import posit
+except:
+    print "No posit"
 import os.path
 import pixels
 import query
@@ -24,6 +28,7 @@ count = 0
 start = 0
 cacheEnable = 0 # instance-local caching of results
 ransac_min_filt = 1
+do_posit = 0
 print_per = 1
 num_images_to_print = 1
 corrfilter_printed = 0 # keep trying for homTrue until num_images_to_print
@@ -37,7 +42,8 @@ matchdistance = 25
 ncells = 10 # if ambiguity<100, 9 is max possible by geometry
 verbosity = 1
 resultsdir = os.path.expanduser('~/topmatches')
-maindir = os.path.expanduser('/media/DATAPART2')
+from config import maindir
+#maindir = os.path.expanduser('/media/DATAPART2')
 topnresults = []
 initialized = False
 
@@ -276,7 +282,12 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
             np.save(os.path.join(udir, 'inliers%s.npy' % identifier), data['inliers'])
 
         ### POSIT ###
-        posit.do_posit(data['inliers'], matchedimg, qlat, qlon)
+        if do_posit:
+            try:
+                posit.do_posit(data['inliers'], matchedimg + 'sift.txt', qlat, qlon, queryimgpath, matchimgpath)
+            except Exception, e:
+                print e
+                INFO("POSIT FAILED")
         
 
 def combine_ransac(counts, min_filt=0):
