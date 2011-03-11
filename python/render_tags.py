@@ -3,6 +3,7 @@
 
 from config import INFO
 import Image, ImageDraw, ImageFont
+import os
 import earthMine
 import geom
 import colorsys
@@ -11,6 +12,11 @@ import info
 import numpy as np
 from tags import TagCollection
 from android import AndroidReader
+
+def get_image_info(db_img):
+  if os.path.basename(db_img).startswith('DSC_'):
+    return NikonImageInfo(db_img)
+  return EarthmineImageInfo(db_img, db_img[:-4] + '.info')
 
 class ImageInfo:
   """Metadata source for image. Provides:
@@ -52,6 +58,22 @@ class AndroidImageInfo(ImageInfo):
     self.yaw = (self.yaw - 60) * math.pi / 180
     self.roll = (self.roll) * math.pi / 180
   
+  def get_pixel_locations(self, pixels):
+    return None
+
+class NikonImageInfo(ImageInfo):
+  def __init__(self, image):
+    self.lat = 0
+    self.lon = 0
+    self.alt = 0
+    self.yaw = 0
+    self.roll = 0
+    self.viewId = 0
+    self.image = Image.open(image)
+    self.focal_length = 0.8625 * self.image.size[0]
+    center = geom.center((0,0), self.image.size)
+    self.pitch = 0
+
   def get_pixel_locations(self, pixels):
     return None
 

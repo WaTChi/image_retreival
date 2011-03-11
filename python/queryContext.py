@@ -48,7 +48,10 @@ def vars_init():
     global fuzzydir
     global results
     initialized = True
-    dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
+    if QUERY == 'emeryville':
+        dbdump = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/0,0')
+    else:
+        dbdump = os.path.join(maindir, "Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829")
     dbdir = os.path.join(maindir, 'Research/cells/g=100,r=d=236.6/')
     fuzzydir = os.path.join(maindir, 'fuzzylocs/%s' % QUERY)
     results = {}
@@ -98,6 +101,14 @@ class LocationOutOfRangeError(Exception):
 def make_reader(querydir):
     if QUERY == 'query4':
         return AndroidReader(querydir)
+    if QUERY == 'emeryville':
+        def iter():
+            for file in util.getSiftFileNames(querydir):
+                image = Img()
+                image.sift = file
+                image.lat, image.lon = 0,0
+                yield image
+        return iter()
     INFO(querydir)
     def iter():
         for file in util.getSiftFileNames(querydir):
@@ -196,6 +207,13 @@ def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
     # done
     return stats, matchedimg, matches, combined
 
+def getlatlonfromdbimagename(dbimg):
+    if QUERY == 'emeryville':
+        return 0,0
+    clat = float(dbimg.split(",")[0])
+    clon = float(dbimg.split(",")[1][0:-5])
+    return clat, clon
+    
 def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
     topentry = ranked_matches[0]
     matchedimg = topentry[0]
@@ -203,8 +221,7 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
     
     dup = "dup" + str(len(ranked_matches) == 1 or score == ranked_matches[1][1])
     
-    clat = float(matchedimg.split(",")[0])
-    clon = float(matchedimg.split(",")[1][0:-5])
+    clat, clon = getlatlonfromdbimagename(matchedimg)
     distance = info.distance(qlat, qlon, clat, clon)
 
     if put_into_dirs:
@@ -224,10 +241,12 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         if corrfilter_printed and data.get('success'):
             INFO('filtering done at i=%d' % (i-1))
             break # we are done
-        clat = float(matchedimg.split(",")[0])
-        clon = float(matchedimg.split(",")[1][0:-5])
+        clat, clon = getlatlonfromdbimagename(matchedimg)
         distance = info.distance(qlat, qlon, clat, clon)
         matchimgpath = os.path.join(dbdump, '%s.jpg' % matchedimg)
+        if not os.path.exists(matchimgpath):
+            matchimgpath = os.path.join(dbdump, '%s.JPG' % matchedimg)
+            assert os.path.exists(matchimgpath)
         match = any(check_img(query + 'sift.txt', ranked_matches[i-1]))
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
@@ -241,19 +260,19 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
 
         matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(None) + ';' + matchedimg + '.jpg')
         H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, data=data)
-        qpart = query if QUERY == 'query4' else query[4:8]
+        qpart = query
         new = os.path.join(udir, qpart + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(data.get('unique_features')) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
         os.rename(matchoutpath, new)
 
         if showHom:
             if put_into_dirs:
-                identifier = str(i);
+                identifier = str(i)
             else:
                 identifier = qpart + ':' + str(i)
             H = np.matrix(np.asarray(H))
             with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
                 print >> f, H
-            np.save(os.path.join(udir, 'matches%s.npy' % identifier), matches)
+            np.save(os.path.join(udir, 'inliers%s.npy' % identifier), data['inliers'])
 
 def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)

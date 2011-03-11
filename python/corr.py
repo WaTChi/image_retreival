@@ -242,7 +242,7 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
   draw = ImageDraw.Draw(target)
 
   db = render_tags.TagCollection(os.path.expanduser('/media/DATAPART2/Research/app/dev/tags.csv'))
-  source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
+  source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
@@ -252,6 +252,7 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
   tagmatches = []
 
   green = np.compress(inliers, rsc_matches).tolist()
+  data['inliers'] = green
   notred = set([hashmatch(m) for m in green])
   red = []
   for m in matches:

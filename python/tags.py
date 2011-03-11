@@ -1,4 +1,5 @@
 import info
+import os
 import math
 import numpy as np
 import numpy.linalg as linalg
@@ -71,6 +72,9 @@ class TagCollection:
   """Parses EarthMine's tag export format."""
   def __init__(self, taglist):
     self.tags = []
+    if not os.path.exists(taglist):
+      print "W: tag file not found!"
+      return
     for line in open(taglist):
       line = line.split(',')
       tag = {
