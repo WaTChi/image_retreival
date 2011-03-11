@@ -1,6 +1,7 @@
+#!/usr/bin/env python
+
 import os
 import os.path
-#!/usr/bin/env python
 
 import cv
 import earthMine as em
@@ -12,7 +13,7 @@ import util
 
 
 
-def test(locsar, tags, viewpoint):
+def really_do_posit(locsar, tags, viewpoint, FOCAL_LENGTH):
 
     # change 3d coordinate systems
     c = map(lambda entry: ({'x':entry[0][0], 'y':entry[0][1]}, entry[1]), locsar)
@@ -97,7 +98,7 @@ def test(locsar, tags, viewpoint):
     return ntags
 
 #cloud.setkey(api_key=2160, api_secretkey='d3497353fc98fc4f3d62561c925c97ecd910cfbb')
-#jid = cloud.call(test) #a jid identifies your job (a function)
+#jid = cloud.call(really_do_posit) #a jid identifies your job (a function)
 #timg.draw(cloud.result(jid), '/media/DATAPART2/out2.png')
 
 
@@ -140,6 +141,38 @@ for file in util.getJPGFileNames(imgdir)[0:100]:
 
     if len(locsar)>0 and len(tags)>5:
         try:
-           timg.draw(test(locsar, tags, v), os.path.join('/media/DATAPART2/jz/posit3/',out))
+           timg.draw(really_do_posit(locsar, tags, v, FOCAL_LENGTH), os.path.join('/media/DATAPART2/jz/posit3/',out))
         except:
             print "error"
+
+px = pixels.PixelMap('/media/DATAPART2/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+
+def do_posit(matches, db_img, qlat, qlon):
+    v = {'view-location':{'lat':qlat, 'lon':qlon, 'alt': 60.0}} # XXX false alt
+    tags = db.select_frustum(qlat, qlon, 0, 999, 100) # XXX 360deg
+    locs = px.open(db_img)
+    FOCAL_LENGTH = 2000 # XXX made up
+    qfeats = {}
+    for m in matches:
+        d, q = m['db'], m['query']
+        l = locs[d[0], d[1]]
+        if l:
+            qfeats[q[0], q[1]] = l
+    qfeats_array = qfeats.items()
+    if qfeats_array and len(tags) > 5:
+        try:
+           timg.draw(really_do_posit(qfeats_array, tags, v, FOCAL_LENGTH), os.path.expanduser('~/Desktop',out))
+        except:
+            print "error"
+
+
+
+
+
+
+
+
+
+
+
+

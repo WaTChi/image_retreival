@@ -7,6 +7,7 @@
 
 import os
 import os.path
+import pixels
 import query
 from reader import get_reader
 
@@ -194,7 +195,7 @@ def match(siftpath, matchdir, lat, lon, newlat=None, newlon=None):
 
     # maybe draw output file
     if drawtopcorr:
-        draw_top_corr(querydir, siftfile.split('sift.txt')[0], combined, lat, lon, comb_matches)
+        draw_top_corr(querydir, siftfile.split('sift.txt')[0], combined, lat, lon, comb_matches )
 
     # return statistics and top result
     matchedimg = combined[0][0]
@@ -273,6 +274,10 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
             with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
                 print >> f, H
             np.save(os.path.join(udir, 'inliers%s.npy' % identifier), data['inliers'])
+
+        ### POSIT ###
+        posit.do_posit(data['inliers'], matchedimg, qlat, qlon)
+        
 
 def combine_ransac(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
