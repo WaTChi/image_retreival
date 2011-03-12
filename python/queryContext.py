@@ -255,6 +255,7 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
             matchimgpath = os.path.join(dbdump, '%s.JPG' % matchedimg)
             assert os.path.exists(matchimgpath)
         match = any(check_img(query + 'sift.txt', ranked_matches[i-1]))
+
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matches = db_matches
@@ -262,29 +263,32 @@ def draw_top_corr(querydir, query, ranked_matches, qlat, qlon, comb_matches):
         querysiftpath = os.path.join(querydir, query + 'sift.txt')
         matchsiftpath = os.path.join(dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(reader, querysiftpath, matchsiftpath)
+
         # concat db matches
         matches.extend(db_matches)
 
-        matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(None) + ';' + matchedimg + '.jpg')
-        H, inliers = corr.draw_matches(matches, queryimgpath, matchimgpath, matchoutpath, showHom=showHom, data=data)
-        qpart = query
-        new = os.path.join(udir, qpart + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(data.get('unique_features')) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+        # find homography
+        rsc_matches, H, inliers = corr.find_corr(matches, hom=True, ransac_pass=True, data=data)
+        rsc_inliers = np.compress(inliers, rsc_matches).tolist()
+        u = corr.count_unique_matches(np.compress(inliers, rsc_matches))
+        matchoutpath = os.path.join(udir, query + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+        corr.draw_matches(matches, rsc_matches, H, inliers, queryimgpath, matchimgpath, matchoutpath, showHom=showHom)
         os.rename(matchoutpath, new)
 
         if showHom:
             if put_into_dirs:
                 identifier = str(i)
             else:
-                identifier = qpart + ':' + str(i)
+                identifier = query + ':' + str(i)
             H = np.matrix(np.asarray(H))
             with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
                 print >> f, H
-            np.save(os.path.join(udir, 'inliers%s.npy' % identifier), data['inliers'])
+            np.save(os.path.join(udir, 'inliers%s.npy' % identifier), rsc_inliers)
 
         ### POSIT ###
         if do_posit:
             try:
-                posit.do_posit(data['inliers'], matchedimg + 'sift.txt', qlat, qlon, queryimgpath, matchimgpath)
+                posit.do_posit(rsc_inliers, matchedimg + 'sift.txt', qlat, qlon, queryimgpath, matchimgpath)
             except Exception, e:
                 print e
                 INFO("POSIT FAILED")

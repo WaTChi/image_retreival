@@ -196,8 +196,7 @@ def isHomographyGood(H):
 def count_unique_matches(matches):
   return len(set(map(hashmatch, matches)))
 
-# returns H, inliers
-def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False, data={}):
+def draw_matches(matches, rsc_matches, H, inliers, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False):
   # create image
   INFO(q_img)
   assert os.path.exists(q_img)
@@ -247,13 +246,10 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
-  rsc_matches, H, inliers = find_corr(matches, hom=True, ransac_pass=True, data=data)
-  data['unique_features'] = count_unique_matches(np.compress(inliers, rsc_matches))
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
   green = np.compress(inliers, rsc_matches).tolist()
-  data['inliers'] = green
   notred = set([hashmatch(m) for m in green])
   red = []
   for m in matches:
@@ -299,9 +295,9 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
       return 'red'
 
   if showLine:
-#      for match in red:
-#        drawline(match, 'red', w=1)
-#        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+      for match in red:
+        drawline(match, 'red', w=1)
+        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match, best_rot[1])))
