@@ -4,8 +4,6 @@ import random
 import shutil
 from datetime import datetime
 
-maindir = os.path.expanduser('~/.gvfs/data on gorgan.eecs.berkeley.edu/')
-#maindir = '/media/00C8173649E2CB4C/jz'
 LOCAL_CACHING = True
 CACHE_PATH = os.path.expanduser('/var/tmp')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
