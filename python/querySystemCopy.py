@@ -14,13 +14,13 @@ C.params.update({
   'confstring': '',
 })
 
-C.max_matches_to_analyze = 1
-C.corrfilter_printed = 0
+C.max_matches_to_analyze = 5
+C.stop_on_homTrue = 1
 C.put_into_dirs = 0
 C.do_posit = 0
 C.dump_hom = 0
 
-with C.multiprocessing():
+with system.MultiprocessExecution():
   system.characterize(C)
 
 # vim: et sw=2

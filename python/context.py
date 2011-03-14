@@ -7,7 +7,6 @@ import shutil
 import query
 
 from android import AndroidReader
-from multiprocessing import Pool, cpu_count
 from tags import TagCollection
 
 class _Query:
@@ -72,7 +71,7 @@ class _Context(object):
     self.do_posit = 0
     self.print_per = 1
     self.max_matches_to_analyze = 1
-    self.corrfilter_printed = 0 # keep trying for homTrue until max_matches_to_analyze
+    self.stop_on_homTrue = 0
     self.put_into_dirs = 0
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.cellradius = 236.6
@@ -90,9 +89,6 @@ class _Context(object):
     self._tags = None
     self._pixelmap = None
     
-    # process pool
-    self.pool = None
-
     # pull in new data
     if context:
       self.__dict__.update(context.__dict__)
@@ -104,20 +100,6 @@ class _Context(object):
     if self.frozen:
       raise Exception("Assignment to read-only context")
     object.__setattr__(self, *args)
-
-  def multiprocessing(self):
-    class MPE:
-      def __init__(self, C):
-        self.C = C
-      def __enter__(self):
-        self.C.pool = Pool(cpu_count())
-      def __exit__(self, *args):
-        print "Waiting for background jobs to finish..."
-        self.C.pool.close()
-        self.C.pool.join()
-        self.C.pool = None
-        print "All processes done."
-    return MPE(self)
 
   def freeze(self):
     object.__setattr__(self, 'frozen', True)
@@ -137,7 +119,6 @@ class _Context(object):
     copy = self.copy()
     copy.locator_function = None
     copy.match_callback = None
-    copy.pool = None
     return copy
 
   @property

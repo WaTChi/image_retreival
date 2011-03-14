@@ -35,6 +35,21 @@ import query4GroundTruth
 import util
 import util_cs188
 
+from multiprocessing import Pool, cpu_count
+
+class MultiprocessExecution:
+  pool = None
+
+  def __enter__(self):
+    MultiprocessExecution.pool = Pool(cpu_count())
+
+  def __exit__(self, *args):
+    print "Waiting for background jobs to finish..."
+    MultiprocessExecution.pool.close()
+    MultiprocessExecution.pool.join()
+    MultiprocessExecution.pool = None
+    print "All processes done."
+
 class LocationOutOfRangeError(Exception):
     """Raised when there are no cells near query location"""
     pass
@@ -106,8 +121,8 @@ def match(C, Q):
 
     # compute homography and draw images maybe
     if C.compute_hom:
-      if C.pool:
-        C.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+      if MultiprocessExecution.pool:
+        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
       else:
         compute_hom(C, Q, ranked, comb_matches)
 
@@ -141,7 +156,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
     data = {}
     for matchedimg, score in ranked_matches[:C.max_matches_to_analyze]:
         i += 1
-        if C.corrfilter_printed and data.get('success'):
+        if C.stop_on_homTrue and data.get('success'):
             break # we are done (found good homography)
         clat, clon = getlatlonfromdbimagename(C, matchedimg)
         matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
