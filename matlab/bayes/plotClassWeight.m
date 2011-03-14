@@ -1,4 +1,4 @@
-function plotClassWeight(classifier,class1,class2,fignum)
+function plotClassWeight(classifier,class1,class2,min_samp,fignum)
 
 % plotClassWeight(classifier,plotmode,class1,class2,fignum)
 % 
@@ -31,62 +31,99 @@ else
     cls = [class1,class2];
 end
 
-% Set plot flag
-plotflag = (nargin<4);
-
-% Iterate through features
-for f=1:M
-    
-    % Create plots and label it
-    if plotflag
-        figure
-    else
-        figure(fignum+f)
-    end
-    subplot(211)
-    title(['Feature ',num2str(f),' distribution'])
-    xlabel(['Feature ',num2str(f),' values'])
-    ylabel('Probability density')
-    subplot(212)
-    title(['Feature ',num2str(f),' weighing'])
-    xlabel(['Feature ',num2str(f),' values'])
-    ylabel(['Relative weiging : Class ',num2str(cls(1)), ...
-        ' / Class ',num2str(cls(2))])
-    
-    % Load necessary information
-    nsamps = classifier.nsamps;
-    spacing = classifier.spacing(f);
-    bins = classifier.bins{f};
-    prob1 = (1/spacing) * bins(:,cls(1)) / nsamps(cls(1));
-    prob2 = (1/spacing) * bins(:,cls(2)) / nsamps(cls(2));
-    B = length(prob1);
-    x = spacing/2 : spacing : (B-1/2)*spacing;
-    
-    % Get relative weighing via classify function bin expansion method
+% Set min_samp
+if nargin < 4
     min_samp = 20;
-    weight = zeros(B,1);
-    for b=1:B
+end
+total = sum(classifier.nsamps);
+
+% Set plot flag
+plotflag = (nargin<5);
+
+% Load necessary information
+nsamps = classifier.nsamps;
+sp = classifier.spacing;
+bins = classifier.bins;
+B = size(bins); B = B(1:2);
+x = sp(1)/2 : sp(1) : (B(1)-1/2)*sp(1);
+y = sp(2)/2 : sp(2) : (B(2)-1/2)*sp(2);
+prob1 = zeros(B);
+prob2 = zeros(B);
+
+% Get relative weighing via classify function bin expansion method
+for j=1:B(1)
+    
+    fprintf([num2str(j),'/',num2str(B(1)),'\n'])
+    
+    for k=1:B(2)
         
-        % Find the size of the bin necessary to satisfy min_samp
-        sb = b; lb = b; % small and large bins
-        count = sum( bins(sb:lb,:) , 1 );
+        % Expand bin region to satisfy min_samp
+        sb1 = j; lb1 = j;
+        sb2 = k; lb2 = k;
+        frct1 = (lb1-sb1+1)/B(1);
+        frct2 = (lb2-sb2+1)/B(2);
+        count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
         while sum(count) < min_samp
-            sb = max(1,sb-1);
-            lb = min(B,lb+1);
-            count = sum( bins(sb:lb,:) , 1 );
+            frct1 = (lb1-sb1+1)/B(1);
+            frct2 = (lb2-sb2+1)/B(2);
+            if frct2 > frct1
+                sb1 = max(1,sb1-1);
+                lb1 = min(B(1),lb1+1);
+            else
+                sb2 = max(1,sb2-1);
+                lb2 = min(B(2),lb2+1);
+            end
+            count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
         end
-        weight(b) = count(cls(1)) / count(cls(2));
+        
+        prob1(j,k) = count(1) / nsamps(1);
+        prob2(j,k) = count(2) / nsamps(2);
         
     end
-        
-    
-    % Plot curves
-    subplot(211)
-    hold off
-    plot(x,prob1,'b')
-    hold on
-    plot(x,prob2,'r')
-    subplot(212)
-    plot(x,weight,'k')
     
 end
+
+weight = prob1 ./ prob2;
+
+% Create plots and label them
+mx = max(max(max(prob1,prob2)));
+if plotflag
+    figure
+else
+    figure(fignum+1)
+end
+title('Feature distribution for class 1')
+xlabel('Feature 1 values')
+ylabel('Feature 2 values')
+imagesc(x,y,prob1)
+colorbar
+caxis([0,mx])
+axis xy
+
+if plotflag
+    figure
+else
+    figure(fignum+2)
+end
+title('Feature distribution for class 2')
+xlabel('Feature 1 values')
+ylabel('Feature 2 values')
+imagesc(x,y,prob2)
+colorbar
+caxis([0,mx])
+axis xy
+
+
+if plotflag
+    figure
+else
+    figure(fignum+3)
+end
+title('Relative weight between class 1 and 2')
+xlabel('Feature 1 values')
+ylabel('Feature 2 values')
+imagesc(x,y,log(weight))
+colorbar
+axis xy
+
+

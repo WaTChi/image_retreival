@@ -1,9 +1,9 @@
 function [classifier] = collapsebayes(file,comp,naive)
 
-file = ['./bayes/classifier/',file];
-load(file)
-
 if naive
+    
+    file = ['./bayes/classifier/',file];
+    load(file)
     
     M = length(classifier.spacing);
     
@@ -26,6 +26,30 @@ if naive
     end      
     
 else % 2D distribution
+    
+    file = ['./bayes_future/classifier/',file];
+    load(file)
+    
+    classifier.spacing = classifier.spacing .* comp;
+    
+    J = ceil( size(classifier.bins,1) / comp(1) );
+    K = ceil( size(classifier.bins,2) / comp(2) );
+    bins = zeros(J,K,2);
+    for j=1:J
+        for k=1:K
+            if j==J && k==K
+                bins(j,k,:) = sum( sum( classifier.bins(comp(1)*(j-1)+1:end,comp(2)*(k-1)+1:end,:) , 1 ) , 2 );
+            elseif j==J
+                bins(j,k,:) = sum( sum( classifier.bins(comp(1)*(j-1)+1:end,comp(2)*(k-1)+1:comp(2)*k,:) , 1 ) , 2 );
+            elseif k==K
+                bins(j,k,:) = sum( sum( classifier.bins(comp(1)*(j-1)+1:comp(1)*j,comp(2)*(k-1)+1:end,:) , 1 ) , 2 );
+            else
+                bins(j,k,:) = sum( sum( classifier.bins(comp(1)*(j-1)+1:comp(1)*j,comp(2)*(k-1)+1:comp(2)*k,:) , 1 ) , 2 );
+            end
+        end
+    end
+    
+    classifier.bins = bins;
     
 end
 
