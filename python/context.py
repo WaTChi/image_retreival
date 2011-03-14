@@ -1,5 +1,6 @@
 import os
 import info
+import Image
 import pixels
 import util
 import shutil
@@ -17,6 +18,7 @@ class _Query:
     self.sensor_lon = None
     self._query_lat = None
     self._query_lon = None
+    self.pgm_scale = 1.0
     self.data = {}
     if instance:
       self.__dict__.update(instance.__dict__)
@@ -75,7 +77,7 @@ class _Context(object):
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.cellradius = 236.6
     self.match_callback = None
-    self.dumphom = 0
+    self.dump_hom = 0
     self.ambiguity = 75
     self.matchdistance = 25
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
@@ -103,15 +105,19 @@ class _Context(object):
       raise Exception("Assignment to read-only context")
     object.__setattr__(self, *args)
 
-  def pool_enable(self):
-    self.pool = Pool(cpu_count())
-  
-  def pool_shutdown(self):
-    if self.pool:
-      print "Waiting for background jobs to finish..."
-      self.pool.close()
-      self.pool.join()
-      self.pool = None
+  def multiprocessing(self):
+    class MPE:
+      def __init__(self, C):
+        self.C = C
+      def __enter__(self):
+        self.C.pool = Pool(cpu_count())
+      def __exit__(self, *args):
+        print "Waiting for background jobs to finish..."
+        self.C.pool.close()
+        self.C.pool.join()
+        self.C.pool = None
+        print "All processes done."
+    return MPE(self)
 
   def freeze(self):
     object.__setattr__(self, 'frozen', True)
@@ -205,6 +211,7 @@ class _Context(object):
         for file in util.getSiftFileNames(self.querydir):
           image = _Query()
           image.siftpath = os.path.join(self.querydir, file)
+          image.pgm_scale = max(Image.open(os.path.join(self.querydir, image.siftname[:-8] + '.pgm')).size) / max(2592.0, 1456.0)
           image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.jpg')
           image.setSensorCoord(0,0)
           image.check()

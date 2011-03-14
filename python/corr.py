@@ -16,7 +16,6 @@ FALLBACK_PIXEL_DEVIATIONS = [2,1]
 CONFIDENCE_LEVEL = .9999999
 BAD_HOMOGRAPHY_DET_THRESHOLD = .005
 ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
-best_rot = 0
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -124,22 +123,16 @@ def _find_corr(matches, hom=False, data={}, MAX_PIXEL_DEVIATION=MAX_PIXEL_DEVIAT
 # ransac for fundamental matrix. rotation filtering
 # TODO multiple RANSAC to get smaller/larger features
   if not hom:
-    cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
-    inliers = np.asarray(inliers)[0]
     if rotation_filter_only:
-      inliers = [1 for i in inliers]
-    global best_rot
-# TODO use homography to find correct orientation
-# this will fix assumption that db,query have same roll
-    best_rot = (-9999, 0)
+      inliers = [1]*len(matches)
+    else:
+      cv.FindFundamentalMat(pts_q, pts_db, F, status=inliers, param1=MAX_PIXEL_DEVIATION, param2=CONFIDENCE_LEVEL)
+      inliers = np.asarray(inliers)[0]
+    # assumes roll(db) == roll(query)
     for i, m in enumerate(matches):
       if inliers[i]:
-        if abs(rot_delta(m, best_rot[1])) > ROT_THRESHOLD_RADIANS:
+        if abs(rot_delta(m, 0)) > ROT_THRESHOLD_RADIANS:
           inliers[i] = False
-## reduces performance for GT %
-## TODO check if it increases localization %
-#    inliers = getSpatiallyOrdered(matches, 0, inliers)
-#    inliers = getSpatiallyOrdered(matches, 1, inliers)
     return F, inliers
 
   # homography only. no rotation check
@@ -196,29 +189,31 @@ def isHomographyGood(H):
 def count_unique_matches(matches):
   return len(set(map(hashmatch, matches)))
 
+def scaledown(image, max_height):
+  scale = 1.0
+  hs = float(image.size[1]) / max_height
+  if hs > 1:
+    w,h = image.size[0]/hs, image.size[1]/hs
+    scale /= hs
+    image = image.resize((int(w), int(h)), Image.ANTIALIAS)
+  return image, scale
+
 def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
-  # create image
+  max_image_size = (768,512)
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
+  b = Image.open(db_img)
   if a.mode != 'RGB':
     a = a.convert('RGB')
-  scale = 1
-  portrait = a.size[0] < a.size[1]
-  if a.size[0] > 768 or a.size[1] > 512:
-    newy = 512
-    scale = float(newy)/a.size[1]
-    newx = a.size[0]*scale
-    INFO_TIMING('resizing image %s => %s' % (str(a.size), str((newx,newy))))
-    a = a.resize((newx,newy), Image.ANTIALIAS)
-    # XXX TODO rework rescale
-    if portrait:
-      scale = float(newy)/840
+  if b.mode != 'RGB':
+    b = b.convert('RGB')
+  height = b.size[1]
+  pgm_height = Q.pgm_scale*a.size[1]
+  a, query_scale = scaledown(a, height)
+  # ratio needed to convert from query pgm size -> db size
+  scale = a.size[1]/pgm_height
   assert a.mode == 'RGB'
-  b = Image.open(db_img)
-  height = max(a.size[1], b.size[1])
   target = Image.new('RGBA', (a.size[0] + b.size[0], height))
-  if scale != 1:
-    INFO("scale is %f" % scale)
 
   def drawline(match, color='hsl(20,100%,50%)', w=3):
     db = [match['db'][1] + a.size[0], match['db'][0]]
@@ -295,10 +290,10 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
   if showLine:
 #      for match in red:
 #        drawline(match, 'red', w=1)
-#        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+#        drawcircle(match, colorize(rot_delta(match, 0)))
       for match in green:
         drawline(match, 'green', w=2)
-        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+        drawcircle(match, colorize(rot_delta(match, 0)))
 
   # ImageDraw :(
   a2 = img.taggedcopy(proj_points, a)

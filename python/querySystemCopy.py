@@ -4,7 +4,7 @@ import system
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query1'
+C.QUERY = 'query3'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -14,13 +14,13 @@ C.params.update({
   'confstring': '',
 })
 
-C.max_matches_to_analyze = 5
-C.corrfilter_printed = 1
+C.max_matches_to_analyze = 1
+C.corrfilter_printed = 0
+C.put_into_dirs = 0
 C.do_posit = 0
-C.put_into_dirs = 1
-C.dumphom = 0
+C.dump_hom = 0
 
-# enable multiprocessing
-C.pool_enable()
-system.characterize(C)
-C.pool_shutdown()
+with C.multiprocessing():
+  system.characterize(C)
+
+# vim: et sw=2

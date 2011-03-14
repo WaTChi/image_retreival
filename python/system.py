@@ -142,8 +142,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
     for matchedimg, score in ranked_matches[:C.max_matches_to_analyze]:
         i += 1
         if C.corrfilter_printed and data.get('success'):
-            INFO('filtering done at i=%d' % (i-1))
-            break # we are done
+            break # we are done (found good homography)
         clat, clon = getlatlonfromdbimagename(C, matchedimg)
         matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
         if not os.path.exists(matchimgpath):
@@ -173,7 +172,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
           except IOError, e:
             INFO(e)
 
-        if C.dumphom:
+        if C.dump_hom:
           if C.put_into_dirs:
               identifier = str(i)
           else:
