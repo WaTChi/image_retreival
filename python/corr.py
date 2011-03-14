@@ -293,9 +293,9 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
       return 'red'
 
   if showLine:
-      for match in red:
-        drawline(match, 'red', w=1)
-        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+#      for match in red:
+#        drawline(match, 'red', w=1)
+#        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match, best_rot[1])))

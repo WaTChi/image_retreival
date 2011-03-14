@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import system
 from context import DEFAULT_CONTEXT
 
@@ -12,10 +14,13 @@ C.params.update({
   'confstring': '',
 })
 
-C.num_images_to_print = 1
-C.corrfilter_printed = 0
-C.do_posit = 1
-C.put_into_dirs = 0
-C.showHom = 1
+C.max_matches_to_analyze = 10
+C.corrfilter_printed = 1
+C.do_posit = 0
+C.put_into_dirs = 1
+C.dumphom = 0
 
+# enable multiprocessing
+C.pool_enable()
 system.characterize(C)
+C.pool_shutdown()

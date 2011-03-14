@@ -6,6 +6,7 @@ import shutil
 import query
 
 from android import AndroidReader
+from multiprocessing import Pool, cpu_count
 from tags import TagCollection
 
 class _Query:
@@ -55,11 +56,12 @@ class _Query:
     assert self.sensor_lat is not None and self.sensor_lon is not None
     assert self.jpgname[:-4] == self.siftname[:-8]
     
-class _Context(dict):
+class _Context(object):
 
-  def __init__(self, mapping={}):
+  def __init__(self, context=None):
     # set frozen attr
     self.unfreeze()
+
     # default parameters
     self.QUERY = None # set before calling characterize()
     self.params = query.PARAMS_DEFAULT.copy()
@@ -67,13 +69,13 @@ class _Context(dict):
     self.ransac_min_filt = 1
     self.do_posit = 0
     self.print_per = 1
-    self.num_images_to_print = 1
-    self.corrfilter_printed = 0 # keep trying for homTrue until num_images_to_print
+    self.max_matches_to_analyze = 1
+    self.corrfilter_printed = 0 # keep trying for homTrue until max_matches_to_analyze
     self.put_into_dirs = 0
-    self.showHom = 0
-    self.locator_function = lambda image: [(image.sensor_lat, image.sensor_lon)]
+    self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.cellradius = 236.6
     self.match_callback = None
+    self.dumphom = 0
     self.ambiguity = 75
     self.matchdistance = 25
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
@@ -85,9 +87,13 @@ class _Context(dict):
     # lazy load
     self._tags = None
     self._pixelmap = None
+    
+    # process pool
+    self.pool = None
 
     # pull in new data
-    self.__dict__.update(mapping)
+    if context:
+      self.__dict__.update(context.__dict__)
 
     # always starts writable
     self.unfreeze()
@@ -95,21 +101,38 @@ class _Context(dict):
   def __setattr__(self, *args):
     if self.frozen:
       raise Exception("Assignment to read-only context")
-    dict.__setattr__(self, *args)
+    object.__setattr__(self, *args)
+
+  def pool_enable(self):
+    self.pool = Pool(cpu_count())
+  
+  def pool_shutdown(self):
+    if self.pool:
+      print "Waiting for background jobs to finish..."
+      self.pool.close()
+      self.pool.join()
+      self.pool = None
 
   def freeze(self):
-    dict.__setattr__(self, 'frozen', True)
+    object.__setattr__(self, 'frozen', True)
 
   def unfreeze(self):
-    dict.__setattr__(self, 'frozen', False)
+    object.__setattr__(self, 'frozen', False)
 
   def frozen_copy(self):
-    copy = _Context(self)
+    copy = self.copy()
     copy.freeze()
     return copy
 
   def copy(self):
     return _Context(self)
+
+  def pickleable(self):
+    copy = self.copy()
+    copy.locator_function = None
+    copy.match_callback = None
+    copy.pool = None
+    return copy
 
   @property
   def tags(self):
@@ -151,6 +174,10 @@ class _Context(dict):
   def drawtopcorr(self):
     return 'NO_DRAW' not in os.environ
 
+  @property
+  def compute_hom(self):
+    return 'NO_HOM' not in os.environ
+
   def initdirs(self):
     """Creates and cleans result data directories."""
     if not os.path.exists(self.matchdir):
@@ -190,7 +217,8 @@ class _Context(dict):
         image.siftpath = os.path.join(self.querydir, file)
         image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.JPG')
         image.setSensorCoord(*info.getQuerySIFTCoord(file))
-        image.check()
+        if self.QUERY != 'query4-matlab':
+          image.check()
         yield image
     return iter2()
 

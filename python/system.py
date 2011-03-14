@@ -42,21 +42,20 @@ class LocationOutOfRangeError(Exception):
 def check_truth(query_str, result_str, groundTruth_dict):
     return result_str in groundTruth_dict[query_str]
 
-def skew_location(image):
-    length = 2*ambiguity
+def skew_location(C, Q):
+    length = 2*C.ambiguity
     points = []
-    corner = info.moveLocation(image.sensor_lat, image.sensor_lon, (2**.5)*ambiguity, -45)
+    corner = info.moveLocation(Q.sensor_lat, Q.sensor_lon, (2**.5)*C.ambiguity, -45)
     for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
         for j in range(length+1):
-            point = info.moveLocation(row[0],row[1], j, 90)
-            if info.distance(image.sensor_lat,image.sensor_lon, point[0], point[1]) <= ambiguity:
+            point = info.moveLocation(row[0], row[1], j, 90)
+            if info.distance(Q.sensor_lat, Q.sensor_lon, point[0], point[1]) <= C.ambiguity:
                 points.append(point)
     return points
 
-def load_location(image):
-    querysift = image.sift
-    file = open(os.path.join(fuzzydir, querysift.split("sift.txt")[0])+'.fuz')
+def load_location(C, Q):
+    file = open(os.path.join(C.fuzzydir, Q.siftname.split("sift.txt")[0])+'.fuz')
     points = []
     for line in file:
         lat, lon = line.strip().split('\t')
@@ -105,9 +104,12 @@ def match(C, Q):
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
 
-    # maybe draw output file
-    if C.drawtopcorr:
-        draw_top_corr(C, Q, ranked, comb_matches)
+    # compute homography and draw images maybe
+    if C.compute_hom:
+      if C.pool:
+        C.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+      else:
+        compute_hom(C, Q, ranked, comb_matches)
 
     # return statistics and top result
     matchedimg = ranked[0][0]
@@ -128,7 +130,7 @@ def getlatlonfromdbimagename(C, dbimg):
     return clat, clon
     
 # top entry is ranked_matches[0], etc
-def draw_top_corr(C, Q, ranked_matches, comb_matches):
+def compute_hom(C, Q, ranked_matches, comb_matches):
     if C.put_into_dirs:
         udir = os.path.join(C.resultsdir, Q.name)
     else:
@@ -137,7 +139,7 @@ def draw_top_corr(C, Q, ranked_matches, comb_matches):
         os.makedirs(udir)
     i = 0
     data = {}
-    for matchedimg, score in ranked_matches[:C.num_images_to_print]:
+    for matchedimg, score in ranked_matches[:C.max_matches_to_analyze]:
         i += 1
         if C.corrfilter_printed and data.get('success'):
             INFO('filtering done at i=%d' % (i-1))
@@ -163,19 +165,23 @@ def draw_top_corr(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(np.compress(inliers, rsc_matches))
 
-        # draw picture
-        matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
-        corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath)
+        if C.drawtopcorr:
+          # draw picture
+          matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
+          try:
+            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath)
+          except IOError, e:
+            INFO(e)
 
-        if C.showHom:
-            if C.put_into_dirs:
-                identifier = str(i)
-            else:
-                identifier = Q.name + ':' + str(i)
-            H = np.matrix(np.asarray(H))
-            with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
-                print >> f, H
-            np.save(os.path.join(udir, 'inliers%s.npy' % identifier), rsc_inliers)
+        if C.dumphom:
+          if C.put_into_dirs:
+              identifier = str(i)
+          else:
+              identifier = Q.name + ':' + str(i)
+          H = np.matrix(np.asarray(H))
+          with open(os.path.join(udir, 'homography%s.txt' % identifier), 'w') as f:
+              print >> f, H
+          np.save(os.path.join(udir, 'inliers%s.npy' % identifier), rsc_inliers)
 
         ### POSIT ###
         if C.do_posit:
@@ -234,16 +240,16 @@ def check_topn_img(C, Q, dupCountLst, topnres=1):
         record = map(lambda a,b: a + b, record, new)
     return map(bool, record)
 
-def dump_combined_matches(siftfile, matchdir, stats, matchedimg, matches, cells_in_range):
+def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
     # For Aaron's analysis
     table = {}
-    for line in open(os.path.join(dbdir, 'cellmap.txt')):
+    for line in open(os.path.join(C.dbdir, 'cellmap.txt')):
         a, b = line.split()
         table[b] = int(a)
     def cellsetstr(cells):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
-    outputFilePath = os.path.join(matchdir, 'fuzz', siftfile + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    outputFilePath = os.path.join(C.matchdir, 'fuzz', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -268,7 +274,7 @@ def characterize(C):
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
-        for loc in C.locator_function(Q):
+        for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1
             try:
@@ -319,5 +325,6 @@ def characterize(C):
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
     print "amb: {0}, ncells: {1}".format(C.ambiguity, C.ncells)
+    return results, count
 
 # vim: et sw=2

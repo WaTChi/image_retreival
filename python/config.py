@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import threading
 import shutil
 from datetime import datetime
 
@@ -50,7 +51,7 @@ def getcellid(directory):
   return os.path.basename(directory)
 
 def INFO(x):
-  print >> STDOUT, datetime.today().strftime("%l:%M:%S - ") + str(x)
+  print >> STDOUT, "[%d]" % os.getpid(), datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
 #  INFO(x)
