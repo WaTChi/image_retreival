@@ -55,12 +55,12 @@ def searchtype(params):
     conf = ',%s' % params['confstring']
   return '%s,threshold=%dk,searchparam=%d%s%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], nn, vote_method, conf)
 
-def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num_threads=cpu_count()):
+def run_parallel(C, Q, cells, outputFilePaths, num_threads=cpu_count()):
   semaphore = threading.Semaphore(num_threads)
   threads = []
   INFO_TIMING("running queries with up to %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
-    thread = Query(dbdir, cell, querydir, querysift, outputFilePath, params, semaphore)
+    thread = Query(C, Q, cell, outputFilePath, semaphore)
     threads.append(thread)
     thread.start()
   for thread in threads:
@@ -75,18 +75,18 @@ def run_parallel(dbdir, cells, querydir, querysift, outputFilePaths, params, num
 #   for plotting, postprocessing, etc.
 # Note that the vote method chosen is responsible for this list.
 class Query(threading.Thread):
-  def __init__(self, celldir, cell, qdir, qfile, outfile, params=PARAMS_DEFAULT, barrier=None):
-    assert len(params) == len(PARAMS_DEFAULT)
+  def __init__(self, C, Q, cell, outfile, barrier=None):
+    assert len(C.params) == len(PARAMS_DEFAULT)
     threading.Thread.__init__(self)
-    self.qpath = os.path.join(qdir, qfile)
-    self.cellpath = os.path.join(celldir, cell)
-    self.celldir = celldir
+    self.qpath = Q.siftpath
+    self.cellpath = os.path.join(C.dbdir, cell)
+    self.celldir = C.dbdir
     self.outfile = outfile
-    self.params = params
+    self.params = C.params
     self.barrier = barrier
     self.dump = self.outfile + '-detailed.npy'
-    pyflann.set_distance_type(params['distance_type'])
-    self.reader = reader.get_reader(params['descriptor'])
+    pyflann.set_distance_type(C.params['distance_type'])
+    self.reader = reader.get_reader(C.params['descriptor'])
 
   def run(self):
     if os.path.exists(self.outfile) and os.path.exists(self.dump):

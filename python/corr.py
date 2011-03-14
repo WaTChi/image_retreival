@@ -6,6 +6,7 @@ import pyflann
 import time
 import Image, ImageDraw
 import render_tags
+from reader import get_reader
 import numpy as np
 import cv
 import os
@@ -40,10 +41,10 @@ def hashmatch(m):
   return o
 
 # eqv of 70k, euclidean, matchonce
-def rematch(reader, querysift, dbsift):
-#  INFO('Attempting rematch between %s and %s' % (querysift, dbsift))
+def rematch(C, Q, dbsift):
   start = time.time()
-  q = reader.load_file(querysift)
+  reader = get_reader(C.params['descriptor'])
+  q = reader.load_file(Q.siftpath)
   db = reader.load_file(dbsift)
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
@@ -195,13 +196,10 @@ def isHomographyGood(H):
 def count_unique_matches(matches):
   return len(set(map(hashmatch, matches)))
 
-# returns H, inliers
-def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False, data={}):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
   # create image
-  INFO(q_img)
-  assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-  a = Image.open(q_img)
+  a = Image.open(Q.jpgpath)
   if a.mode != 'RGB':
     a = a.convert('RGB')
   scale = 1
@@ -241,13 +239,11 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser('/media/DATAPART2/Research/app/dev/tags.csv'))
-  source = render_tags.EarthmineImageInfo(db_img, db_img[:-4] + '.info')
+  db = render_tags.TagCollection(os.path.expanduser(os.path.join(C.maindir, 'Research/app/dev/tags.csv')))
+  source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()
   proj_points = []
-  rsc_matches, H, inliers = find_corr(matches, hom=True, ransac_pass=True, data=data)
-  data['unique_features'] = count_unique_matches(np.compress(inliers, rsc_matches))
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -297,9 +293,9 @@ def draw_matches(matches, q_img, db_img, out_img, showLine=True, showtag=True, s
       return 'red'
 
   if showLine:
-#      for match in red:
-#        drawline(match, 'red', w=1)
-#        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
+      for match in red:
+        drawline(match, 'red', w=1)
+        drawcircle(match, colorize(rot_delta(match, best_rot[1])))
       for match in green:
         drawline(match, 'green', w=2)
         drawcircle(match, colorize(rot_delta(match, best_rot[1])))

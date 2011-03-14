@@ -24,8 +24,9 @@ class FlatXMLParser:
     self.data[self.current] = data
 
 class TaggedImage(object):
-  def __init__(self, xmlfile, jpgfile):
+  def __init__(self, basedir, xmlfile, jpgfile):
     self.id = 'DSC_' + os.path.basename(xmlfile)[24:30].translate(None, '-_')
+    self.basedir = basedir
     self.jpg = jpgfile
     self.sift = jpgfile[:-4] + 'sift.txt'
     xml = FlatXMLParser(xmlfile)
@@ -74,7 +75,7 @@ class AndroidReader:
       if not os.path.exists(os.path.join(basedir, jpg)):
         INFO('W: could not find %s' % jpg)
         continue
-      image = TaggedImage(os.path.join(basedir, xml), jpg)
+      image = TaggedImage(basedir, os.path.join(basedir, xml), jpg)
       self.images.append(image)
 
   def __iter__(self):
