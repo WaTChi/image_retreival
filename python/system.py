@@ -6,10 +6,7 @@ import os.path
 import query
 from reader import get_reader
 from config import INFO
-try:
-    import posit
-except:
-    INFO("Posit module failed to load")
+import posit
 
 try:
     if 'NUM_THREADS' in os.environ:
@@ -17,11 +14,9 @@ try:
     else:
         import multiprocessing
         NUM_THREADS = multiprocessing.cpu_count()
-    drawtopcorr = 'NO_DRAW' not in os.environ
 except:
     import multiprocessing
     NUM_THREADS = multiprocessing.cpu_count()
-    drawtopcorr = 1
 
 import time
 
@@ -50,12 +45,12 @@ def check_truth(query_str, result_str, groundTruth_dict):
 def skew_location(image):
     length = 2*ambiguity
     points = []
-    corner = info.moveLocation(image.lat, image.lon, (2**.5)*ambiguity, -45)
+    corner = info.moveLocation(image.sensor_lat, image.sensor_lon, (2**.5)*ambiguity, -45)
     for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
         for j in range(length+1):
             point = info.moveLocation(row[0],row[1], j, 90)
-            if info.distance(image.lat,image.lon, point[0], point[1]) <= ambiguity:
+            if info.distance(image.sensor_lat,image.sensor_lon, point[0], point[1]) <= ambiguity:
                 points.append(point)
     return points
 
@@ -76,7 +71,7 @@ def derive_key(closest_cells, name):
 cache = {}
 def match(C, Q):
     # compute closest cells
-    closest_cells = util.getclosestcells(Q.query_lat, Q.query_lon)
+    closest_cells = util.getclosestcells(Q.query_lat, Q.query_lon, C.dbdir)
     cells_in_range = [(cell, dist)
       for cell, dist in closest_cells[0:C.ncells]
         if dist < C.cellradius + C.ambiguity + C.matchdistance]
@@ -96,7 +91,7 @@ def match(C, Q):
         latcell, loncell = cell.split(',')
         latcell = float(latcell)
         loncell = float(loncell)
-        actualdist = info.distance(lat, lon, latcell, loncell)
+        actualdist = info.distance(Q.query_lat, Q.query_lon, latcell, loncell)
         outputFilePath = os.path.join(C.matchdir, Q.siftname + ',' + cell + ',' + str(actualdist)  + ".res")
         outputFilePaths.append(outputFilePath)
 
@@ -108,7 +103,7 @@ def match(C, Q):
     ranked = combine_ransac(comb_matches, C.ransac_min_filt)
 
     # top 1
-    stats = check_topn_img(Q.siftname, ranked, 1)
+    stats = check_topn_img(C, Q, ranked, 1)
 
     # maybe draw output file
     if C.drawtopcorr:
@@ -125,46 +120,40 @@ def match(C, Q):
     # done
     return stats, matchedimg, matches, ranked
 
-def getlatlonfromdbimagename(dbimg):
-    if QUERY == 'emeryville':
+def getlatlonfromdbimagename(C, dbimg):
+    if C.QUERY == 'emeryville':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
     return clat, clon
     
+# top entry is ranked_matches[0], etc
 def draw_top_corr(C, Q, ranked_matches, comb_matches):
-    topentry = ranked_matches[0]
-    matchedimg = topentry[0]
-    score = topentry[1]
-    
-    clat, clon = getlatlonfromdbimagename(matchedimg)
-
-    if put_into_dirs:
+    if C.put_into_dirs:
         udir = os.path.join(C.resultsdir, Q.name)
     else:
         udir = C.resultsdir
     if not os.path.exists(udir):
         os.makedirs(udir)
-    assert os.path.exists(Q.jpgpath)
     i = 0
     data = {}
-    for matchedimg, score in ranked_matches[:num_images_to_print]:
+    for matchedimg, score in ranked_matches[:C.num_images_to_print]:
         i += 1
-        if corrfilter_printed and data.get('success'):
+        if C.corrfilter_printed and data.get('success'):
             INFO('filtering done at i=%d' % (i-1))
             break # we are done
-        clat, clon = getlatlonfromdbimagename(matchedimg)
+        clat, clon = getlatlonfromdbimagename(C, matchedimg)
         matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
         if not os.path.exists(matchimgpath):
-            matchimgpath = os.path.join(dbdump, '%s.JPG' % matchedimg)
+            matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
             assert os.path.exists(matchimgpath)
-        match = any(check_img(Q.name, ranked_matches[i-1]))
+        match = any(check_img(C, Q, ranked_matches[i-1]))
 
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matches = db_matches
-        matchsiftpath = os.path.join(dbdump, matchedimg + 'sift.txt')
-        matches = corr.rematch(Q, matchsiftpath)
+        matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
+        matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
         matches.extend(db_matches)
@@ -173,6 +162,8 @@ def draw_top_corr(C, Q, ranked_matches, comb_matches):
         rsc_matches, H, inliers = corr.find_corr(matches, hom=True, ransac_pass=True, data=data)
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(np.compress(inliers, rsc_matches))
+
+        # draw picture
         matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
         corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath)
 
@@ -188,11 +179,7 @@ def draw_top_corr(C, Q, ranked_matches, comb_matches):
 
         ### POSIT ###
         if C.do_posit:
-            try:
-                posit.do_posit(Q, rsc_inliers, matchedimg + 'sift.txt', matchimgpath)
-            except Exception, e:
-                print e
-                INFO("POSIT FAILED")
+            posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
         
 
 def combine_ransac(counts, min_filt=0):
@@ -222,28 +209,28 @@ def combine_ransac(counts, min_filt=0):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
-def check_img(name, entry):
+def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
-    if QUERY == 'query1':
-        g += check_truth(name, entry[0], query1GroundTruth.matches)
-    elif QUERY == 'query3' or QUERY == 'queryeric':
-        g += check_truth(name, entry[0], groundtruthG.matches)
-        y += check_truth(name, entry[0], groundtruthY.matches)
-        r += check_truth(name, entry[0], groundtruthR.matches)
-        b += check_truth(name, entry[0], groundtruthB.matches)
-        o += check_truth(name, entry[0], groundtruthO.matches)
-    elif QUERY == 'query2':
-        g += check_truth(name, entry[0], query2Groundtruth.matches)
-    elif QUERY == 'query4':
-        g += check_truth(name, entry[0], query4GroundTruth.matches)
+    if C.QUERY == 'query1':
+        g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
+    elif C.QUERY == 'query3' or C.QUERY == 'queryeric':
+        g += check_truth(Q.name, entry[0], groundtruthG.matches)
+        y += check_truth(Q.name, entry[0], groundtruthY.matches)
+        r += check_truth(Q.name, entry[0], groundtruthR.matches)
+        b += check_truth(Q.name, entry[0], groundtruthB.matches)
+        o += check_truth(Q.name, entry[0], groundtruthO.matches)
+    elif C.QUERY == 'query2':
+        g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
+    elif C.QUERY == 'query4':
+        g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
     else:
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
 
-def check_topn_img(name, dupCountLst, topnres=1):
+def check_topn_img(C, Q, dupCountLst, topnres=1):
     record = [0]*5
     for entry in dupCountLst[0:topnres]:
-        new = check_img(name, entry)
+        new = check_img(C, Q, entry)
         record = map(lambda a,b: a + b, record, new)
     return map(bool, record)
 
@@ -274,13 +261,14 @@ def characterize(C):
     start = time.time()
     results = util_cs188.Counter()
     C.initdirs()
+    count = 0
     g_count = 0
     y_count = 0
     r_count = 0
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
-        for loc in locator_function(Q):
+        for loc in C.locator_function(Q):
             Q.setQueryCoord(*loc)
             count += 1
             try:
@@ -290,12 +278,12 @@ def characterize(C):
                 continue
             # compile statistics
             # top n
-            for n in topnresults:
-                result = check_topn_img(Q.name, combined, n)
+            for n in C.topnresults:
+                result = check_topn_img(C, Q, combined, n)
                 results[n] += reduce(lambda x,y: x or y, result)
             if count % C.print_per == 0 and C.verbosity > 0:
                 INFO('speed is %f' % ((time.time()-start)/count))
-                for n in topnresults:
+                for n in C.topnresults:
                     print "matched {0}\t out of {1}\t in the top {2}\t amb: {3}, ncells:{4}".format(results[n], count, n, C.ambiguity, C.ncells)
 
             if g:
@@ -330,6 +318,6 @@ def characterize(C):
     match_rate = float(total_count) / count
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
-    print "amb: {0}, ncells: {1}".format(ambiguity, ncells)
+    print "amb: {0}, ncells: {1}".format(C.ambiguity, C.ncells)
 
 # vim: et sw=2

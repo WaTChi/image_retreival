@@ -78,7 +78,7 @@ class Query(threading.Thread):
   def __init__(self, C, Q, cell, outfile, barrier=None):
     assert len(C.params) == len(PARAMS_DEFAULT)
     threading.Thread.__init__(self)
-    self.qpath = Q.sift_path
+    self.qpath = Q.siftpath
     self.cellpath = os.path.join(C.dbdir, cell)
     self.celldir = C.dbdir
     self.outfile = outfile

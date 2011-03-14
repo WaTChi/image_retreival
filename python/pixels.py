@@ -48,6 +48,7 @@ class PixelMap:
     view = os.path.basename(featurefile)[:-8] # + descriptor type
     cached = os.path.join(self.datastore, name) + '.npy'
     if not os.path.exists(cached):
+      INFO("*** fetching pixel data from earthmine ***")
       data = self.ddFetch(featurefile, view)
       save_atomic(lambda d: np.save(d, data), cached)
     return np.load(cached).item()

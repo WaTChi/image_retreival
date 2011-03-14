@@ -10,7 +10,7 @@ import earthMine as em
 import pixels
 import tags as tg
 import render_tags
-from config import maindir, INFO
+from config import INFO
 #import cloud
 import util
 
@@ -110,8 +110,6 @@ def really_do_posit(locsar, tags, viewpoint, FOCAL_LENGTH, refpoints = [], qimgs
 #jid = cloud.call(really_do_posit) #a jid identifies your job (a function)
 #timg.draw(cloud.result(jid), '/media/DATAPART2/out2.png')
 
-db = tg.TagCollection(maindir + 'Research/app/code/tags.csv')
-
 def f():
 	imgdir=maindir + 'Research/cells/g=100,r=d=236.6/37.8714488812,-122.266998471'
 	infodir=maindir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'
@@ -155,8 +153,6 @@ def f():
 		except:
 		    print "error"
 
-px = pixels.PixelMap(maindir + 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
-
 from PIL import Image
 from PIL.ExifTags import TAGS
 
@@ -169,10 +165,11 @@ def get_exif(fn):
         ret[decoded] = value
     return ret
 
-def do_posit(matches, db_img, qlat, qlon, queryimgpath, dbimgpath):
-    v = {'view-location':{'lat':qlat, 'lon':qlon, 'alt': 0}}
-    tags = db.select_frustum(qlat, qlon, 0, 999, 100) # XXX 360deg
-    locs = dict(filter(lambda (k,v): v, px.open(db_img).items()))
+def do_posit(C, Q, matches, dbsiftpath, dbimgpath):
+    v = {'view-location':{'lat':Q.query_lat, 'lon':Q.query_lon, 'alt': 0}}
+    tags = C.tags.select_frustum(Q.query_lat, Q.query_lon, 0, 999, 100) # XXX 360deg
+    px = C.pixelmap
+    locs = dict(filter(lambda (k,v): v, px.open(dbsiftpath).items()))
 
     b = Image.open(dbimgpath)
     w1, w2 = b.size[0]/3, b.size[0]*2/3
@@ -180,10 +177,10 @@ def do_posit(matches, db_img, qlat, qlon, queryimgpath, dbimgpath):
     sqpts = (w1, h1), (w1, h2), (w2, h2), (w2, h1)
     sqpts2d = map(lambda p: geom.picknearest(locs, p[0], p[1]), sqpts)
     sqpts = map(lambda p: locs[p], sqpts2d)
-    a = Image.open(queryimgpath)
+    a = Image.open(Q.jpgpath)
 
     # width * focal_length / sensor_width
-    FOCAL_LENGTH = a.size[0]*get_exif(queryimgpath)['FocalLength'][0]/237.0
+    FOCAL_LENGTH = a.size[0]*get_exif(Q.jpgpath)['FocalLength'][0]/237.0
 
     qfeats = {}
     for m in matches:
@@ -192,12 +189,12 @@ def do_posit(matches, db_img, qlat, qlon, queryimgpath, dbimgpath):
         if k in locs:
             qfeats[q[0], q[1]] = locs[k]
     qfeats_array = qfeats.items()
-    source = render_tags.ComputedImageInfo(queryimgpath, qlat, qlon)
-    img = render_tags.TaggedImage(None, source, db)
-    out = os.path.basename(queryimgpath)[:-4] + '.png'
+    source = render_tags.ComputedImageInfo(Q.jpgpath, Q.query_lat, Q.query_lon)
+    img = render_tags.TaggedImage(None, source, C.tags)
+    out = os.path.basename(Q.jpgpath)[:-4] + '.jpg'
     if len(qfeats_array) > 4 and len(tags) > 5:
         ntags, nrefs = really_do_posit(qfeats_array, tags, v, FOCAL_LENGTH, sqpts, a.size)
-        output = os.path.expanduser('~/Desktop/q/' + out)
+        output = os.path.expanduser('~/posit_out/' + out)
         a = img.taggedcopy(ntags, img.image)
         draw = ImageDraw.Draw(a)
         def xdrawline(draw, (start,stop), color='hsl(20,100%,50%)', off=0):
@@ -219,5 +216,5 @@ def do_posit(matches, db_img, qlat, qlon, queryimgpath, dbimgpath):
         ab = Image.new('RGBA', (a.size[0] + b.size[0], height))
         ab.paste(a, (0,0))
         ab.paste(b, (a.size[0],0))
-        ab.save(output, 'png')
+        ab.save(output, 'jpeg')
 

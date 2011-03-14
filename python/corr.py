@@ -2,11 +2,11 @@
 
 from config import *
 import random
-from config import maindir
 import pyflann
 import time
 import Image, ImageDraw
 import render_tags
+from reader import get_reader
 import numpy as np
 import cv
 import os
@@ -41,10 +41,10 @@ def hashmatch(m):
   return o
 
 # eqv of 70k, euclidean, matchonce
-def rematch(reader, querysift, dbsift):
-#  INFO('Attempting rematch between %s and %s' % (querysift, dbsift))
+def rematch(C, Q, dbsift):
   start = time.time()
-  q = reader.load_file(querysift)
+  reader = get_reader(C.params['descriptor'])
+  q = reader.load_file(Q.siftpath)
   db = reader.load_file(dbsift)
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
@@ -196,12 +196,10 @@ def isHomographyGood(H):
 def count_unique_matches(matches):
   return len(set(map(hashmatch, matches)))
 
-def draw_matches(matches, rsc_matches, H, inliers, q_img, db_img, out_img, showLine=True, showtag=True, showHom=False):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
   # create image
-  INFO(q_img)
-  assert os.path.exists(q_img)
   assert os.path.exists(db_img)
-  a = Image.open(q_img)
+  a = Image.open(Q.jpgpath)
   if a.mode != 'RGB':
     a = a.convert('RGB')
   scale = 1
@@ -241,7 +239,7 @@ def draw_matches(matches, rsc_matches, H, inliers, q_img, db_img, out_img, showL
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser(maindir + 'Research/app/dev/tags.csv'))
+  db = render_tags.TagCollection(os.path.expanduser(os.path.join(C.maindir, 'Research/app/dev/tags.csv')))
   source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, db)
   points = img.map_tags_camera()

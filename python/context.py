@@ -1,10 +1,12 @@
 import os
 import info
+import pixels
 import util
 import shutil
 import query
 
 from android import AndroidReader
+from tags import TagCollection
 
 class _Query:
   def __init__(self, instance=None):
@@ -21,6 +23,9 @@ class _Query:
   def setQueryCoord(self, qlat, qlon):
     self._query_lat, self._query_lon = qlat, qlon
 
+  def setSensorCoord(self, lat, lon):
+    self.sensor_lat, self.sensor_lon = lat, lon
+
   def copy(self):
     return _Query(self)
   
@@ -34,7 +39,6 @@ class _Query:
 
   @property
   def name(self):
-    assert self.jpgname[:-4] == self.siftname[:-8]
     return self.jpgname[:-4]
   
   @property
@@ -44,10 +48,18 @@ class _Query:
   @property
   def jpgname(self):
     return os.path.basename(self.jpgpath)
-
+  
+  def check(self):
+    assert os.path.exists(self.jpgpath)
+    assert os.path.exists(self.siftpath)
+    assert self.sensor_lat is not None and self.sensor_lon is not None
+    assert self.jpgname[:-4] == self.siftname[:-8]
+    
 class _Context(dict):
 
-  def __init__(self, mapping):
+  def __init__(self, mapping={}):
+    # set frozen attr
+    self.unfreeze()
     # default parameters
     self.QUERY = None # set before calling characterize()
     self.params = query.PARAMS_DEFAULT.copy()
@@ -59,7 +71,7 @@ class _Context(dict):
     self.corrfilter_printed = 0 # keep trying for homTrue until num_images_to_print
     self.put_into_dirs = 0
     self.showHom = 0
-    self.locator_function = lambda image: [(image.lat, image.lon)]
+    self.locator_function = lambda image: [(image.sensor_lat, image.sensor_lon)]
     self.cellradius = 236.6
     self.match_callback = None
     self.ambiguity = 75
@@ -69,6 +81,10 @@ class _Context(dict):
     self.resultsdir = os.path.expanduser('~/topmatches')
     self.topnresults = []
     self.maindir = os.path.expanduser('/media/DATAPART2')
+
+    # lazy load
+    self._tags = None
+    self._pixelmap = None
 
     # pull in new data
     self.__dict__.update(mapping)
@@ -96,10 +112,28 @@ class _Context(dict):
     return _Context(self)
 
   @property
+  def tags(self):
+    if not self._tags:
+      self._tags = TagCollection(os.path.join(self.maindir, 'Research/app/code/tags.csv'))
+    return self._tags
+
+  @property
+  def pixelmap(self):
+    if not self._pixelmap:
+      self._pixelmap = pixels.PixelMap(os.path.join(self.maindir, self.dbdump))
+    return self._pixelmap
+
+  @property
   def dbdump(self):
     if self.QUERY == 'emeryville':
-      return os.path.join(self.maindir, 'Research/cells/g=100,r=d=236.6/0,0')
+      return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829')
+
+  @property
+  def dbdir(self):
+    if self.QUERY == 'emeryville':
+      return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
+    return os.path.join(self.maindir, 'Research/cells/g=100,r=d=236.6/')
 
   @property
   def fuzzydir(self):
@@ -113,6 +147,10 @@ class _Context(dict):
   def querydir(self):
     return os.path.join(self.maindir, '%s/' % self.QUERY)
 
+  @property
+  def drawtopcorr(self):
+    return 'NO_DRAW' not in os.environ
+
   def initdirs(self):
     """Creates and cleans result data directories."""
     if not os.path.exists(self.matchdir):
@@ -122,22 +160,37 @@ class _Context(dict):
             shutil.rmtree(self.resultsdir)
         os.makedirs(self.resultsdir)
 
-  def iter_queries(self, querydir):
+  def iter_queries(self):
     """Returns iter over _Query for files in query"""
     if self.QUERY == 'query4':
-      return AndroidReader(querydir)
+      def iter0():
+        for a in AndroidReader(self.querydir):
+          image = _Query()
+          image.siftpath = os.path.join(a.basedir, a.sift)
+          image.jpgpath = os.path.join(a.basedir, a.jpg)
+          image.setSensorCoord(a.lat, a.lon)
+          image.check()
+          yield image
+      return iter0()
+
     if self.QUERY == 'emeryville':
-      def iter():
+      def iter1():
         for file in util.getSiftFileNames(self.querydir):
           image = _Query()
           image.siftpath = os.path.join(self.querydir, file)
+          image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.jpg')
+          image.setSensorCoord(0,0)
+          image.check()
           yield image
-      return iter()
+      return iter1()
+
     def iter2():
       for file in util.getSiftFileNames(self.querydir):
         image = _Query()
         image.siftpath = os.path.join(self.querydir, file)
-        image.setQueryCoord(info.getQuerySIFTCoord(file))
+        image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.JPG')
+        image.setSensorCoord(*info.getQuerySIFTCoord(file))
+        image.check()
         yield image
     return iter2()
 
