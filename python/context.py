@@ -117,8 +117,9 @@ class _Context(object):
 
   def pickleable(self):
     copy = self.copy()
-    copy.locator_function = None
-    copy.match_callback = None
+    for k,v in self.__dict__.items():
+      if type(v) == type(lambda:0):
+        copy.__setattr__(k, None)
     return copy
 
   @property
