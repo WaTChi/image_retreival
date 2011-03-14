@@ -16,7 +16,7 @@ C.params.update({
 
 C.max_matches_to_analyze = 5
 C.stop_on_homTrue = 1
-C.put_into_dirs = 0
+C.put_into_dirs = 1
 C.do_posit = 0
 C.dump_hom = 0
 

@@ -70,7 +70,7 @@ def skew_location(C, Q):
     return points
 
 def load_location(C, Q):
-    file = open(os.path.join(C.fuzzydir, Q.siftname.split("sift.txt")[0])+'.fuz')
+    file = open(os.path.join(C.fuzzydir, Q.name)+'.fuz')
     points = []
     for line in file:
         lat, lon = line.strip().split('\t')
