@@ -63,7 +63,7 @@ for f=1:M
     x = spacing/2 : spacing : (B-1/2)*spacing;
     
     % Get relative weighing via classify function bin expansion method
-    min_samp = 100;
+    min_samp = 20;
     weight = zeros(B,1);
     for b=1:B
         
@@ -87,6 +87,6 @@ for f=1:M
     hold on
     plot(x,prob2,'r')
     subplot(212)
-    semilogy(x,weight,'k')
+    plot(x,weight,'k')
     
 end

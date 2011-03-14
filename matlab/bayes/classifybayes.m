@@ -37,7 +37,7 @@ function [class,condP] = classifybayes(features,classifier,min_samp)
 % minimum trained samples; bins expand until each class sees min_samp
 % number of training samples in its associated bin
 if nargin < 3
-    min_samp = 100;
+    min_samp = 20;
 end
 
 % Get size parameters

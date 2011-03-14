@@ -1,0 +1,22 @@
+function [classifier] = collapsebayes(file,comp,naive)
+
+file = ['./bayes/classifier/',file];
+load(file)
+
+if naive
+    
+    M = length(classifier.spacing);
+    
+    for m=1:M
+        
+        classifier.spacing(m) = classifier.spacing(m) * comp(m);
+        K = ceil( size(classifier.bins{m},1) / comp(m) );
+        
+        bins = zeros(K,2);
+        for k=1:K
+            
+            bins(k,:) = sum( classifier.bins{m}(k*(comp(m)-1)+1:k*comp(m),:) , 1 )
+    
+else % 2D distribution
+    
+end

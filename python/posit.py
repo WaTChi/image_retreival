@@ -135,6 +135,9 @@ for file in util.getJPGFileNames(imgdir)[0:100]:
     #filter out ones w/o 3d points
     locsar = filter(lambda x: x[1], rawlocs.items())
 
+	print locsar[0]
+	assert false
+	
     print "num 3d pts: {0}".format(len(locsar))
     print "num tags in frustrum: {0}".format(len(tags))
 
