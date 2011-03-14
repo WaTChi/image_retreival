@@ -100,7 +100,7 @@ def rot_delta(m, correction=0):
 def find_corr(matches, hom=False, ransac_pass=True, data={}):
   if hom:
     if ransac_pass:
-      F, inliers = _find_corr(matches, MAX_PIXEL_DEVIATION=50, rotation_filter_only=False, ROT_THRESHOLD_RADIANS=30*np.pi/180)
+      F, inliers = _find_corr(matches, MAX_PIXEL_DEVIATION=50, rotation_filter_only=True, ROT_THRESHOLD_RADIANS=30*np.pi/180)
       matches = np.compress(inliers, matches)
     return (matches,) + _find_corr(matches, hom=True, data=data, MAX_PIXEL_DEVIATION=35, FALLBACK_PIXEL_DEVIATIONS=[15, 9, 5, 3, 1])
   else:

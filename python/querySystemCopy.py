@@ -4,7 +4,7 @@ import system
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query3'
+C.QUERY = 'query1'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -14,7 +14,7 @@ C.params.update({
   'confstring': '',
 })
 
-C.max_matches_to_analyze = 10
+C.max_matches_to_analyze = 5
 C.corrfilter_printed = 1
 C.do_posit = 0
 C.put_into_dirs = 1
