@@ -78,6 +78,7 @@ class _Context(object):
     self.match_callback = None
     self.dump_hom = 0
     self.ambiguity = 75
+    self.datasource = None
     self.matchdistance = 25
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
@@ -185,6 +186,7 @@ class _Context(object):
           image.jpgpath = os.path.join(a.basedir, a.jpg)
           image.setSensorCoord(a.lat, a.lon)
           image.check()
+          image.datasource = a
           yield image
       return iter0()
 

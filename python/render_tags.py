@@ -24,6 +24,9 @@ class ImageInfo:
       self.lat self.lon self.alt
       self.pitch self.yaw self.roll"""
 
+  def get_loc_dict(self):
+    return {'lat': self.lat, 'lon': self.lon, 'alt': self.alt}
+
   def get_pixel_location(self, pixel):
     out = self.get_pixel_locations([pixel])
     if out is None:
@@ -139,8 +142,6 @@ class TaggedImage:
 
   def map_tags_camera(self):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
-
-    THRESHOLD = 20.0 # meters
     tags = []
     possible_tags = self.get_frustum()
 
@@ -155,17 +156,36 @@ class TaggedImage:
 
     return tags
 
-    # add some distance debugging info from earthmine
-    debugtags = []
-    locs = self.source.get_pixel_locations(map(lambda t: t[1][1], tags))
-    if locs is None: # does not support
-      return tags
-
-    for (tag, (nulldist, pixel)) in tags:
-      dist = tag.xydistance(locs.get(pixel, {'lat': 9999, 'lon': 9999, 'alt': 9999}))
-      if dist < THRESHOLD:
-        debugtags.append((tag, (dist, pixel)))
-    return debugtags
+  def map_tags_culled(self, pixelmap):
+    THRESHOLD = 15.0 # meters
+    tags = self.map_tags_camera()
+    accepted = []
+    outside = []
+    bad = []
+    min_upper_bound = 0
+    obs = self.source.get_loc_dict()
+    for (tag, (_, pixel)) in tags:
+      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
+      if location is None:
+        if not geom.contains(pixel, self.image.size):
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+      else:
+        dist = tag.xydistance(location)
+        if dist < THRESHOLD:
+          accepted.append((tag, (_, pixel)))
+          min_upper_bound = max(min_upper_bound, tag.distance(obs))
+        elif not geom.contains(pixel, self.image.size):
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+    for (tag, (_, pixel)) in outside:
+      if tag.distance(obs) < min_upper_bound + THRESHOLD:
+        accepted.append((tag, (_, pixel)))
+      else:
+        accepted.append((tag, (15, pixel)))
+    return accepted + bad
 
   def map_tags_earthmine(self):
     "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
@@ -195,7 +215,7 @@ class TaggedImage:
       return info.distance(p[0].lat, p[0].lon, self.lat, self.lon)
     points.sort(key=dist, reverse=True) # draw distant first
     for tag, (dist, point) in points:
-      color = self.colordist(dist, 10.0)
+      color = self.colordist(dist, 30.0)
       size = int(150.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
@@ -218,8 +238,8 @@ class TaggedImage:
       for line in tag:
         draw.text((point[0] + off_x, point[1] + off_y), line, fill=color, font=font)
         off_y += max(size, MIN_SIZE)
-      if dist:
-        INFO('mapping tag at %f meters error' % dist)
+#      if dist:
+#        INFO('mapping tag at %f meters error' % dist)
     return image
 
   def draw(self, points, output):

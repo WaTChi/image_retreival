@@ -45,6 +45,9 @@ def constrain(point, screen):
   """Translates point so that it is within the screen."""
   return max(0, min(screen[0], point[0])), max(0, min(screen[1], point[1]))
 
+def contains(point, screen):
+  return point == constrain(point, screen)
+
 def distance3d(d1, d2):
   """Finds distance between {'lat': deg, 'lon': deg, 'alt': meters} points."""
   x1, y1, z1 = d1['lat'], d1['lon'], d1['alt']

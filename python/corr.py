@@ -198,7 +198,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=False, showtag=True, showHom=False):
   max_image_size = (768,512)
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
@@ -237,7 +237,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
   db = render_tags.TagCollection(os.path.expanduser(os.path.join(C.maindir, 'Research/app/dev/tags.csv')))
   source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, db)
-  points = img.map_tags_camera()
+  points = img.map_tags_culled(C.pixelmap.open(db_img[:-4] + 'sift.txt'))
   proj_points = []
   H = np.matrix(np.asarray(H))
   tagmatches = []
@@ -258,7 +258,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
       g['query'][1]*=scale
 
   # confusing geometry. x and y switch between the reprs.
-  for (tag, (nulldist, pixel)) in points:
+  for (tag, (dist, pixel)) in points:
     x = pixel[1]
     y = pixel[0]
     dest = H*np.matrix([x,y,1]).transpose()
@@ -270,7 +270,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
       dest = (0,0)
     tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
     dest = (dest[1]*scale, dest[0]*scale)
-    proj_points.append((tag, (0, dest)))
+    proj_points.append((tag, (dist, dest)))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
