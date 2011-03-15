@@ -1,4 +1,4 @@
-qDir = 'Z:\query4-matlab\';
+qDir = 'Z:\query1\';
 
 % Get a list of queries
 query = struct2cell(dir(qDir));

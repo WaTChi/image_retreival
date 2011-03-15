@@ -217,7 +217,7 @@ def writeGridCoords(center = (37.872436,-122.272609), fname='/home/zhangz/shiraz
 
 def writeQueryCoords(querydir, fname):
     """writes coordinates for all querysift in path into a file fname for use in google earth"""
-    if not os.path.exists(path):
+    if not os.path.exists(querydir):
         print "invalid path"
         return
     f = open(fname, "w")

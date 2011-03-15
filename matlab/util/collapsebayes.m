@@ -27,7 +27,7 @@ if naive
     
 else % 2D distribution
     
-    file = ['./bayes_future/classifier/',file];
+    file = ['./bayes/classifier/',file];
     load(file)
     
     classifier.spacing = classifier.spacing .* comp;

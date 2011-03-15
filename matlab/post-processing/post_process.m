@@ -31,10 +31,15 @@ function [results] = post_process(method,reset)
 %                           - If 'bayes' is chosen, the 'xyz' parameter
 %                             refers to which features will be used in the
 %                             bayes decision.
+%                               - 'f' for number of query features
 %                               - 'd' for distance
 %                               - 'v' for vote
 %                           - e.g. 'dv' decides based on distance and vote
 %                             while 'v' is based on vote only
+%       .featdiv:       Query number of feature divisions for classifier.
+%                       - e.g. featdiv = [1000 3000] splits queries up into
+%                         those with fewer than 1000 features, those with
+%                         more than 3000, and those between 1000 and 3000.
 %       .distribution:  Noisy location distribution. Currently supports:
 %           'exact-':   Using the camera GPS coordinate only
 %           'unif-x':   Generates noisy locations in a uniform distribution
@@ -204,7 +209,7 @@ for k=1:nq
 
             % Post process the features parameters to get a final ranking
             param = [cand_dist,cand_vote];
-            [cand_nres,~,s] = rankNcand(cand,param,method,ntop);
+            [cand_nres,~,s] = rankNcand(cand,param,method,nfeat,ntop);
             
             % Check for matches
             m = zeros(ntop,1);

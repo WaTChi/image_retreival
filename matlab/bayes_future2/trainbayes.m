@@ -35,7 +35,7 @@ function [classifier] = trainbayes(features,classes,classifier_info,weights)
 %   classifier: Structure with the following elements...
 %       .spacing:   1xM vector of bin spacings for each feature
 %       .nsamps:    1xC vector containing the number of training samples in
-%                       each class:     prios = nsamps / sum(nsamps)
+%                       each class:     priors = nsamps / sum(nsamps)
 %       .bins:      1xM cell array of distribution counts. Cells contain...
 %                   - B(m) x C vector containing the counts of each
 %                     training sample in each bin for each class
@@ -55,68 +55,54 @@ if isstruct(classifier_info)
     classifier = classifier_info;
     if ~isfield(classifier,'nsamps')
         classifier.nsamps = zeros(1,C);
-        classifier.bins = cell(1,M);
-        classifier.bins(:) = {zeros(0,C)};
+        classifier.bins = zeros(0,0,C);
     end
     C = length(classifier.nsamps);
     M = length(classifier.spacing);
 else % numberic vector
     classifier.spacing = classifier_info;
     classifier.nsamps = zeros(1,C);
-    classifier.bins = cell(1,M);
-    classifier.bins(:) = {zeros(0,C)};
+    classifier.bins = zeros(0,0,C);
 end
 
-% Iterate through features to update classifier
-for m=1:M
-    
-    % Get feature specifics
-    spacing = classifier.spacing(m);
-    try
-    bins = classifier.bins{m};
-    catch e
-        classifier.bins
-        throw(e)
-    end
-    B = size(bins,1);
-    feat = features(:,m);
-    
-    % Update the size of bins if necessary
-    if max(feat) > B*spacing
-        B = ceil(max(feat)/spacing);
-        bins(end+1:B,:) = 0;
-    end
-    
-    % Iterate through each class to update classifier
-    for c=1:C
-        
-        % Get class features
-        cidx = ( c == classes );
-        f = feat(cidx);
-        
-        % Update classifier if there are features associated with class
-        if ~isempty(f)
-            
-            % Get weights and number of features
-            w = weights(cidx);
-            nf = length(f);
+M = 2; features = features(:,1:M);
 
-            % Get feature bins and accumulate results
-            fbin = ceil(f/spacing);
-            b = 1:B;
-            bin_add = double( repmat(fbin,[1,B]) == repmat(b,[nf,1]) )' * w;
-            bins(:,c) = bins(:,c) + bin_add;
+% Get feature specifics
+spacing = classifier.spacing;
+bins = classifier.bins;
+B = size(bins); B = B(1:M);
+feat = features;
 
-            % Add to nsamps if the first iteration
-            if m==1
-                classifier.nsamps(c) = classifier.nsamps(c) + sum(w);
-            end
-            
-        end
-        
-    end
-    
-    % Update classifier
-    classifier.bins{m} = bins;
-        
+% Update the size of bins if necessary
+try
+    B = max( B , ceil(max(feat,[],1)./spacing) );
+catch e
+    B
+    size(feat)
+    spacing
+    throw(e)
 end
+bins(end+1:B(1),end+1:B(2),:) = 0;
+
+% Iterate through each class to update classifier
+for c=1:C
+    
+    cidx = find( c == classes )';
+    % Update classifier if there are features associated with class
+    for i=cidx
+        
+        % Get feature and weight
+        f = feat(i,:);
+        w = weights(i);
+        
+        % Get feature bin
+        fbin = max(1,min(ceil(f./spacing),B));
+        bins(fbin(1),fbin(2),c) = bins(fbin(1),fbin(2),c) + w;
+        classifier.nsamps(c) = classifier.nsamps(c) + w;
+
+    end
+
+end
+
+% Update classifier
+classifier.bins = bins;

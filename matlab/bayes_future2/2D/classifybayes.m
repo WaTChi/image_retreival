@@ -35,10 +35,17 @@ function [class,condP] = classifybayes(features,classifier,min_samp)
 %               feature sample : ones(J,1) == sum(condP,2)
 
 % minimum trained samples; bins expand until each class sees min_samp
-% number of training samples in its associated bin
+% number of training samples in its associated bin (as fraction of total
+% samples)
 if nargin < 3
-    min_samp = 20;
+    min_samp = 100;
 end
+total = sum(classifier.nsamps);
+
+% Get bin information
+bins = classifier.bins;
+sp = classifier.spacing;
+B = size(bins); B = B(1:2);
 
 % Get size parameters
 [J,M] = size(features);
@@ -58,32 +65,39 @@ for j=1:J
     % Initialize the likelihoods with the priors
     prob = nsamps / sum(nsamps);
     
-    % Iterate through each known feature and update the likelihoods
-    feat_idx = find(isfinite(features(j,:))); % NaN indicates unknown
-    for f = feat_idx
-        
-        % Get the spacing and bins
-        bins = classifier.bins{f};
-        B = size(bins,1);
-        sp = classifier.spacing(f);
-        
-        % Get the feature value and associated bin
-        x = features(j,f);
-        b = max(min(ceil(x/sp),B),1);
-        
-        % Find the size of the bin necessary to satisfy min_samp
-        sb = b; lb = b; % small and large bins
-        count = sum( bins(sb:lb,:) , 1 );
-        while sum(count) < min_samp
-            sb = max(1,sb-1);
-            lb = min(B,lb+1);
-            count = sum( bins(sb:lb,:) , 1 );
-        end
-        
-        % Factor in feature conditional probability
-        prob = prob .* ( count ./ nsamps );
-        
+    % Get features and associated bins
+    f1 = features(j,1);
+    if isnan(f1)
+        sb1 = 1; lb1 = B(1);
+    else
+        sb1 = max(min(ceil(f1/sp(1)),B(1)),1); lb1 = sb1;
     end
+    f2 = features(j,2);
+    if isnan(f2)
+        sb2 = 1; lb2 = B(2);
+    else
+        sb2 = max(min(ceil(f2/sp(2)),B(2)),1); lb2 = sb2;
+    end
+    
+    % Expand bin region to satisfy min_samp
+    frct1 = (lb1-sb1+1)/B(1);
+    frct2 = (lb2-sb2+1)/B(2);
+    count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
+    while sum(count) < min_samp % * total / (frct1*frct2)
+        frct1 = (lb1-sb1+1)/B(1);
+        frct2 = (lb2-sb2+1)/B(2);
+        if frct2 > frct1
+            sb1 = max(1,sb1-1);
+            lb1 = min(B(1),lb1+1);
+        else
+            sb2 = max(1,sb2-1);
+            lb2 = min(B(2),lb2+1);
+        end
+        count = reshape( sum( sum( bins(sb1:lb1,sb2:lb2,:) , 1 ) , 2 ) , [1,2] );
+    end
+    
+    % Factor in feature conditional probability
+    prob = prob .* ( count ./ nsamps );
     
     % Get the class and normalize the likelihoods to get condP
     [~,class(j)] = max(prob);
