@@ -11,6 +11,7 @@ from reader import get_reader
 import random
 import numpy as np
 import geom
+import util_cs188
 import cv
 import os
 
@@ -19,6 +20,12 @@ FALLBACK_PIXEL_DEVIATIONS = [2,1]
 CONFIDENCE_LEVEL = .9999999
 BAD_HOMOGRAPHY_DET_THRESHOLD = .005
 ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
+
+def plusminus(i, m):
+  if random.random() < .5:
+    return i + m
+  else:
+    return i - m
 
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
@@ -73,14 +80,14 @@ class CameraModel:
     self.roll = source.roll
 
   def as_array(self):
-    return [self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll, self.focal_length]
+    return (self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll, self.focal_length - 500)
 
   def evaluator(self, map3d, matches):
     best = [9999999]
     def euclidean_error_function(arr):
       error = 0.0
-      buf = []
       ctr = 0
+      buf = []
       for m in matches:
         d, q = m['db'], m['query']
         feature = map3d[int(d[0]), int(d[1])]
@@ -89,53 +96,69 @@ class CameraModel:
         ctr += 1
         pz, px = geom.lltom(arr[0], arr[1], feature['lat'], feature['lon'])
         py = feature['alt'] - arr[2]
-        x, y, z = geom.camera_transform(px, py, pz, *arr[3:6])
+        x, y, z = geom.camera_transform(px, py, pz, arr[3], arr[4], arr[5])
         coord = geom.project2d(x, y, z, arr[6])
         pixel = geom.center(coord, self.imsize)
-        buf.append(((pixel[0] - q[0])**2 + (pixel[1] - q[1])**2)**0.5)
-      buf = buf[:len(buf)*2/3+1]
-      buf.sort()
-      error = sum(buf)
-      ctr = len(buf)
+        error += ((pixel[0] - q[0])**2 + (pixel[1] - q[1])**2)**0.5
+        buf.append((q[0], q[1]))
+      print
+      for x,y in buf:
+        print x,y
+      print
       if error < best[0]:
         best[0] = min(error, best[0])
-        print arr
-        print best[0]/ctr
+#        print best[0]/ctr
+#        INFO("moved %f meters" % info.distance(self.lat, self.lon, arr[0], arr[1]))
       return error/ctr
     return euclidean_error_function
 
-  def plusminus(self, i, m):
-    if random.random() < .5:
-      return i + m
-    else:
-      return i - m
-
   def mutate(self, args):
     meter = 1/1e5
-    return [plusminus(args.lat, meter), plusminus(args.lon, meter), plusminus(args.alt, 1), plusminus(args.pitch, 1), plusminus(args.yaw, 1), plusminus(args.roll, 1), plusminus(args.focal_length, 5)]
+    deg = 1
+    return (plusminus(args[0], meter), plusminus(args[1], meter), plusminus(args[2], deg), plusminus(args[3], deg), plusminus(args[4], deg), plusminus(args[5], deg), plusminus(args[6], 10))
+
+  def setlat(self, args, delta):
+    return (args[0] + delta, args[1], args[2], args[3], args[4], args[5], args[6])
+
+  def trysomething(self, evaluator):
+    meter = 1/1e5
+    for i in range(2):
+      delta = i*meter/10.0
+      pt = self.setlat(self.as_array(), delta)
+      print delta, evaluator(pt)
 
   def man_opt(self, evaluator):
     best, best_score = self.as_array(), evaluator(self.as_array())
-    for i in range(100):
-      candidate = self.mutate(best)
-      score = evaluator(candidate)
+    closed = set()
+    closed.add(best)
+    pq = util_cs188.PriorityQueue()
+    pq.push(best, best_score)
+    while not pq.isEmpty():
+      score, x = pq.pop()
       if score < best_score:
-        best = candidate
+        best = x
         best_score = score
-        print score
+        print best_score
+      for i in range(5):
+        candidate = self.mutate(x)
+        if candidate in closed:
+          continue
+        closed.add(candidate)
+        score = evaluator(candidate)
+        pq.push(candidate, score)
     return best
 
   def scipy_opt(self, evaluator):
     INFO("*** SCIPY BEGIN ***")
     arr = scipy.optimize.anneal(evaluator, self.as_array())
-    INFO("moved %f meters" % info.distance(self.lat, self.lon, arr[0], arr[1]))
     return arr
 
 def compute_pose(C, matches, dbimgpath, dbsiftpath):
   info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
   source = render_tags.EarthmineImageInfo(dbimgpath, info)
   model = CameraModel(source)
-  print model.man_opt(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
+  model.trysomething(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
+  exit()
 
 MAX_SPATIAL_ERROR = 0
 def getSpatiallyOrdered(matches, axis, inliers):

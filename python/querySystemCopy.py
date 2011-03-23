@@ -20,7 +20,7 @@ C.put_into_dirs = 0
 C.do_posit = 0
 C.dump_hom = 0
 C.ransac_min_filt = 1
-C.selection = ['8842']
+C.selection = ['8852']
 
 with system.MultiprocessExecution():
   system.characterize(C)

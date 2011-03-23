@@ -347,6 +347,9 @@ def characterize(C):
 
     end = time.time()
     elapsed = end - start
+    if not count:
+      print "Query set empty!"
+      return results, 0
     if C.verbosity > 0:
         print "total time:{0}, avg time:{1}".format(elapsed, elapsed / count)
     total_count = g_count + y_count + r_count + b_count + o_count
