@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from config import *
-import random
 import pyflann
 import time
+import info
 import Image, ImageDraw
 import render_tags
 import scipy.optimize
@@ -63,6 +63,7 @@ def rematch(C, Q, dbsift):
 class CameraModel:
   def __init__(self, source):
     self.focal_length = source.focal_length
+    self.imsize = source.image.size
     self.lat = source.lat
     self.lon = source.lon
     self.alt = source.alt
@@ -71,18 +72,42 @@ class CameraModel:
     self.roll = source.roll
 
   def as_array(self):
-    return [self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll]
+    return [self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll, self.focal_length]
 
-  def evaluator(self, 2d_to_3d, matches):
-    for m in matches:
-      d, q = m['db'], m['query']
-      feature = 2d_to_3d[int(d[0]), int(d[1])]
-      pz, px = geom.lltom(self.lat, self.lon, feature['lat'], feature['lon'])
-# when I take the old matches and project them onto the new pts I should get the matches['query'] coords
-    pass
+  def evaluator(self, map3d, matches):
+    best = [9999999]
+    def euclidean_error_function(arr):
+      error = 0.0
+      buf = []
+      ctr = 0
+      for m in matches:
+        d, q = m['db'], m['query']
+        feature = map3d[int(d[0]), int(d[1])]
+        if not feature:
+          continue
+        ctr += 1
+        pz, px = geom.lltom(arr[0], arr[1], feature['lat'], feature['lon'])
+        py = feature['alt'] - arr[2]
+        x, y, z = geom.camera_transform(px, py, pz, *arr[3:6])
+        coord = geom.project2d(x, y, z, arr[6])
+        pixel = geom.center(coord, self.imsize)
+        buf.append(((pixel[0] - q[0])**2 + (pixel[1] - q[1])**2)**0.5)
+      buf = buf[:len(buf)*2/3+1]
+      buf.sort()
+      error = sum(buf)
+      ctr = len(buf)
+      if error < best[0]:
+        best[0] = min(error, best[0])
+        print arr
+        print best[0]/ctr
+      return error/ctr
+    return euclidean_error_function
 
   def optimized(self, evaluator):
-    return scipy.optimize.fmin(evaluator, self.as_array())
+    INFO("*** SCIPY BEGIN ***")
+    arr = scipy.optimize.anneal(evaluator, self.as_array())
+    INFO("moved %f meters" % info.distance(self.lat, self.lon, arr[0], arr[1]))
+    return arr
 
 def compute_pose(C, matches, dbimgpath, dbsiftpath):
   info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
@@ -230,8 +255,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=False, showtag=True, showHom=False):
-  max_image_size = (768,512)
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
   b = Image.open(db_img)

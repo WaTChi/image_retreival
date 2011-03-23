@@ -190,7 +190,11 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         # find homography
         rsc_matches, H, inliers = corr.find_corr(matches, hom=True, ransac_pass=True, data=data)
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
-        u = corr.count_unique_matches(np.compress(inliers, rsc_matches))
+        u = corr.count_unique_matches(rsc_inliers)
+
+        # compute pose
+        if data.get('success'):
+          corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
           # draw picture
