@@ -4,7 +4,6 @@
 import os
 import os.path
 import query
-from reader import get_reader
 from config import INFO
 import posit
 
@@ -181,7 +180,6 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matches = db_matches
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
-        start = time.time()
         matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
@@ -192,9 +190,9 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-        # compute pose
-        if data.get('success'):
-          corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
+#        # compute pose [experimental]
+#        if data.get('success'):
+#          corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
           # draw picture

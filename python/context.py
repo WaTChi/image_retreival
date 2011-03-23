@@ -80,6 +80,7 @@ class _Context(object):
     self.ambiguity = 75
     self.datasource = None
     self.matchdistance = 25
+    self.selection = None
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
     self.resultsdir = os.path.expanduser('~/topmatches')
@@ -181,6 +182,16 @@ class _Context(object):
         os.makedirs(self.resultsdir)
 
   def iter_queries(self):
+    for Q in self.iter_queries_unfiltered():
+      if not self.selection:
+        yield Q
+      else:
+        for s in self.selection:
+          if s in Q.name:
+            yield Q
+            break
+
+  def iter_queries_unfiltered(self):
     """Returns iter over _Query for files in query"""
     if self.QUERY == 'query4':
       def iter0():

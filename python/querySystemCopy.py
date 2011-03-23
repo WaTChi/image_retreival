@@ -20,9 +20,9 @@ C.put_into_dirs = 0
 C.do_posit = 0
 C.dump_hom = 0
 C.ransac_min_filt = 1
-#C.match_callback = system.dump_combined_matches
+C.selection = ['8842']
 
-#with system.MultiprocessExecution():
-system.characterize(C)
+with system.MultiprocessExecution():
+  system.characterize(C)
 
 # vim: et sw=2
