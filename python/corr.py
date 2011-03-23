@@ -6,8 +6,10 @@ import pyflann
 import time
 import Image, ImageDraw
 import render_tags
+import scipy.optimize
 from reader import get_reader
 import numpy as np
+import geom
 import cv
 import os
 
@@ -57,6 +59,36 @@ def rematch(C, Q, dbsift):
       matches.append(atom)
   INFO_TIMING("rematch took %f" % (time.time() - start))
   return matches
+
+class CameraModel:
+  def __init__(self, source):
+    self.focal_length = source.focal_length
+    self.lat = source.lat
+    self.lon = source.lon
+    self.alt = source.alt
+    self.pitch = source.pitch
+    self.yaw = source.yaw
+    self.roll = source.roll
+
+  def as_array(self):
+    return [self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll]
+
+  def evaluator(self, 2d_to_3d, matches):
+    for m in matches:
+      d, q = m['db'], m['query']
+      feature = 2d_to_3d[int(d[0]), int(d[1])]
+      pz, px = geom.lltom(self.lat, self.lon, feature['lat'], feature['lon'])
+# when I take the old matches and project them onto the new pts I should get the matches['query'] coords
+    pass
+
+  def optimized(self, evaluator):
+    return scipy.optimize.fmin(evaluator, self.as_array())
+
+def compute_pose(C, matches, dbimgpath, dbsiftpath):
+  info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
+  source = render_tags.EarthmineImageInfo(dbimgpath, info)
+  model = CameraModel(source)
+  print model.optimized(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
 
 MAX_SPATIAL_ERROR = 0
 def getSpatiallyOrdered(matches, axis, inliers):

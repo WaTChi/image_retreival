@@ -5,7 +5,7 @@ SIFTREGEXSTR = r'.*sift.txt$'
 CHOGREGEXSTR = r'.*chog.txt$'
 SURFREGEXSTR = r'.*surf.npy$'
 IMGREGEXSTR = r'.*.jpg$'
-  
+
 def moveLocation(lat1, lon1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
        along a great circle heading along the bearing"""

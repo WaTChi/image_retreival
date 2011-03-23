@@ -156,6 +156,10 @@ class _Context(object):
     return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
 
   @property
+  def infodir(self):
+	return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+
+  @property
   def querydir(self):
     return os.path.join(self.maindir, '%s/' % self.QUERY)
 

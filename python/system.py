@@ -82,6 +82,13 @@ def load_location(C, Q):
 def derive_key(closest_cells, name):
     return (name,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
 
+def distance_sort(C, Q, matches):
+  def extract_key(match):
+    line = match[0]
+    lat, lon = getlatlonfromdbimagename(C, line)
+    return (match[1], -info.distance(lat, lon, Q.query_lon, Q.query_lat))
+  return sorted(matches, key=extract_key, reverse=True)
+
 cache = {}
 def match(C, Q):
     # compute closest cells
@@ -114,7 +121,12 @@ def match(C, Q):
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
-    ranked = combine_ransac(comb_matches, C.ransac_min_filt)
+    ranked = distance_sort(C, Q, \
+      combine_ransac(comb_matches, C.ransac_min_filt))
+#    print Q.name
+#    print cells_in_range
+#    for i,r in enumerate(ranked):
+#      print i, r
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -169,6 +181,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matches = db_matches
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
+        start = time.time()
         matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
@@ -233,7 +246,7 @@ def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
     if C.QUERY == 'query1':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
-    elif C.QUERY == 'query3' or C.QUERY == 'queryeric':
+    elif C.QUERY == 'query3':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
         y += check_truth(Q.name, entry[0], groundtruthY.matches)
         r += check_truth(Q.name, entry[0], groundtruthR.matches)
@@ -263,7 +276,7 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
     def cellsetstr(cells):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
-    outputFilePath = os.path.join(C.matchdir, 'fuzz', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
