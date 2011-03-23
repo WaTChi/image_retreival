@@ -8,6 +8,7 @@ import Image, ImageDraw
 import render_tags
 import scipy.optimize
 from reader import get_reader
+import random
 import numpy as np
 import geom
 import cv
@@ -103,7 +104,28 @@ class CameraModel:
       return error/ctr
     return euclidean_error_function
 
-  def optimized(self, evaluator):
+  def plusminus(self, i, m):
+    if random.random() < .5:
+      return i + m
+    else:
+      return i - m
+
+  def mutate(self, args):
+    meter = 1/1e5
+    return [plusminus(args.lat, meter), plusminus(args.lon, meter), plusminus(args.alt, 1), plusminus(args.pitch, 1), plusminus(args.yaw, 1), plusminus(args.roll, 1), plusminus(args.focal_length, 5)]
+
+  def man_opt(self, evaluator):
+    best, best_score = self.as_array(), evaluator(self.as_array())
+    for i in range(100):
+      candidate = self.mutate(best)
+      score = evaluator(candidate)
+      if score < best_score:
+        best = candidate
+        best_score = score
+        print score
+    return best
+
+  def scipy_opt(self, evaluator):
     INFO("*** SCIPY BEGIN ***")
     arr = scipy.optimize.anneal(evaluator, self.as_array())
     INFO("moved %f meters" % info.distance(self.lat, self.lon, arr[0], arr[1]))
@@ -113,7 +135,7 @@ def compute_pose(C, matches, dbimgpath, dbsiftpath):
   info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
   source = render_tags.EarthmineImageInfo(dbimgpath, info)
   model = CameraModel(source)
-  print model.optimized(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
+  print model.man_opt(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
 
 MAX_SPATIAL_ERROR = 0
 def getSpatiallyOrdered(matches, axis, inliers):
