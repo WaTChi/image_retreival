@@ -154,7 +154,7 @@ class CameraModel:
     return arr
 
 def compute_pose(C, matches, dbimgpath, dbsiftpath):
-  info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
+  info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4] + '.info')
   source = render_tags.EarthmineImageInfo(dbimgpath, info)
   model = CameraModel(source)
   model.trysomething(model.evaluator(C.pixelmap.open(dbsiftpath), matches))

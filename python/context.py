@@ -67,8 +67,10 @@ class _Context(object):
     self.QUERY = None # set before calling characterize()
     self.params = query.PARAMS_DEFAULT.copy()
     self.cacheEnable = 0 # instance-local caching of results
-    self.ransac_min_filt = 1
+    self.ransac_min_filt = 1 # takes precedence over max_filt
+    self.ransac_max_filt = 20
     self.do_posit = 0
+    self.solve_pnp = 0
     self.print_per = 1
     self.max_matches_to_analyze = 1
     self.stop_on_homTrue = 0

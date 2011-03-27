@@ -6,6 +6,7 @@ import os.path
 import query
 from config import INFO
 import posit
+import pnp
 
 try:
     if 'NUM_THREADS' in os.environ:
@@ -121,8 +122,7 @@ def match(C, Q):
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
     ranked = distance_sort(C, Q, \
-      combine_ransac(comb_matches, C.ransac_min_filt))
-#    print Q.name
+      combine_ransac(comb_matches, C))
 #    print cells_in_range
 #    for i,r in enumerate(ranked):
 #      print i, r
@@ -215,16 +215,20 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         ### POSIT ###
         if C.do_posit:
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
+
+        ### Perspective N-Point Problem ###
+        if C.solve_pnp:
+            pnp.solve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
         
 
-def combine_ransac(counts, min_filt=0):
+def combine_ransac(counts, C):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     filtered = {}
     bound = -1
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if num_filt > min_filt and (len(matches) < bound or num_filt > 20):
+      if num_filt > C.ransac_min_filt and (len(matches) < bound or num_filt > C.ransac_max_filt):
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
@@ -303,6 +307,7 @@ def characterize(C):
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
+        print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1
