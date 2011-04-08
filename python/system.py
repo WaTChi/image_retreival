@@ -190,15 +190,15 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-#        # compute pose [experimental]
-#        if data.get('success'):
-#          corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
+        # compute pose [experimental]
+        if data.get('success'):
+          elat, elon = corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
           try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath)
+            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, elat, elon)
           except IOError, e:
             INFO(e)
 

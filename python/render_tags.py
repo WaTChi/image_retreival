@@ -142,13 +142,13 @@ class TaggedImage:
       for y in range(0, self.image.size[1], stepy):
         yield (x,y)
 
-  def map_tags_camera(self):
+  def map_tags_camera(self, elat, elon):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
     tags = []
     possible_tags = self.get_frustum()
 
     for tag in possible_tags:
-      pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
+      pz, px = geom.lltom(elat, elon, tag.lat, tag.lon)
       py = tag.alt - self.alt;
       x, y, z = geom.camera_transform(px, py, pz, self.pitch, self.yaw, self.roll)
       coord = geom.project2d(x, y, z, self.source.focal_length)
@@ -158,9 +158,9 @@ class TaggedImage:
 
     return tags
 
-  def map_tags_ocs(self, pixelmap, C):
+  def map_tags_ocs(self, pixelmap, C, elat, elon):
 
-    tags = self.map_tags_camera()
+    tags = self.map_tags_camera(elat, elon)
     accepted, bad = [], []
 
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
@@ -168,7 +168,7 @@ class TaggedImage:
     tree2d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C.infodir)
 
     for (tag, (_, pixel)) in tags:
-      if tag.isVisible2(self.source, tree2d):
+      if tag.isVisible2(self.source, tree2d, elat, elon):
         accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))

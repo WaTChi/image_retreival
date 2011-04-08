@@ -77,14 +77,14 @@ class Tag:
     ocs = self.getOcclusionSummary()
     return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, self.xydistance)
 
-  def isVisible2(self, source, tree2d):
-    numoccs = self.howOccluded(source, tree2d)
+  def isVisible2(self, source, tree2d, elat, elon):
+    numoccs = self.howOccluded(source, tree2d, elat, elon)
     return numoccs <= 2
 
   # info = EarthmineImageInfo
   # tree3d defines method:
   #     countHigherPtsNear(lat, lon, alt, threshold) -> int
-  def howOccluded(self, source, tree3d):
+  def howOccluded(self, source, tree3d, elat, elon):
 
     # subdivide line until granularity of 1 meter is reached
     def recur(lat1, lon1, alt1, lat2, lon2, alt2):
@@ -97,7 +97,7 @@ class Tag:
         return recur(lat1, lon1, alt1, mlat, mlon, malt) +\
                recur(lat2, lon2, alt2, mlat, mlon, malt)
 
-    return recur(self.lat, self.lon, self.alt, source.lat, source.lon, source.alt)
+    return recur(self.lat, self.lon, self.alt, elat, elon, source.alt)
 
   def xydistance(self, d2):
     x1, y1, z1 = self.lat, self.lon, self.alt
