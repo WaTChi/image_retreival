@@ -175,6 +175,48 @@ class TaggedImage:
 
     return accepted + bad
 
+  def map_tags_hybrid(self, pixelmap, C, elat, elon):
+    """Uses tag projection from estimated lat, lon.
+       Tags are filtered by using the image's pt cloud
+       when source tag is visible in the db image. Otherwise,
+       3d occlusion detection is performed in the cell."""
+    THRESHOLD = 15.0 # meters
+    tags_db = self.map_tags_camera(self.lat, self.lon)
+    tags = self.map_tags_camera(elat, elon)
+    accepted = []
+    outside = []
+    bad = []
+    min_upper_bound = 0
+    obs = self.source.get_loc_dict()
+    for ((tag, (_, pixel)), (tag2, (_2, dbpx))) in zip(tags, tags_db):
+      location = pixelmap[geom.picknearest(pixelmap, *dbpx)]
+      if location is None:
+        if not geom.contains(dbpx, self.image.size):
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+      else:
+        dist = tag.xydistance(location)
+        if dist < THRESHOLD:
+          accepted.append((tag, (_, pixel)))
+          min_upper_bound = max(min_upper_bound, tag.distance(obs))
+        elif not geom.contains(dbpx, self.image.size):
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+
+    # use ocs method for tags outside db image
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    tree2d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C.infodir)
+    for (tag, (_, pixel)) in outside:
+      if tag.isVisible2(self.source, tree2d, elat, elon):
+        accepted.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (15, pixel)))
+
+    return accepted + bad
+
   def map_tags_culled(self, pixelmap, *args):
     THRESHOLD = 15.0 # meters
     tags = self.map_tags_camera()

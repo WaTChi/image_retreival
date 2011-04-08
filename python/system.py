@@ -191,8 +191,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         u = corr.count_unique_matches(rsc_inliers)
 
         # compute pose [experimental]
-        if data.get('success'):
-          elat, elon = corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
+        elat, elon = corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
           # draw picture

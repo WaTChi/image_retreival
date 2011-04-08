@@ -347,7 +347,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, elat, 
   img = render_tags.TaggedImage(db_img, source, C.tags)
   points = img.map_tags_camera(img.lat, img.lon)
   proj_points = []
-  proj_points = img.map_tags_ocs(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
+  proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
