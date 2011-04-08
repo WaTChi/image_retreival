@@ -7,15 +7,17 @@ import query
 from config import INFO
 import posit
 
-try:
-    if 'NUM_THREADS' in os.environ:
-        NUM_THREADS = int(os.environ['NUM_THREADS'])
-    else:
-        import multiprocessing
-        NUM_THREADS = multiprocessing.cpu_count()
-except:
-    import multiprocessing
-    NUM_THREADS = multiprocessing.cpu_count()
+#try:
+#    if 'NUM_THREADS' in os.environ:
+#        NUM_THREADS = int(os.environ['NUM_THREADS'])
+#    else:
+#        import multiprocessing
+#        NUM_THREADS = multiprocessing.cpu_count()
+#except:
+#    import multiprocessing
+#    NUM_THREADS = multiprocessing.cpu_count()
+
+NUM_THREADS = 4 # ! for now
 
 import time
 
@@ -116,7 +118,7 @@ def match(C, Q):
         outputFilePaths.append(outputFilePath)
 
     # start query
-    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths)
+    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, NUM_THREADS)
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
@@ -178,12 +180,12 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
 
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
-        matches = db_matches
+#        matches = db_matches
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
-        matches.extend(db_matches)
+#        matches.extend(db_matches)
 
         # find homography
         rsc_matches, H, inliers = corr.find_corr(matches, hom=True, ransac_pass=True, data=data)
@@ -215,6 +217,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         ### POSIT ###
         if C.do_posit:
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
+#            posit.do_posit(C, Q, matches, matchsiftpath, matchimgpath)
         
 
 def combine_ransac(counts, min_filt=0):

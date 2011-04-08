@@ -15,14 +15,15 @@ C.params.update({
 })
 
 C.max_matches_to_analyze = 1
-C.stop_on_homTrue = 1
+C.stop_on_homTrue = 0
 C.put_into_dirs = 0
-C.do_posit = 0
+C.do_posit = 1
 C.dump_hom = 0
 C.ransac_min_filt = 1
-C.selection = ['8852']
+#C.selection = ['DSC_8852']
 
-with system.MultiprocessExecution():
-  system.characterize(C)
+system.characterize(C)
+#with system.MultiprocessExecution():
+#  system.characterize(C)
 
 # vim: et sw=2

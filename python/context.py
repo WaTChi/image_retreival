@@ -193,7 +193,7 @@ class _Context(object):
 
   def iter_queries_unfiltered(self):
     """Returns iter over _Query for files in query"""
-    if self.QUERY == 'query4':
+    if self.QUERY == 'query4' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()

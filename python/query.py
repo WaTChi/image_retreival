@@ -55,7 +55,7 @@ def searchtype(params):
     conf = ',%s' % params['confstring']
   return '%s,threshold=%dk,searchparam=%d%s%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], nn, vote_method, conf)
 
-def run_parallel(C, Q, cells, outputFilePaths, num_threads=cpu_count()):
+def run_parallel(C, Q, cells, outputFilePaths, num_threads=1):
   semaphore = threading.Semaphore(num_threads)
   threads = []
   INFO_TIMING("running queries with up to %d threads" % num_threads)
