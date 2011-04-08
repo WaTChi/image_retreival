@@ -83,6 +83,7 @@ class _Context(object):
     self.datasource = None
     self.matchdistance = 25
     self.selection = None
+    self.tagcompute = True # false is like NO_HOM, NO_DRAW
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
     self.resultsdir = os.path.expanduser('~/topmatches')
@@ -168,11 +169,11 @@ class _Context(object):
 
   @property
   def drawtopcorr(self):
-    return 'NO_DRAW' not in os.environ
+    return self.tagcompute and 'NO_DRAW' not in os.environ
 
   @property
   def compute_hom(self):
-    return 'NO_HOM' not in os.environ
+    return self.tagcompute and 'NO_HOM' not in os.environ
 
   def initdirs(self):
     """Creates and cleans result data directories."""
@@ -222,6 +223,8 @@ class _Context(object):
     def iter2():
       for file in util.getSiftFileNames(self.querydir):
         image = _Query()
+        if self.QUERY == 'query2':
+          image.pgm_scale = 512/2592.0
         image.siftpath = os.path.join(self.querydir, file)
         image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.JPG')
         image.setSensorCoord(*info.getQuerySIFTCoord(file))

@@ -1,8 +1,41 @@
 import info
 import os
 import math
+import geom
 import numpy as np
 import numpy.linalg as linalg
+from earthMine import ddObject, ddGetViews
+
+class OcclusionSummary:
+  def __init__(self, ocs):
+    self.ocs = ocs
+
+  def bestView(self, viewId, lat, lon, distance_f):
+    for o in self.ocs:
+      if o['id'] == viewId:
+        print "--> EXACT MATCH"
+        return o
+    p = []
+    for o in self.ocs:
+      dist = distance_f(o['loc'])
+      p.append((dist, o))
+    p.sort()
+    print "--> LAT LON DISTANCE MATCH", p[0][0]
+    return p[0][1]
+  
+  def hasNonOccludedView(self, viewId, lat, lon, distance_f):
+    p = []
+    for o in self.ocs:
+      dist = distance_f(o['loc'])
+      p.append((dist, o))
+    p.sort()
+    thresh = p[0][0] + 5
+    for d, o in p:
+      if d > thresh:
+        break
+      if not o['occ']:
+        return True
+    return False
 
 class Tag:
   """Representation of an EarthMine tag."""
@@ -20,6 +53,51 @@ class Tag:
       self.business = False
     self.kv = tuple(sorted(kv.iteritems()))
     self.filteredlen = None
+    self._ocs = None
+
+  def getOcclusionSummary(self):
+    if self._ocs:
+      return self._ocs
+    conn = ddObject()
+    result = ddGetViews(conn, self.lat, self.lon, radius=100, maxResults=100)
+    summary = []
+    for i, r in enumerate(result):
+      item = {
+                'loc': r['view-location'],
+                'dir': r['view-direction'],
+                'occ': r['is-known-occluded'],
+                'id': r['id']
+             }
+      summary.append(item)
+    self._ocs = OcclusionSummary(summary)
+    return self._ocs
+
+  # info = EarthMineImageInfo
+  def emIsVisible(self, source):
+    ocs = self.getOcclusionSummary()
+    return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, self.xydistance)
+
+  def isVisible2(self, source, tree2d):
+    numoccs = self.howOccluded(source, tree2d)
+    return numoccs <= 2
+
+  # info = EarthmineImageInfo
+  # tree3d defines method:
+  #     countHigherPtsNear(lat, lon, alt, threshold) -> int
+  def howOccluded(self, source, tree3d):
+
+    # subdivide line until granularity of 1 meter is reached
+    def recur(lat1, lon1, alt1, lat2, lon2, alt2):
+      mlat, mlon, malt = geom.midpoint(lat1, lon1, alt1, lat2, lon2, alt2)
+      if geom.distance3d6(self.lat, self.lon, self.alt, mlat, mlon, malt) < 4.0:
+        return 0
+      elif geom.distance3d6(lat1, lon1, alt1, lat2, lon2, alt2) < 1.0:
+        return tree3d.countHigherPtsNear(mlat, mlon, malt, 3.0)
+      else:
+        return recur(lat1, lon1, alt1, mlat, mlon, malt) +\
+               recur(lat2, lon2, alt2, mlat, mlon, malt)
+
+    return recur(self.lat, self.lon, self.alt, source.lat, source.lon, source.alt)
 
   def xydistance(self, d2):
     x1, y1, z1 = self.lat, self.lon, self.alt

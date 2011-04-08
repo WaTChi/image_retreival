@@ -11,6 +11,9 @@ def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""
   return min(map(lambda k: (euclideandist(k[0],k[1],x,y),k), dict2d))[1]
 
+def midpoint(lat1, lon1, alt1, lat2, lon2, alt2):
+  return (lat1 + lat2) / 2.0, (lon1 + lon2) / 2.0, (alt1 + alt2) / 2.0
+
 def lltom(lat1, lon1, lat2, lon2):
   """Returns lat2,lon2 relative to lat1,lon1 in meters.
      Does not handle wraparound at 360."""
@@ -48,12 +51,15 @@ def constrain(point, screen):
 def contains(point, screen):
   return point == constrain(point, screen)
 
+def distance3d6(x1, y1, z1, x2, y2, z2):
+  xydist = distance(x1, y1, x2, y2)
+  vert = abs(z1-z2)
+  return sqrt(xydist**2 + vert**2)
+
 def distance3d(d1, d2):
   """Finds distance between {'lat': deg, 'lon': deg, 'alt': meters} points."""
   x1, y1, z1 = d1['lat'], d1['lon'], d1['alt']
   x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
-  xydist = distance(x1, y1, x2, y2)
-  vert = abs(d1['alt']-d2['alt'])
-  return sqrt(xydist**2 + vert**2)
+  return distance3d6(x1, y1, z1, z2, y2, z2)
 
 # vim: et sw=2

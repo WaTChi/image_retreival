@@ -6,6 +6,8 @@ import Image, ImageDraw, ImageFont
 import os
 import earthMine
 import geom
+import reader
+import util
 import colorsys
 import math
 import info
@@ -156,7 +158,24 @@ class TaggedImage:
 
     return tags
 
-  def map_tags_culled(self, pixelmap):
+  def map_tags_ocs(self, pixelmap, C):
+
+    tags = self.map_tags_camera()
+    accepted, bad = [], []
+
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    tree2d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C.infodir)
+
+    for (tag, (_, pixel)) in tags:
+      if tag.isVisible2(self.source, tree2d):
+        accepted.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (999, pixel)))
+
+    return accepted + bad
+
+  def map_tags_culled(self, pixelmap, *args):
     THRESHOLD = 15.0 # meters
     tags = self.map_tags_camera()
     accepted = []
@@ -185,6 +204,11 @@ class TaggedImage:
         accepted.append((tag, (_, pixel)))
       else:
         accepted.append((tag, (15, pixel)))
+#    for (tag, (_, pixel)) in outside:
+#      if tag.emIsVisible(self.source):
+#        accepted.append((tag, (8, pixel)))
+#      else:
+#        bad.append((tag, (999, pixel)))
     return accepted + bad
 
   def map_tags_earthmine(self):

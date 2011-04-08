@@ -6,7 +6,7 @@ from context import DEFAULT_CONTEXT
 C = DEFAULT_CONTEXT.copy()
 
 def run():
-    C.QUERY = 'query4-matlab'
+    C.QUERY = 'query4'
     C.params.update({
       'checks': 1024,
       'trees': 1,
@@ -18,6 +18,7 @@ def run():
     C.print_per = 1000
     C.ambiguity = 75
     C.topnresults = [1,2,5,10]
+    C.tagcompute = False # false is like NO_HOM, NO_DRAW
 #    C.locator_function = system.skew_location
     C.locator_function = system.load_location
     C.match_callback = system.dump_combined_matches

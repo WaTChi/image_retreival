@@ -4,7 +4,7 @@ import system
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query4'
+C.QUERY = 'query2'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -18,13 +18,13 @@ C.max_matches_to_analyze = 1
 C.stop_on_homTrue = 1
 C.put_into_dirs = 0
 C.do_posit = 0
-C.solve_pnp = 1
+C.solve_pnp = 0
 C.dump_hom = 0
 C.ransac_max_filt = 20
 C.ransac_min_filt = 1
-C.selection = []
+C.selection = ['7764', '7771', '7772']
 
-#with system.MultiprocessExecution():
-system.characterize(C)
+with system.MultiprocessExecution():
+  system.characterize(C)
 
 # vim: et sw=2

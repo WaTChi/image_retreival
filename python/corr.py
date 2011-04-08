@@ -335,10 +335,9 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser(os.path.join(C.maindir, 'Research/app/dev/tags.csv')))
   source = render_tags.get_image_info(db_img)
-  img = render_tags.TaggedImage(db_img, source, db)
-  points = img.map_tags_culled(C.pixelmap.open(db_img[:-4] + 'sift.txt'))
+  img = render_tags.TaggedImage(db_img, source, C.tags)
+  points = img.map_tags_ocs(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
   proj_points = []
   H = np.matrix(np.asarray(H))
   tagmatches = []

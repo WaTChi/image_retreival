@@ -117,7 +117,7 @@ def match(C, Q):
         outputFilePaths.append(outputFilePath)
 
     # start query
-    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths)
+    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, NUM_THREADS)
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)

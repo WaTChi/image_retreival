@@ -9,6 +9,7 @@
 #  }
 
 from config import *
+import query
 import numpy as np
 import time
 import os
@@ -77,6 +78,22 @@ class FeatureReader(object):
       save_atomic(lambda d: np.save(d, dataset), dest)
     for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
+
+  def load_tree3d(self, directory, pixmap_dir):
+    """Returns a tree class against which queries of the form
+       tree2d.countPtsNear(lat, lon, threshold_meters)
+       can be performed efficiently."""
+    try:
+      INFO('begin 3d map load')
+      map3d = self.load_3dmap_for_cell(directory, None, None, None)
+    except:
+      INFO('exception... rereading 3d pts')
+      dataset, mapping = load_cell(directory)
+      INFO('building 3d map...')
+      map3d = self.load_3dmap_for_cell(directory, dataset, mapping, pixmap_dir)
+
+    amap3d = map3d.view((np.float64, 3))
+    return query.Tree3D(amap3d)
 
   def load_3dmap_for_cell(self, directory, dataset, mapping, pixmap_dir):
     """For the cell specified, return a vector v such that
