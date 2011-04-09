@@ -1,11 +1,37 @@
 # place for geometric utility functions
 from info import distance
 import numpy as np
+import scipy.optimize as sio
 import math
 from numpy import matrix, sin, cos, sqrt
 
 def euclideandist(x,y,x2,y2):
   return ((x-x2)**2 + (y-y2)**2)**.5
+
+# all units are in radians
+# finds minimum angle difference between t1,t2
+def anglediff(t1, t2):
+  a = math.e ** (1.0j * t1)
+  b = math.e ** (1.0j * t2)
+  c = b/a
+  return abs(np.arctan2(c.imag, c.real))
+
+# yaws = angles looking torwards the point
+# returns the angle a such that the sum of cubes of
+# anglediff(a, yaw_i) is minimized
+def compute_norm(yaws):
+  def f(t):
+    error = 0.0
+    for y in yaws:
+        error += anglediff(y,t)**3
+    return error
+  return sio.brute(f, [(0,2*math.pi)])[0]
+
+# yaw: yaw of potential viewer
+# return True if (vlat, vlon) is visible at an angle yaw
+def norm_compatible(norm, yaw):
+#  print norm*180/math.pi, anglediff(norm, yaw)*180/math.pi
+  return anglediff(norm, yaw)*180/math.pi < 90
 
 def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""

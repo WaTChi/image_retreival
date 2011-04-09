@@ -30,6 +30,7 @@ class OcclusionSummary:
       p.append((dist, o))
     p.sort()
     thresh = p[0][0] + 5
+    print "min occ distance", p[0][0]
     for d, o in p:
       if d > thresh:
         break
@@ -79,7 +80,7 @@ class Tag:
 
   def isVisible2(self, source, tree2d, elat, elon):
     numoccs = self.howOccluded(source, tree2d, elat, elon)
-    return numoccs <= 2
+    return numoccs <= 1
 
   # info = EarthmineImageInfo
   # tree3d defines method:

@@ -190,14 +190,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-        # compute pose [experimental]
-        elat, elon = corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
+
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
           try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, elat, elon)
+            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath)
           except IOError, e:
             INFO(e)
 
@@ -282,6 +281,7 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
     outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    print outputFilePath
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)

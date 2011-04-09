@@ -84,6 +84,7 @@ class _Context(object):
     self.matchdistance = 25
     self.selection = None
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
+    self.compute2dpose = False
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
     self.resultsdir = os.path.expanduser('~/topmatches')
