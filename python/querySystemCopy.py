@@ -4,7 +4,7 @@ import system
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query4'
+C.QUERY = 'query2'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -23,7 +23,12 @@ C.compute2dpose = 0
 C.dump_hom = 0
 C.ransac_max_filt = 20
 C.ransac_min_filt = 1
-#C.selection = ['7716']
+
+## Query3 tagging issues
+#C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']
+
+# Query2 tagging issues
+C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776']
 
 with system.MultiprocessExecution():
   system.characterize(C)

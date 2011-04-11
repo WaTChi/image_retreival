@@ -2,9 +2,11 @@ import os
 import info
 import Image
 import pixels
+import numpy as np
 import util
 import shutil
 import query
+from config import *
 
 from android import AndroidReader
 from tags import TagCollection
@@ -120,6 +122,17 @@ class _Context(object):
 
   def copy(self):
     return _Context(self)
+
+  def loadkey(self, key):
+    p = os.path.join(CACHE_PATH, key + '.npy')
+    if os.path.exists(p):
+      return np.load(p).item()
+    else:
+      return None
+
+  def savekey(self, key, value):
+    p = os.path.join(CACHE_PATH, key + '.npy')
+    save_atomic(lambda d: np.save(d, value), p)
 
   def pickleable(self):
     copy = self.copy()

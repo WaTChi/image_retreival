@@ -29,8 +29,7 @@ class OcclusionSummary:
       dist = distance_f(o['loc'])
       p.append((dist, o))
     p.sort()
-    thresh = p[0][0] + 5
-    print "min occ distance", p[0][0]
+    thresh = 30
     for d, o in p:
       if d > thresh:
         break
@@ -56,31 +55,41 @@ class Tag:
     self.filteredlen = None
     self._ocs = None
 
-  def getOcclusionSummary(self):
+  def getOcclusionSummary(self, C):
     if self._ocs:
       return self._ocs
-    conn = ddObject()
-    result = ddGetViews(conn, self.lat, self.lon, radius=100, maxResults=100)
-    summary = []
-    for i, r in enumerate(result):
-      item = {
-                'loc': r['view-location'],
-                'dir': r['view-direction'],
-                'occ': r['is-known-occluded'],
-                'id': r['id']
-             }
-      summary.append(item)
-    self._ocs = OcclusionSummary(summary)
+    radius = 100
+    maxResults = 100
+    key = "%f,%f,%d,%d.views" % (self.lat, self.lon, radius, maxResults)
+    val = C.loadkey(key)
+    if val:
+      self._ocs = val
+    else:
+      conn = ddObject()
+      result = ddGetViews(conn, self.lat, self.lon, radius=radius, maxResults=maxResults)
+      summary = []
+      for i, r in enumerate(result):
+        item = {
+                  'loc': r['view-location'],
+                  'dir': r['view-direction'],
+                  'occ': r['is-known-occluded'],
+                  'id': r['id']
+               }
+        summary.append(item)
+      self._ocs = OcclusionSummary(summary)
+      C.savekey(key, self._ocs)
     return self._ocs
 
   # info = EarthMineImageInfo
-  def emIsVisible(self, source):
-    ocs = self.getOcclusionSummary()
-    return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, self.xydistance)
+  def emIsVisible(self, source, C):
+    ocs = self.getOcclusionSummary(C)
+    def distance_f(oloc):
+      return info.distance(source.lat, source.lon, oloc['lat'], oloc['lon'])
+    return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, distance_f)
 
   def isVisible2(self, source, tree2d, elat, elon):
     numoccs = self.howOccluded(source, tree2d, elat, elon)
-    return numoccs <= 1
+    return numoccs <= 0
 
   # info = EarthmineImageInfo
   # tree3d defines method:
@@ -93,7 +102,7 @@ class Tag:
       if geom.distance3d6(self.lat, self.lon, self.alt, mlat, mlon, malt) < 4.0:
         return 0
       elif geom.distance3d6(lat1, lon1, alt1, lat2, lon2, alt2) < 1.0:
-        return tree3d.countHigherPtsNear(mlat, mlon, malt, 3.0)
+        return tree3d.countHigherPtsNear(mlat, mlon, malt, 2.0)
       else:
         return recur(lat1, lon1, alt1, mlat, mlon, malt) +\
                recur(lat2, lon2, alt2, mlat, mlon, malt)

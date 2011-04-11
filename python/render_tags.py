@@ -163,13 +163,13 @@ class TaggedImage:
 
     return tags
 
-  def map_tags_ocs(self):
+  def map_tags_ocs(self, C):
 
     tags = self.map_tags_camera()
     accepted, bad = [], []
 
     for (tag, (_, pixel)) in tags:
-      if tag.emIsVisible(self.source):
+      if tag.emIsVisible(self.source, C):
         accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
@@ -180,14 +180,12 @@ class TaggedImage:
     """Uses tag projection from estimated lat, lon.
        Tags are filtered by using the image's pt cloud
        when source tag is visible in the db image. Otherwise,
-       3d occlusion detection is performed in the cell."""
+       3d occlusion detection is performed."""
     THRESHOLD = 15.0 # meters
-    tags = self.map_tags_camera(self.lat, self.lon)
+    tags = self.map_tags_camera(elat, elon)
     accepted = []
     outside = []
     bad = []
-    min_upper_bound = 0
-    obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
       location = pixelmap[geom.picknearest(pixelmap, *pixel)]
       if location is None:
@@ -199,7 +197,6 @@ class TaggedImage:
         dist = tag.xydistance(location)
         if dist < THRESHOLD:
           accepted.append((tag, (_, pixel)))
-          min_upper_bound = max(min_upper_bound, tag.distance(obs))
         elif not geom.contains(pixel, self.image.size):
           outside.append((tag, (_, pixel)))
         else:
@@ -208,18 +205,64 @@ class TaggedImage:
     # use ocs method for tags outside db image
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
-    tree2d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C.infodir)
+    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
     for (tag, (_, pixel)) in outside:
-      if tag.distance(obs) < min_upper_bound:
-        accepted.append((tag, (_, pixel)))
-      elif tag.isVisible2(self.source, tree2d, elat, elon):
+      if tag.isVisible2(self.source, tree3d, elat, elon):
         accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (15, pixel)))
 
+    return accepted + bad
+
+  def map_tags_hybrid2(self, pixelmap, C):
+    """Uses tag projection from estimated lat, lon.
+       Tags are filtered by using the image's pt cloud
+       when source tag is visible in the db image. Otherwise,
+       a combination of earthmine occlusion queries and
+       database occlusion queries are performed."""
+    tags = self.map_tags_camera(self.lat, self.lon)
+    accepted = []
+    outside = []
+    bad = []
+    THRESHOLD = 5
+    for (tag, (_, pixel)) in tags:
+      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
+      if location is None:
+        if not geom.contains(pixel, self.image.size):
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+      else:
+        dist = tag.xydistance(location)
+        if dist < THRESHOLD:
+          accepted.append((tag, (_, pixel)))
+        elif not geom.contains(pixel, self.image.size):
+          outside.append((tag, (_, pixel)))
+        elif dist < THRESHOLD * 3:
+          outside.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (999, pixel)))
+
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    pm = reader.get_reader(C.params['descriptor'])\
+      .load_PointToViewsMap(cellpath, C.infodir)
+    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
+
+    for (tag, (_, pixel)) in outside:
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw)
+      emv = tag.emIsVisible(self.source, C)
+      vis2 = tag.isVisible2(self.source, tree3d, self.lat, self.lon)
+      if (vis or emv or vis2) and geom.norm_compatible(t, self.yaw):
+        accepted.append((tag, (_, pixel)))
+      elif vis2:
+        accepted.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (999, pixel)))
+
     return accepted # + bad
 
-  def map_tags_lookup(self, C, s):
+  def map_tags_lookup(self, C):
     tags = self.map_tags_camera()
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
@@ -230,14 +273,14 @@ class TaggedImage:
     accepted, bad = [], []
 
     for (tag, (_, pixel)) in tags:
-      vis, t = pm.hasView(C, tag.lat, tag.lon, s.lat, s.lon, s.yaw)
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw)
       if vis:
         accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
     return accepted + bad
 
-  def map_tags_culled(self, pixelmap):
+  def map_tags_culled(self, pixelmap, C):
     THRESHOLD = 15.0 # meters
     tags = self.map_tags_camera()
     accepted = []
@@ -266,11 +309,6 @@ class TaggedImage:
         accepted.append((tag, (_, pixel)))
       else:
         accepted.append((tag, (15, pixel)))
-#    for (tag, (_, pixel)) in outside:
-#      if tag.emIsVisible(self.source):
-#        accepted.append((tag, (8, pixel)))
-#      else:
-#        bad.append((tag, (999, pixel)))
     return accepted # + bad
 
   def map_tags_earthmine(self):

@@ -35,21 +35,20 @@ PARAMS_DEFAULT = {
 }
 
 class Tree3D:
-  def __init__(self, map3d):
+  def __init__(self, map3d, C, cellid):
     self.map3d = map3d
     self.flann = pyflann.FLANN()
     self.params = PARAMS_DEFAULT.copy()
     self.params['num_neighbors'] = 10
     self.params['checks'] = 4096
-    index = '/var/asdf/asdf/asdf' # TODO find place to save index
+    index = os.path.join(CACHE_PATH, "%s.tree3d.index" % cellid)
     if os.path.exists(index):
-      INFO('loading index')
       self.flann.load_index(index, map3d)
     else:
-      INFO('building index')
+      INFO('building index...')
       self.flann.build_index(map3d.view(), **self.params)
-      INFO('save index?')
-      # TODO save index
+      INFO('saving index...')
+      save_atomic(lambda d: self.flann.save_index(d), index)
 
   def countHigherPtsNear(self, mlat, mlon, malt, threshold):
     dists = []
@@ -73,7 +72,7 @@ class Tree3D:
         continue
       if meters < threshold:
         count += 1
-    return 1 if count > 0 else 0
+    return 1 if count > 2 else 0
 
 # I'm not actually sure if the distance function affects
 # index compatibility. Someone check please?

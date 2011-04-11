@@ -30,7 +30,6 @@ def compute_norm(yaws):
 # yaw: yaw of potential viewer
 # return True if (vlat, vlon) is visible at an angle yaw
 def norm_compatible(norm, yaw):
-#  print norm*180/math.pi, anglediff(norm, yaw)*180/math.pi
   return anglediff(norm, yaw)*180/math.pi < 90
 
 def picknearest(dict2d, x, y):

@@ -33,7 +33,6 @@ disc = lambda la: int(la/LOCATION_UNIT)
 
 # provides map from 2dpt -> earthmine views of point
 class PointToViewsMap(object):
-  SEARCH_RADIUS = 5
 
   def __init__(self, lookup_table):
     self.lookup_table = lookup_table
@@ -44,15 +43,15 @@ class PointToViewsMap(object):
       for dy in range(-di, di + 1):
         yield (k[0] + dx, k[1] + dy)
 
-  def _getViewStrs(self, lat, lon):
+  def _getViewStrs(self, lat, lon, rad=5):
     k0 = disc(lat), disc(lon)
     imgset = set()
-    for k in self._expandSet(k0, self.SEARCH_RADIUS):
+    for k in self._expandSet(k0, rad):
       imgset = imgset.union(self.lookup_table.get(k, set()))
     return imgset
 
-  def getViews(self, C, lat, lon):
-    for dbimg in self._getViewStrs(lat, lon):
+  def getViews(self, C, lat, lon, rad):
+    for dbimg in self._getViewStrs(lat, lon, rad):
       info = os.path.join(C.infodir, os.path.basename(dbimg)[:-8] + '.info')
       source = render_tags.EarthmineImageInfo(None, info)
       yield source
@@ -60,24 +59,21 @@ class PointToViewsMap(object):
   # return True if (lat, lon) is visible from (qlat, qlon, qyaw)
   # yaw is in radians
   def hasView(self, C, lat, lon, qlat, qlon, qyaw):
+    dist = distance(lat, lon, qlat, qlon)
+    rad = min(20, max(3, int(dist/10)))
 
     def similar(view):
-      return distance(view.lat, view.lon, qlat, qlon) < 20.0
-
-    def reallysimilar(view):
-      return distance(view.lat, view.lon, qlat, qlon) < 5.0
+      return distance(view.lat, view.lon, qlat, qlon) < 30.0
 
     def yawof(view):
       return view.yaw
 
-    views = list(self.getViews(C, lat, lon))
-    norm = geom.compute_norm([yawof(v) for v in views])
+    views = list(self.getViews(C, lat, lon, rad))
+#    print "dist is %d, rad is %d, nviews is %d" % (dist, rad, len(views))
+    closeyaws = map(lambda (k,v): v, sorted([(distance(v.lat, v.lon, qlat, qlon), yawof(v)) for v in views]))[:10]
+    norm = geom.compute_norm(closeyaws)
 
-    if any([reallysimilar(v) for v in views]):
-      return True, norm
-
-    return geom.norm_compatible(norm, qyaw) and\
-                 any([similar(v) for v in views]), norm
+    return any([similar(v) for v in views]), norm
 
 class FeatureReader(object):
   def __init__(self, name, dtype):
@@ -134,12 +130,12 @@ class FeatureReader(object):
     for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
 
-  def load_tree3d(self, directory, pixmap_dir):
+  def load_tree3d(self, directory, C):
     """Returns a tree class against which queries of the form
-       tree2d.countPtsNear(lat, lon, threshold_meters)
+       tree3d.countPtsNear(lat, lon, threshold_meters)
        can be performed efficiently."""
+    pixmap_dir = C.infodir
     try:
-      INFO('begin 3d map load')
       map3d = self.load_3dmap_for_cell(directory, None, None, None)
     except:
       INFO('exception... rereading 3d pts')
@@ -148,7 +144,7 @@ class FeatureReader(object):
       map3d = self.load_3dmap_for_cell(directory, dataset, mapping, pixmap_dir)
 
     amap3d = map3d.view((np.float64, 3))
-    return query.Tree3D(amap3d)
+    return query.Tree3D(amap3d, C, getcellid(directory))
 
   # these maps are on the order of 5MB in size
   # and contain ~100k entries

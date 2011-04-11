@@ -153,7 +153,7 @@ class CameraModel:
         score = evaluator(candidate)
         pq.push(candidate, score)
     INFO("moved %f meters" % (best[0]**2 + best[1]**2)**0.5)
-    print "dx", best[0], "dy", best[1]
+#    print "dx", best[0], "dy", best[1]
     meter = 1/1e5
     return (self.lat + best[0]*meter, self.lon + best[1]*meter)
 
@@ -350,12 +350,13 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
   img = render_tags.TaggedImage(db_img, source, C.tags)
   if C.compute2dpose:
     elat, elon = compute_pose(C, rsc_matches, db_img, matchsiftpath)
-    points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
+    points = img.map_tags_camera()
+    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
   else:
-    points = img.map_tags_lookup(C, source)
-#    points = img.map_tags_culled(C.pixelmap.open(db_img[:-4] + 'sift.txt'))
-#    points = img.map_tags_ocs()
-  proj_points = []
+    proj_points = []
+    points = img.map_tags_hybrid2(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
+#    points = img.map_tags_culled(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
+#    points = img.map_tags_ocs(C)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -374,20 +375,22 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       g['query'][0]*=scale
       g['query'][1]*=scale
 
-  # confusing geometry. x and y switch between the reprs.
-  for (tag, (dist, pixel)) in points:
-    x = pixel[1]
-    y = pixel[0]
-    dest = H*np.matrix([x,y,1]).transpose()
-    try:
-      dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
-    except ZeroDivisionError:
-      dest = (0,0)
-    except ValueError:
-      dest = (0,0)
-    tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
-    dest = (dest[1]*scale, dest[0]*scale)
-    proj_points.append((tag, (dist, dest)))
+  if not proj_points:
+    # transfer using H matrix
+    # confusing geometry. x and y switch between the reprs.
+    for (tag, (dist, pixel)) in points:
+      x = pixel[1]
+      y = pixel[0]
+      dest = H*np.matrix([x,y,1]).transpose()
+      try:
+        dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+      except ZeroDivisionError:
+        dest = (0,0)
+      except ValueError:
+        dest = (0,0)
+      tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
+      dest = (dest[1]*scale, dest[0]*scale)
+      proj_points.append((tag, (dist, dest)))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
