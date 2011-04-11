@@ -169,7 +169,7 @@ class TaggedImage:
     accepted, bad = [], []
 
     for (tag, (_, pixel)) in tags:
-      if tag.emIsVisible(self.source, C):
+      if tag.emIsVisible(self.source, C, 20):
         accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
@@ -215,8 +215,7 @@ class TaggedImage:
     return accepted + bad
 
   def map_tags_hybrid2(self, pixelmap, C):
-    """Uses tag projection from estimated lat, lon.
-       Tags are filtered by using the image's pt cloud
+    """Tags are filtered by using the image's pt cloud
        when source tag is visible in the db image. Otherwise,
        a combination of earthmine occlusion queries and
        database occlusion queries are performed."""
@@ -224,7 +223,8 @@ class TaggedImage:
     accepted = []
     outside = []
     bad = []
-    THRESHOLD = 5
+    CONS = False # conservative: more precision, less recall
+    THRESHOLD = 5 if CONS else 10
     for (tag, (_, pixel)) in tags:
       location = pixelmap[geom.picknearest(pixelmap, *pixel)]
       if location is None:
@@ -238,7 +238,7 @@ class TaggedImage:
           accepted.append((tag, (_, pixel)))
         elif not geom.contains(pixel, self.image.size):
           outside.append((tag, (_, pixel)))
-        elif dist < THRESHOLD * 3:
+        elif dist < THRESHOLD * 2:
           outside.append((tag, (_, pixel)))
         else:
           bad.append((tag, (999, pixel)))
@@ -247,20 +247,21 @@ class TaggedImage:
     cellpath = os.path.join(C.dbdir, cell)
     pm = reader.get_reader(C.params['descriptor'])\
       .load_PointToViewsMap(cellpath, C.infodir)
-    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
+#    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
 
     for (tag, (_, pixel)) in outside:
-      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw)
-      emv = tag.emIsVisible(self.source, C)
-      vis2 = tag.isVisible2(self.source, tree3d, self.lat, self.lon)
-      if (vis or emv or vis2) and geom.norm_compatible(t, self.yaw):
+#      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 20 if CONS else 30)
+      emv = tag.emIsVisible(self.source, C, 20 if CONS else 30)
+#      vis2 = tag.isVisible2(self.source, tree3d, self.lat, self.lon)
+#      if (vis or emv) and geom.norm_compatible(t, self.yaw):
+      if emv:
         accepted.append((tag, (_, pixel)))
-      elif vis2:
-        accepted.append((tag, (_, pixel)))
+#      elif not CONS and vis2:
+#        accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
 
-    return accepted # + bad
+    return accepted + bad
 
   def map_tags_lookup(self, C):
     tags = self.map_tags_camera()
@@ -273,7 +274,7 @@ class TaggedImage:
     accepted, bad = [], []
 
     for (tag, (_, pixel)) in tags:
-      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw)
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 20)
       if vis:
         accepted.append((tag, (_, pixel)))
       else:
@@ -340,7 +341,7 @@ class TaggedImage:
     points.sort(key=dist, reverse=True) # draw distant first
     for tag, (dist, point) in points:
       color = self.colordist(dist, 30.0)
-      size = int(150.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
+      size = int(300.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2

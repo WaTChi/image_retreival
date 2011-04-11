@@ -58,12 +58,12 @@ class PointToViewsMap(object):
 
   # return True if (lat, lon) is visible from (qlat, qlon, qyaw)
   # yaw is in radians
-  def hasView(self, C, lat, lon, qlat, qlon, qyaw):
+  def hasView(self, C, lat, lon, qlat, qlon, qyaw, thresh):
     dist = distance(lat, lon, qlat, qlon)
     rad = min(20, max(3, int(dist/10)))
 
     def similar(view):
-      return distance(view.lat, view.lon, qlat, qlon) < 30.0
+      return distance(view.lat, view.lon, qlat, qlon) < thresh
 
     def yawof(view):
       return view.yaw
