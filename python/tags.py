@@ -23,13 +23,12 @@ class OcclusionSummary:
     print "--> LAT LON DISTANCE MATCH", p[0][0]
     return p[0][1]
   
-  def hasNonOccludedView(self, viewId, lat, lon, distance_f):
+  def hasNonOccludedView(self, viewId, lat, lon, distance_f, thresh):
     p = []
     for o in self.ocs:
       dist = distance_f(o['loc'])
       p.append((dist, o))
     p.sort()
-    thresh = 30
     for d, o in p:
       if d > thresh:
         break
@@ -51,6 +50,9 @@ class Tag:
       del kv['name']
     else:
       self.business = False
+    self.name = kv.get('Name')
+    if not self.name:
+      self.name = kv.get('name')
     self.kv = tuple(sorted(kv.iteritems()))
     self.filteredlen = None
     self._ocs = None
@@ -81,11 +83,11 @@ class Tag:
     return self._ocs
 
   # info = EarthMineImageInfo
-  def emIsVisible(self, source, C):
+  def emIsVisible(self, source, C, thresh):
     ocs = self.getOcclusionSummary(C)
     def distance_f(oloc):
       return info.distance(source.lat, source.lon, oloc['lat'], oloc['lon'])
-    return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, distance_f)
+    return ocs.hasNonOccludedView(source.viewId, source.lat, source.lon, distance_f, thresh)
 
   def isVisible2(self, source, tree2d, elat, elon):
     numoccs = self.howOccluded(source, tree2d, elat, elon)
@@ -158,6 +160,12 @@ class Tag:
 
 class TagCollection:
   """Parses EarthMine's tag export format."""
+
+  def googlefmt(self):
+    with open("out.googleearth", 'w') as file:
+      for tag in self.tags:
+        print >>file, ",%s,%f,%f" % (tag.name, tag.lat, tag.lon)
+
   def __init__(self, taglist):
     self.tags = []
     if not os.path.exists(taglist):
