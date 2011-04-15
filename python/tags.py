@@ -230,4 +230,9 @@ class TagCollection:
       contained.append(tag)
     return contained
 
+  def output_to_gepath_format(self, outfile):
+    with open(outfile, 'w') as file:
+      for tag in self.tags:
+        print >>file, "%s,%s,%f,%f,%f" % (tag.name, tag.name, tag.lon, tag.lat, tag.alt)
+
 # vim: et sw=2
