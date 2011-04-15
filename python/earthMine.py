@@ -354,17 +354,20 @@ def LocationSubtract(view1, view2):
 
 #def tobearing(rad):
 #    return (math.degrees(rad) + 360) % 360
-#
-#def getbearing(view1, view2):
-#    """Takes two ddLocations and returns the initial bearing (in degrees) from
-#       view1 to view2 where 0 is north."""
-#    dLon = math.radians(view2["lon"]-view1["lon"])
-#    lat1 = math.radians(view1["lat"])
-#    lat2 = math.radians(view2["lat"])
-#    y = math.sin(dLon)*math.cos(lat2)
-#    x = math.cos(lat1)*math.sin(lat2) - \
-#        math.sin(lat1)*math.cos(lat2)*math.cos(dLon)
+
+def getbearing(view1, view2):
+    """Takes two ddLocations and returns the initial bearing (in degrees) from
+       view1 to view2 where 0 is north."""
+    dLon = math.radians(view2["lon"]-view1["lon"])
+    lat1 = math.radians(view1["lat"])
+    lat2 = math.radians(view2["lat"])
+    y = math.sin(dLon)*math.cos(lat2)
+    x = math.cos(lat1)*math.sin(lat2) - \
+        math.sin(lat1)*math.cos(lat2)*math.cos(dLon)
+    return math.degrees(math.atan2(y,x))
 #    return tobearing(math.atan2(y,x))
+
+
     
 def moveLocation(view1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1

@@ -68,7 +68,7 @@ def siftdistance(a, b):
   return distance(lat1, lon1, lat2, lon2)
 
 def distance(lat1, lon1, lat2, lon2):
-    """Gets distance between locations using spherical law of cosines"""
+    """Gets geographic distance between locations using spherical law of cosines"""
     if lat1 == lat2 and lon1 == lon2:
         return 0
     R = 6371e3
@@ -81,6 +81,17 @@ def distance(lat1, lon1, lat2, lon2):
                   * math.cos(lon2 - lon1))
     d = math.acos(p)*R
     return d
+
+def getbearing(lat1,long1, lat2, long2):
+    """Takes two locations and returns the initial bearing (in degrees) from
+       points1 to point2 where 0 is north."""
+    dLon = math.radians(long2-long1)
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+    y = math.sin(dLon)*math.cos(lat2)
+    x = math.cos(lat1)*math.sin(lat2) - \
+        math.sin(lat1)*math.cos(lat2)*math.cos(dLon)
+    return math.degrees(math.atan2(y,x))
     
 def moveCellsIf(path, lat, lon, radius):
     if not os.path.exists(path):

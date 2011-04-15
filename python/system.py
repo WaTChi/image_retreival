@@ -8,15 +8,17 @@ from config import INFO
 import posit
 import pnp
 
-try:
-    if 'NUM_THREADS' in os.environ:
-        NUM_THREADS = int(os.environ['NUM_THREADS'])
-    else:
-        import multiprocessing
-        NUM_THREADS = multiprocessing.cpu_count()
-except:
-    import multiprocessing
-    NUM_THREADS = multiprocessing.cpu_count()
+#try:
+#    if 'NUM_THREADS' in os.environ:
+#        NUM_THREADS = int(os.environ['NUM_THREADS'])
+#    else:
+#        import multiprocessing
+#        NUM_THREADS = multiprocessing.cpu_count()
+#except:
+#    import multiprocessing
+#    NUM_THREADS = multiprocessing.cpu_count()
+
+NUM_THREADS = 4 # ! for now
 
 import time
 
@@ -121,11 +123,11 @@ def match(C, Q):
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
+
+    #geometric consistency reranking
     ranked = distance_sort(C, Q, \
-      combine_ransac(comb_matches, C))
-#    print cells_in_range
-#    for i,r in enumerate(ranked):
-#      print i, r
+    combine_ransac(comb_matches, C.ransac_min_filt))
+#    combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -149,7 +151,7 @@ def match(C, Q):
     return stats, matchedimg, matches, ranked
 
 def getlatlonfromdbimagename(C, dbimg):
-    if C.QUERY == 'emeryville':
+    if C.QUERY == 'emeryville' or C.QUERY == 'cory' or C.QUERY == 'cory-25':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
@@ -176,9 +178,9 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             assert os.path.exists(matchimgpath)
         match = any(check_img(C, Q, ranked_matches[i-1]))
 
+#        matches = db_matches
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
-        matches = db_matches
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(C, Q, matchsiftpath)
 
@@ -246,9 +248,15 @@ def combine_ransac(counts, C):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
+def combine_vote(counts, min_filt=0):
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    def condense2(list):
+        return map(lambda x: (x[0][:-8], len(x[1])), list)
+    return condense2(sorted_counts)
+
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
-    if C.QUERY == 'query1':
+    if C.QUERY == 'query1' or C.QUERY == 'query1-m':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
     elif C.QUERY == 'query3':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
