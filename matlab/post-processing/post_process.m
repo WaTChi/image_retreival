@@ -3,7 +3,7 @@ function [results] = post_process(method,reset)
 % [results] = post_process(method)
 % 
 % First coded 8 Jan 2011 by Aaron Hallquist
-% Latest revision 11 Feb 2011 by Aaron Hallquist
+% Latest revision 3 Apr 2011 by Aaron Hallquist
 % 
 % DESCRIPTION
 %   This function computes the post-processing results on the input query
@@ -13,12 +13,13 @@ function [results] = post_process(method,reset)
 % INPUTS
 %   method:     Structure detailing what method to use. Contents depend on
 %               the values of certain required fields, listed below:
-%       .set:           Integer indicating which query set to use
+%       .set:           String determing which set to use
 %       .cell_dist:     Maximum distance between location and cell center
 %                       to search that cell. If equal to zero, we use no
 %                       combination and only the nearest cell is searched.
 %                       This is now optional with default = 336.6
 %       .decision:      Decision method. Current modes supported...
+%           'vote-':        Uses the vote total only.
 %           'bayes-xyz':    Uses 2D Bayes classifier : must be trained
 %                           - If 'bayes' is chosen, the 'xyz' parameter
 %                             refers to which features will be used in the
@@ -27,19 +28,10 @@ function [results] = post_process(method,reset)
 %                               - 'v' for vote
 %                           - e.g. 'dv' decides based on distance and vote
 %                             while 'v' is based on vote only
-%           'nbayes-xyz:    Uses Naive Bayes classifier : must be trained
-%                           - If 'bayes' is chosen, the 'xyz' parameter
-%                             refers to which features will be used in the
-%                             bayes decision.
-%                               - 'f' for number of query features
-%                               - 'd' for distance
-%                               - 'v' for vote
-%                           - e.g. 'dv' decides based on distance and vote
-%                             while 'v' is based on vote only
-%       .featdiv:       Query number of feature divisions for classifier.
-%                       - e.g. featdiv = [1000 3000] splits queries up into
-%                         those with fewer than 1000 features, those with
-%                         more than 3000, and those between 1000 and 3000.
+%       .canddiv:       Query number of candidate divisions for classifier.
+%                       - e.g. canddiv = [10 100] splits queries up into
+%                         those with fewer than 10 candidates, those with
+%                         more than 100, and those between 10 and 100.
 %       .distribution:  Noisy location distribution. Currently supports:
 %           'exact-':   Using the camera GPS coordinate only
 %           'unif-x':   Generates noisy locations in a uniform distribution
@@ -57,31 +49,28 @@ function [results] = post_process(method,reset)
 %               - type 'help ppstruct' for information on the format of the
 %                 results structure (depends on the contents of method)
 
-% Fixed parameters
-ntop = 10; % maximum top n for results
+% Code dependencies
+addpath('.\..\util\')
+addpath('.\..\bayes\')
 
 % Set reset flag
 if nargin < 2
     reset = 0;
 end
 
+% Fixed parameters
+ntop = 10; % maximum top n for results
+div = 25; % used to determine sample spacing; nsamps ~ pi * div^2
+
 % Fixed directory
 gtDir = 'C:\matlab_local\ground-truth\';
 
 % Adjusted directories based on inputs
-if method.set == 4
-    qDir = 'Z:\query4-matlab\';
-else
-    qDir = ['Z:\query',num2str(method.set),'\'];
-end
-vDir = ['C:\matlab_local\results\query',num2str(method.set),'\'];
+qDir = ['Z:\',method.set,'\'];
+vDir = ['C:\matlab_local\results\',method.set,'\'];
 
 % Get list of cells and cell locations
 [~,cLat,cLon] = getCells;
-
-% Code dependencies
-addpath('.\..\util\')
-addpath('.\..\bayes\')
 
 % Parse the decision parameter
 idx = strfind(method.decision,'-');
@@ -93,27 +82,29 @@ idx = strfind(method.distribution,'-');
 distr = method.distribution(1:idx-1);
 distr_prm = str2double(method.distribution(idx+1:end));
 
+% Flag to record top n in files
+recordFlag = strcmp(distr,'exact') && strcmp(decis_prm,'dv');
+if recordFlag
+    time = datestr(now);
+    idx = strfind(time,':');
+    time = time([1:idx(1)-1,idx(1)+1:idx(2)-1]);
+    rdir = ['.\exact-runs\',method.set,'\',time,'\'];
+    mkdir(rdir);
+end
+
 % Get a list of queries
-query = struct2cell(dir(qDir));
-query = query(1,:)';
-sift_idx = ~cellfun('isempty',strfind(query,'sift.txt'));
-hdf5_idx = ~cellfun('isempty',strfind(query,'.hdf5'));
-query_name = query( sift_idx & ~hdf5_idx );
-query = strvcat(query_name); % query numbers
-query = str2double(cellstr(query(:,5:8)));
+query = getQuery(qDir);
 nq = length(query); % number of queries
 
 % Load results structure
-results_file = ['.\',decision,'\query',num2str(method.set),distr, ...
-                num2str(dRound(method.cell_dist,0)),'_results.mat'];
+results_file = ['.\',decision,'\',method.set,'_',distr, ...
+                num2str(dRound(method.cell_dist,0)),'results.mat'];
 if reset
     results.run = cell(1,0);
     results.match = zeros(ntop,0);
     results.total = zeros(1,0);
     results.match_pct = zeros(ntop,0);
     results.query_pct = zeros(nq,0);
-    results.match_top = zeros(10,0);
-    results.false_top = zeros(10,0);
 else
     try
         load(results_file)
@@ -123,9 +114,6 @@ else
         results.total = zeros(1,0);
         results.match_pct = zeros(ntop,0);
         results.query_pct = zeros(nq,0);
-        results.query_top = zeros(nq,0);
-        results.match_top = zeros(10,0);
-        results.false_top = zeros(10,0);
     end
 end
 
@@ -151,34 +139,27 @@ if ~isfield(method,'cell_dist')
 else
     cell_dist = method.cell_dist;
 end
-div = 25; % used to determine sample spacing; nsamps ~ pi * div^2
 total = 0;
 match = zeros(ntop,1);
 query_pct = zeros(nq,1);
-match_top = zeros(10,1);
-false_top = zeros(10,1);
-
-% Set run
 
 fprintf('\nRunning post processing...\n')
 
 % Iterate through each query
 for k=1:nq
-
+    
     fprintf(['\nProcessing query ',num2str(k),'... '])
     
     % Get the number of features
-    featid = fopen([qDir,query_name{k}]);
+    featid = fopen([qDir,query{k}]);
     nfeat = fscanf(featid,'%d',1);
     fclose(featid);
 
     % Get ground truth matches
-    gt = getGT(query(k),method.set,gtDir);
+    gt = getGT(query{k},method.set,gtDir);
 
     % Get query location
-    idx = strfind(query_name{k},',');
-    qLat = str2double(query_name{k}(idx(1)+1:idx(2)-1));
-    qLon = str2double(query_name{k}(idx(2)+1:end-8));
+    [qLat,qLon] = getQueryLocation(query{k},method.set);
 
     % Get fuzzy point locations
     if strcmp(distr,'exact')
@@ -195,10 +176,12 @@ for k=1:nq
     cellgroups = groupFuzzy(lats,lons,cLat,cLon,cell_dist);
 
     ma = 0;
+    to = 0;
     for cg=cellgroups
         
         % Get cell combination results, files, and candidate locations
-        [cand,cand_vote,cand_lat,cand_lon] = getCand(cg.idx,query(k),vDir);
+        [cand,cand_vote,cand_lat,cand_lon] = getCand(cg.idx,query{k},vDir);
+        ncand = length(cand);
         cand_vote = cand_vote / nfeat;
 
         % Iterate through each fuzzy point and post process
@@ -209,7 +192,7 @@ for k=1:nq
 
             % Post process the features parameters to get a final ranking
             param = [cand_dist,cand_vote];
-            [cand_nres,~,s] = rankNcand(cand,param,method,nfeat,ntop);
+            [cand_nres,p,s] = rankNcand(cand,param,method,ncand,ntop);
             
             % Check for matches
             m = zeros(ntop,1);
@@ -234,36 +217,39 @@ for k=1:nq
             
             % Update match information
             match = match + weight*m;
-            top_idx = max(1,ceil(10*s(1)));
-            if m(1)
-                match_top(top_idx) = match_top(top_idx) + weight;
-                ma = ma + weight;
-            else
-                false_top(top_idx) = false_top(top_idx) + weight;
-            end
+            ma = ma + weight*m(1);
             total = total + weight;
+            to = to + weight;
+            
+            % Write to file if conditions are correct
+            if recordFlag
+                fn = [rdir,query{k}(1:end-8),'.bay'];
+                fid = fopen(fn,'w');
+                for res_i = 1:nres
+                    res_p = s(res_i);
+                    res_v = p(res_i,2);
+                    res_d = p(res_i,1);
+                    res_name = cand_nres{res_i}(1:end-8);
+                    fprintf(fid,'%.4f\t%d\t%d\t%s\n', ...
+                        res_p,round(nfeat*res_v),round(res_d),res_name);
+                end
+                fclose(fid);
+            end
 
         end
 
     end
 
-    query_pct(k) = ma / total;
+    query_pct(k) = ma / to;
 
 end
 
 % store results
-results.run{1,end+1} = decis_prm;
-% if strcmp(decision,'nbayes')
-%     results.run{1,end+1} = ['n-',decis_prm];
-% else
-%     results.run{1,end+1} = ['b-',decis_prm];
-% end
+results.run{1,end+1} = [decis_prm,'-',mat2str(method.canddiv)];
 results.total(1,end+1) = total;
 results.match(:,end+1) = match;
 results.match_pct(:,end+1) = match / total;
 results.query_pct(:,end+1) = query_pct;
-results.match_top(:,end+1) = match_top / total;
-results.false_top(:,end+1) = false_top / total;
 
 save(results_file,'results')
 

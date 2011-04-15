@@ -18,6 +18,9 @@ class Tag:
       del kv['name']
     else:
       self.business = False
+    self.name = kv.get('Name')
+    if not self.name:
+      self.name = kv.get('name')
     self.kv = tuple(sorted(kv.iteritems()))
     self.filteredlen = None
 
@@ -106,5 +109,10 @@ class TagCollection:
         continue
       contained.append(tag)
     return contained
+
+  def output_to_gepath_format(self, outfile):
+    with open(outfile, 'w') as file:
+      for tag in self.tags:
+        print >>file, "%s,%s,%f,%f,%f" % (tag.name, tag.name, tag.lon, tag.lat, tag.alt)
 
 # vim: et sw=2

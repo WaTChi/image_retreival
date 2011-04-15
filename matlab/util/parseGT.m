@@ -1,9 +1,9 @@
-function [gtIdx,gtFile] = parseGT(divs,root_dir)
+function [gtIdx,gtFile] = parseGT(set,root_dir)
 
 % [gtIdx,gtFile] = parseGT(divs,root_dir)
 % 
 % First coded 9 Dec 2010 by Aaron Hallquist
-% Latest revision 9 Dec 2010 by Aaron Hallquist
+% Latest revision 3 Apr 2011 by Aaron Hallquist
 % 
 % K = number of queries
 % 
@@ -14,15 +14,6 @@ function [gtIdx,gtFile] = parseGT(divs,root_dir)
 %   truth categories.
 % 
 % INPUTS
-%   divs:       String containing the ground truth divisions we want to
-%               inspect. One character for each division out of:
-%                   - G : Green division
-%                   - Y : Yellow division
-%                   - R : Red division
-%                   - B : Blue division
-%                   - O : Orange division
-%               An example input is divs = 'GY' to include only the green 
-%               and yellow divisions.
 %   root_dir:   This is the directory where the ground truth files reside.
 % 
 % OUTPUTS
@@ -43,7 +34,7 @@ function [gtIdx,gtFile] = parseGT(divs,root_dir)
 %                       specified [ the entries of gtFile( 65:68 ) ]
 
 % Default directory
-if nargin<2
+if nargin<1
     root_dir = 'E:\Research\app\code\matlab\ground-truth\';
 end
 

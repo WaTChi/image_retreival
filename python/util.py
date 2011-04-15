@@ -384,6 +384,8 @@ import groundtruthO
 import query1GroundTruth
 import query2Groundtruth
 import query4GroundTruth
+import query5horizGroundTruth
+import query5vertGroundTruth
 def python_to_matlab_groundTruth(d, fname):
     f = open(fname,"w")
     for key in d:
@@ -398,7 +400,7 @@ def python_to_matlab_groundTruth(d, fname):
 #python_to_matlab_groundTruth(groundtruthO.matches, "gt3O")
 #python_to_matlab_groundTruth(query1Groundtruth.matches, "gt1")
 #python_to_matlab_groundTruth(query2Groundtruth.matches, "gt2")
-python_to_matlab_groundTruth(query4GroundTruth.matches, "gt4")
+#python_to_matlab_groundTruth(query5vertGroundTruth.matches, "gt5vert")
 
 #def dupCount(file):
 #    counter = {}
@@ -414,3 +416,24 @@ python_to_matlab_groundTruth(query4GroundTruth.matches, "gt4")
 #            else:
 #                counter[img] = 1
 #    return counter
+
+def generate_vector_tags(infile, outfile):
+    """takes a gepath format file as input, prompts for point on normal, outputs earthmine tag file with bearing information"""
+    inf = open(infile)
+    outf = open(outfile, 'w')
+    for line in inf:
+        while True:
+            try:
+                tag,desc,lon,lat,alt = line.split(',')
+                lat = float(lat)
+                lon = float(lon)
+                alt = float(alt)
+                print "processing tag \"%s\" at %f, %f" % (tag, lat, lon)
+                normalLat=float(input("enter lat of point on normal: "))
+                normalLon=float(input("enter lon of point on normal: "))
+                bearing = info.getbearing(lat, lon, normalLat, normalLon)
+                outf.write("%f, %f, %f, %s, %s, %s, %s, %f\n" % (lat, lon, alt, tag, 'description', desc, 'bearing', bearing))
+                break
+            except Exception as e:
+                print e
+                print "INPUT ERROR. redoing..."
