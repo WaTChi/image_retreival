@@ -92,7 +92,6 @@ class _Context(object):
     self.resultsdir = os.path.expanduser('~/topmatches')
     self.topnresults = []
     self.maindir = os.path.expanduser('/media/DATAPART2')
-    self.compute_hom=0
 
     # lazy load
     self._tags = None

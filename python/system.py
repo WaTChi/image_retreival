@@ -126,7 +126,8 @@ def match(C, Q):
 
     #geometric consistency reranking
     ranked = distance_sort(C, Q, \
-    combine_ransac(comb_matches, C.ransac_min_filt))
+      combine_ransac(comb_matches, C)
+    )
 #    combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1

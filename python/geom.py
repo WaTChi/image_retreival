@@ -3,7 +3,7 @@ from info import distance, getbearing
 import numpy as np
 import scipy.optimize as sio
 import math
-from numpy import matrix, sin, cos, sqrt
+from numpy import matrix, sin, cos, sqrt, pi
 
 def euclideandist(x,y,x2,y2):
   return ((x-x2)**2 + (y-y2)**2)**.5
@@ -29,8 +29,14 @@ def compute_norm(yaws):
 
 # return True if pt is visible at from viewpt
 def norm_compatible(pt, viewpt):
-  yaw = info.getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
-  return anglediff(pt.bearing, yaw)*180/math.pi < 90
+  yaw = getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
+  diff = anglediff(pt.bearing*pi/180, yaw*pi/180)*180/math.pi
+#  print "Point", pt
+#  print "pt bearing", pt.bearing
+#  print "view bearing", yaw
+#  print "diff", diff
+#  print
+  return diff < 90
 
 def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""

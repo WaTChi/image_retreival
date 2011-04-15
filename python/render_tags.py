@@ -224,21 +224,22 @@ class TaggedImage:
     outside = []
     bad = []
     THRESHOLD = 15
-    for (tag, (_, pixel)) in tags:
-      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
-      if location is None:
-        if not geom.contains(pixel, self.image.size):
-          outside.append((tag, (_, pixel)))
-        else:
-          bad.append((tag, (999, pixel)))
-      else:
-        dist = tag.xydistance(location)
-        if dist < THRESHOLD:
-          accepted.append((tag, (_, pixel)))
-        elif not geom.contains(pixel, self.image.size):
-          outside.append((tag, (_, pixel)))
-        else:
-          bad.append((tag, (999, pixel)))
+    outside = tags # XXX
+#    for (tag, (_, pixel)) in tags:
+#      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
+#      if location is None:
+#        if not geom.contains(pixel, self.image.size):
+#          outside.append((tag, (_, pixel)))
+#        else:
+#          bad.append((tag, (999, pixel)))
+#      else:
+#        dist = tag.xydistance(location)
+#        if dist < THRESHOLD:
+#          accepted.append((tag, (_, pixel)))
+#        elif not geom.contains(pixel, self.image.size):
+#          outside.append((tag, (_, pixel)))
+#        else:
+#          bad.append((tag, (999, pixel)))
 
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
@@ -248,10 +249,13 @@ class TaggedImage:
     for (tag, (_, pixel)) in outside:
       vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 30)
       emv = tag.emIsVisible(self.source, C, 30)
-      if (vis or emv) and geom.norm_compatible(tag, self):
-        accepted.append((tag, (_, pixel)))
+      if (vis or emv):
+        if geom.norm_compatible(tag, self):
+          accepted.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (12, pixel)))
       else:
-        bad.append((tag, (999, pixel)))
+        bad.append((tag, (17, pixel)))
 
     return accepted + bad
 
