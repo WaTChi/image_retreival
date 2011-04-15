@@ -86,6 +86,7 @@ class _Context(object):
     self.resultsdir = os.path.expanduser('~/topmatches')
     self.topnresults = []
     self.maindir = os.path.expanduser('/media/DATAPART2')
+    self.compute_hom=0
 
     # lazy load
     self._tags = None
@@ -140,12 +141,20 @@ class _Context(object):
   def dbdump(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
+    elif self.QUERY == 'cory-4':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
+    elif self.QUERY == 'cory-25':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-25')
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829')
 
   @property
   def dbdir(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
+    elif self.QUERY == 'cory-4':
+      return    os.path.join(self.maindir, 'Research/cells/cory-4')
+    elif self.QUERY == 'cory-25':
+      return    os.path.join(self.maindir, 'Research/cells/cory-25')
     return os.path.join(self.maindir, 'Research/cells/g=100,r=d=236.6/')
 
   @property
@@ -158,7 +167,7 @@ class _Context(object):
 
   @property
   def infodir(self):
-	return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+    return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
 
   @property
   def querydir(self):
@@ -168,9 +177,9 @@ class _Context(object):
   def drawtopcorr(self):
     return 'NO_DRAW' not in os.environ
 
-  @property
-  def compute_hom(self):
-    return 'NO_HOM' not in os.environ
+#  @property
+#  def compute_hom(self):
+#    return 'NO_HOM' not in os.environ
 
   def initdirs(self):
     """Creates and cleans result data directories."""
@@ -193,6 +202,8 @@ class _Context(object):
 
   def iter_queries_unfiltered(self):
     """Returns iter over _Query for files in query"""
+
+    #if query taken from a cell phone
     if self.QUERY == 'query4' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
       def iter0():
         for a in AndroidReader(self.querydir):
@@ -205,11 +216,13 @@ class _Context(object):
           yield image
       return iter0()
 
-    if self.QUERY == 'emeryville':
+    #if taken from d2x with no coordinates
+    if self.QUERY == 'emeryville' or self.QUERY == 'cory-4' or self.QUERY == 'cory-25':
       def iter1():
         for file in util.getSiftFileNames(self.querydir):
           image = _Query()
           image.siftpath = os.path.join(self.querydir, file)
+          #TODO: this uses a hard coded dimension
           image.pgm_scale = max(Image.open(os.path.join(self.querydir, image.siftname[:-8] + '.pgm')).size) / max(2592.0, 1456.0)
           image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.jpg')
           image.setSensorCoord(0,0)

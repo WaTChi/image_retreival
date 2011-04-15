@@ -4,7 +4,7 @@ import system
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query3'
+C.QUERY = 'query5horizontal'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -23,7 +23,7 @@ C.ransac_min_filt = 1
 #C.selection = ['DSC_8852']
 
 system.characterize(C)
-#with system.MultiprocessExecution():
-#  system.characterize(C)
+with system.MultiprocessExecution():
+  system.characterize(C)
 
 # vim: et sw=2

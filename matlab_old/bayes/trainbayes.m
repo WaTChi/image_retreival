@@ -3,7 +3,7 @@ function [classifier] = trainbayes(features,classes,classifier_info,weights)
 % [classifier] = trainbayes(features,classes,classifier_info,weights)
 % 
 % First coded 12 Dec 2010 by Aaron Hallquist.
-% Latest revision 31 Mar 2011 by Aaron Hallquist.
+% Latest revision 12 Feb 2011 by Aaron Hallquist.
 %
 % K = number of training samples
 % M = number of features
@@ -16,7 +16,7 @@ function [classifier] = trainbayes(features,classes,classifier_info,weights)
 %   priors and feature distributions necessary to classify new samples. If 
 %   a feature is absent for a training sample, this is denoted with the 
 %   value NaN. The feature distributions are trained using evenly spaced 
-%   bins, with a spacing specified by the input classifier_info.
+%   bins, with spacing specified by by the input classifier_info.
 % 
 % INPUT:
 %   features:   KxM matrix of features
@@ -35,7 +35,7 @@ function [classifier] = trainbayes(features,classes,classifier_info,weights)
 %   classifier: Structure with the following elements...
 %       .spacing:   1xM vector of bin spacings for each feature
 %       .nsamps:    1xC vector containing the number of training samples in
-%                       each class:     priors = nsamps / sum(nsamps)
+%                       each class:     prios = nsamps / sum(nsamps)
 %       .bins:      1xM cell array of distribution counts. Cells contain...
 %                   - B(m) x C vector containing the counts of each
 %                     training sample in each bin for each class
