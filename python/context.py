@@ -144,7 +144,10 @@ class _Context(object):
   @property
   def tags(self):
     if not self._tags:
-      self._tags = TagCollection(os.path.join(self.maindir, 'Research/app/code/tags.csv'))
+      self._tags = TagCollection(
+        os.path.join(self.maindir, 'Research/app/code/tags.csv'),
+        os.path.join(self.maindir, 'Research/app/code/bearings.csv')
+      )
     return self._tags
 
   @property

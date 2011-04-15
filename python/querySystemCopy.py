@@ -30,7 +30,7 @@ C.ransac_min_filt = 1
 # Query2 tagging issues
 C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776']
 
-with system.MultiprocessExecution():
-  system.characterize(C)
+#with system.MultiprocessExecution():
+system.characterize(C)
 
 # vim: et sw=2

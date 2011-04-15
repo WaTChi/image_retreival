@@ -223,8 +223,7 @@ class TaggedImage:
     accepted = []
     outside = []
     bad = []
-    CONS = False # conservative: more precision, less recall
-    THRESHOLD = 5 if CONS else 10
+    THRESHOLD = 15
     for (tag, (_, pixel)) in tags:
       location = pixelmap[geom.picknearest(pixelmap, *pixel)]
       if location is None:
@@ -238,8 +237,6 @@ class TaggedImage:
           accepted.append((tag, (_, pixel)))
         elif not geom.contains(pixel, self.image.size):
           outside.append((tag, (_, pixel)))
-        elif dist < THRESHOLD * 2:
-          outside.append((tag, (_, pixel)))
         else:
           bad.append((tag, (999, pixel)))
 
@@ -247,17 +244,12 @@ class TaggedImage:
     cellpath = os.path.join(C.dbdir, cell)
     pm = reader.get_reader(C.params['descriptor'])\
       .load_PointToViewsMap(cellpath, C.infodir)
-#    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
 
     for (tag, (_, pixel)) in outside:
-#      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 20 if CONS else 30)
-      emv = tag.emIsVisible(self.source, C, 20 if CONS else 30)
-#      vis2 = tag.isVisible2(self.source, tree3d, self.lat, self.lon)
-#      if (vis or emv) and geom.norm_compatible(t, self.yaw):
-      if emv:
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 30)
+      emv = tag.emIsVisible(self.source, C, 30)
+      if (vis or emv) and geom.norm_compatible(tag, self):
         accepted.append((tag, (_, pixel)))
-#      elif not CONS and vis2:
-#        accepted.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
 

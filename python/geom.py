@@ -1,5 +1,5 @@
 # place for geometric utility functions
-from info import distance
+from info import distance, getbearing
 import numpy as np
 import scipy.optimize as sio
 import math
@@ -27,10 +27,10 @@ def compute_norm(yaws):
     return error
   return sio.brute(f, [(0,2*math.pi)])[0]
 
-# yaw: yaw of potential viewer
-# return True if (vlat, vlon) is visible at an angle yaw
-def norm_compatible(norm, yaw):
-  return anglediff(norm, yaw)*180/math.pi < 90
+# return True if pt is visible at from viewpt
+def norm_compatible(pt, viewpt):
+  yaw = info.getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
+  return anglediff(pt.bearing, yaw)*180/math.pi < 90
 
 def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""
