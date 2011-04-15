@@ -22,7 +22,7 @@ def run():
 #    C.locator_function = system.load_location
 #    C.match_callback = system.dump_combined_matches
     C.cacheEnable = 1
-    C.compute_hom = 0
+    C.tagcompute = 0
     C.ransac_min_filt = 100
     C.ncells = 1
     results, count = system.characterize(C)
