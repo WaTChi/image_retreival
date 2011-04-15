@@ -5,7 +5,7 @@ import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query2'
+C.QUERY = 'query3'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -26,10 +26,10 @@ C.ransac_max_filt = 20
 C.ransac_min_filt = 1
 
 ## Query3 tagging issues
-#C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']
+C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']
 
 # Query2 tagging issues
-C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776']
+#C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776']
 
 if 'DEBUG' in os.environ:
   system.characterize(C)

@@ -277,7 +277,7 @@ class TaggedImage:
         bad.append((tag, (999, pixel)))
     return accepted + bad
 
-  def map_tags_culled(self, pixelmap, C):
+  def map_tags_hybrid3(self, pixelmap, C):
     THRESHOLD = 15.0 # meters
     tags = self.map_tags_camera()
     accepted = []
@@ -301,12 +301,25 @@ class TaggedImage:
           outside.append((tag, (_, pixel)))
         else:
           bad.append((tag, (999, pixel)))
+
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    pm = reader.get_reader(C.params['descriptor'])\
+      .load_PointToViewsMap(cellpath, C.infodir)
+
     for (tag, (_, pixel)) in outside:
-      if tag.distance(obs) < min_upper_bound + THRESHOLD:
-        accepted.append((tag, (_, pixel)))
+      vis, t = pm.hasView(C, tag.lat, tag.lon,\
+        self.lat, self.lon, self.yaw, 30)
+      emv = tag.emIsVisible(self.source, C, 30)
+      bv = tag.distance(obs) < min_upper_bound + THRESHOLD
+      if (vis or emv or bv):
+        if geom.norm_compatible(tag, self):
+          accepted.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (12, pixel)))
       else:
         accepted.append((tag, (15, pixel)))
-    return accepted # + bad
+    return accepted + bad
 
   def map_tags_earthmine(self):
     "Returns (tag, (dist, pixel)) pairs using earthmine pixel data."
