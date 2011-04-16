@@ -10,9 +10,10 @@ if __name__ == "__main__":
     import tags
     import util
 
-    input="/media/DATAPART2/jz/tags.csv"
-    intermediate_file_for_ge="/media/DATAPART2/jz/gepathTags.txt"
-    output="/media/DATAPART2/jz/earthminetags2.csv"
+    x = 'xae'
+    input="/home/ericl/mytags/%s.csv" % x
+    intermediate_file_for_ge="/tmp/geimm.ericl.ge"
+    output="/home/ericl/mytags/%s-out.csv" % x
 
     t = tags.TagCollection(input)
     t.output_to_gepath_format(intermediate_file_for_ge)
