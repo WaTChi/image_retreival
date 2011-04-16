@@ -278,7 +278,6 @@ class TaggedImage:
     return accepted + bad
 
   def map_tags_hybrid3(self, pixelmap, C):
-    THRESHOLD = 15.0 # meters
     tags = self.map_tags_camera()
     accepted = []
     outside = []
@@ -286,21 +285,14 @@ class TaggedImage:
     min_upper_bound = 0
     obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
-      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
-      if location is None:
-        if not geom.contains(pixel, self.image.size):
-          outside.append((tag, (_, pixel)))
-        else:
-          bad.append((tag, (999, pixel)))
+      location = geom.picknearestll(pixelmap, tag)
+      dist = tag.xydistance(location)
+      if dist < 2.0:
+        min_upper_bound = max(min_upper_bound, tag.distance(obs))
+      if dist < 10.0:
+        outside.append((tag, (_, pixel)))
       else:
-        dist = tag.xydistance(location)
-        if dist < THRESHOLD:
-          accepted.append((tag, (_, pixel)))
-          min_upper_bound = max(min_upper_bound, tag.distance(obs))
-        elif not geom.contains(pixel, self.image.size):
-          outside.append((tag, (_, pixel)))
-        else:
-          bad.append((tag, (999, pixel)))
+        bad.append((tag, (999, pixel)))
 
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
@@ -311,7 +303,7 @@ class TaggedImage:
       vis, t = pm.hasView(C, tag.lat, tag.lon,\
         self.lat, self.lon, self.yaw, 30)
       emv = tag.emIsVisible(self.source, C, 30)
-      bv = tag.distance(obs) < min_upper_bound + THRESHOLD
+      bv = tag.distance(obs) < min_upper_bound + 5.0
       if (vis or emv or bv):
         if geom.norm_compatible(tag, self):
           accepted.append((tag, (_, pixel)))

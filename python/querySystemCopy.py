@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+print 'import modules...',
+import sys
+sys.stdout.flush()
+print
+
 import system
 import os
 from context import DEFAULT_CONTEXT
