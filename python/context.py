@@ -135,6 +135,7 @@ class _Context(object):
     save_atomic(lambda d: np.save(d, value), p)
 
   def pickleable(self):
+    self.tags # force lazy load here
     copy = self.copy()
     for k,v in self.__dict__.items():
       if type(v) == type(lambda:0):
@@ -144,9 +145,10 @@ class _Context(object):
   @property
   def tags(self):
     if not self._tags:
+      src = os.path.dirname(os.path.dirname(__file__))
       self._tags = TagCollection(
-        os.path.join(self.maindir, 'Research/app/code/tags.csv'),
-        os.path.join(self.maindir, 'Research/app/code/bearings.csv')
+        os.path.join(src, 'tags.csv'),
+        os.path.join(src, 'bearings.csv'),
       )
     return self._tags
 

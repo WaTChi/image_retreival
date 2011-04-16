@@ -310,7 +310,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=True, showtag=True, showHom=False):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=True):
   # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
@@ -442,23 +442,6 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
         dest = (0,0)
       dest = (dest[1]*scale, dest[0]*scale)
       dests.append(dest)
-
-    while dests[0][0] < 100:
-      dests[0] = dests[0][0] + 100, dests[0][1]
-      dests[1] = dests[1][0] + 100, dests[1][1]
-      dests[2] = dests[2][0] + 100, dests[2][1]
-    while dests[0][0] > a.size[0] - 100:
-      dests[0] = dests[0][0] - 100, dests[0][1]
-      dests[1] = dests[1][0] - 100, dests[1][1]
-      dests[2] = dests[2][0] - 100, dests[2][1]
-    while dests[0][1] > a.size[1] - 100:
-      dests[0] = dests[0][0], dests[0][1] - 100
-      dests[1] = dests[1][0], dests[1][1] - 100
-      dests[2] = dests[2][0], dests[2][1] - 100
-    while dests[0][1] < 100:
-      dests[0] = dests[0][0], dests[0][1] + 100
-      dests[1] = dests[1][0], dests[1][1] + 100
-      dests[2] = dests[2][0], dests[2][1] + 100
 
     xdrawline((pts[0], pts[1]), 'violet', off=a.size[0])
     xdrawline((pts[0], pts[2]), 'yellow', off=a.size[0])

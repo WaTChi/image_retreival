@@ -28,15 +28,25 @@ def compute_norm(yaws):
   return sio.brute(f, [(0,2*math.pi)])[0]
 
 # return True if pt is visible at from viewpt
-def norm_compatible(pt, viewpt):
+def norm_compatible(pt, viewpt, verbose=False):
   yaw = getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
   diff = anglediff(pt.bearing*pi/180, yaw*pi/180)*180/math.pi
-#  print "Point", pt
-#  print "pt bearing", pt.bearing
-#  print "view bearing", yaw
-#  print "diff", diff
-#  print
-  return diff < 90
+  if verbose:
+    print "Point", pt
+    print "pt bearing", pt.bearing
+    print "view bearing", yaw
+    print "diff", diff
+    print
+  return diff < 85
+
+def picknearestll(dict2d, tag):
+  """Returns closest value in dict"""
+  locs = []
+  for pixel, loc in dict2d.items():
+    if loc:
+      locs.append((tag.xydistance(loc), loc))
+  locs.sort()
+  return locs[0][1]
 
 def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""
