@@ -168,21 +168,22 @@ class TagCollection:
       for tag in self.tags:
         print >>file, ",%s,%f,%f" % (tag.name, tag.lat, tag.lon)
 
-  def __init__(self, taglist, bearinglist):
+  def __init__(self, taglist, bearinglist=None):
     bearings = {}
-    if not os.path.exists(bearinglist):
-      print "W: bearings file not found!"
-      return
+    if bearinglist is not None:
+      if not os.path.exists(bearinglist):
+        print "W: bearings file not found!"
+        return
 
-    for line in open(bearinglist):
-      line = line.split(',')
-      bearings[
-        # we lose precision during bearing processing
-        # so the key needs to be require less digits
-        int(float(line[0])*1e4),
-        int(float(line[1])*1e4),
-        int(float(line[2])*1e4),
-      ] = float(line[-1]) # bearing
+      for line in open(bearinglist):
+        line = line.split(',')
+        bearings[
+          # we lose precision during bearing processing
+          # so the key needs to be require less digits
+          int(float(line[0])*1e4),
+          int(float(line[1])*1e4),
+          int(float(line[2])*1e4),
+        ] = float(line[-1]) # bearing
 
     self.tags = []
     self.skipped = 0
@@ -194,14 +195,14 @@ class TagCollection:
       la = int(float(line[0])*1e4)
       lo = int(float(line[1])*1e4)
       al = int(float(line[2])*1e4)
-      if not (la, lo, al) in bearings:
+      if bearings and not (la, lo, al) in bearings:
         self.skipped += 1
         continue
       tag = {
         'lat': float(line[0]),
         'lon': float(line[1]),
         'alt': float(line[2]),
-        'bearing': bearings[la,lo,al],
+        'bearing': 0 if not bearings else bearings[la,lo,al],
         'name': line[3],
       }
       key = None
