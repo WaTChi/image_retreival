@@ -2,6 +2,8 @@
 .svn
 matlab/query2
 matlab/post-processing
+matlab_old/query2
+matlab_old/post-processing
 *~
 a.out
 nohup.out
