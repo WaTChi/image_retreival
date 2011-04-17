@@ -28,6 +28,9 @@ import numpy as np
 import corr
 import query1GroundTruth
 import query2Groundtruth
+import query5horizGroundTruth
+import query5vertGroundTruth
+import query2Groundtruth
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -269,6 +272,10 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
     elif C.QUERY == 'query4':
         g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
+    elif C.QUERY == 'query5horizontal':
+        g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
+    elif C.QUERY == 'query5vertical':
+        g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)
     else:
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]

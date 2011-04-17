@@ -232,6 +232,8 @@ class _Context(object):
           image.siftpath = os.path.join(a.basedir, a.sift)
           image.jpgpath = os.path.join(a.basedir, a.jpg)
           image.setSensorCoord(a.lat, a.lon)
+          if self.QUERY == 'query5horizontal':
+            image.pgm_scale = 512/1952.0
           image.check()
           image.datasource = a
           yield image

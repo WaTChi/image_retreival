@@ -286,10 +286,10 @@ class TaggedImage:
     obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
       location = geom.picknearestll(pixelmap, tag)
-      dist = tag.xydistance(location)
-#      if dist < 3.0:
+      error = tag.xydistance(location)
+#      if error < 3.0:
 #        min_upper_bound = max(min_upper_bound, tag.distance(obs))
-      if dist < 15.0 or not geom.contains(pixel, self.image.size):
+      if error < 15.0 or not geom.contains(pixel, self.image.size):
         outside.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))

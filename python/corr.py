@@ -310,7 +310,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=True):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=True, showtag=True, showHom=False):
   # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
