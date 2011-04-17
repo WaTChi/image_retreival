@@ -98,7 +98,6 @@ def searchtype(params):
 def run_parallel(C, Q, cells, outputFilePaths, num_threads=1):
   semaphore = threading.Semaphore(num_threads)
   threads = []
-  INFO_TIMING("running queries with up to %d threads" % num_threads)
   for cell, outputFilePath in zip(cells, outputFilePaths):
     thread = Query(C, Q, cell, outputFilePath, semaphore)
     threads.append(thread)

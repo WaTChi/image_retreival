@@ -421,11 +421,12 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
         drawcircle(match, colorize(rot_delta(match, 0)))
 
   # ImageDraw :(
-  a2 = img.taggedcopy(proj_points, a, correction=True)
+  corrected = not C.compute2dpose
+  a2 = img.taggedcopy(proj_points, a, correction=corrected)
   b2 = img.taggedcopy(points, b)
   a = Image.new('RGBA', (a.size[0], height))
   b = Image.new('RGBA', (b.size[0], height))
-  a = img.taggedcopy(proj_points, a, correction=True)
+  a = img.taggedcopy(proj_points, a, correction=corrected)
   b = img.taggedcopy(points, b)
   tags = Image.new('RGBA', (a.size[0] + b.size[0], height))
   tagfilled = Image.new('RGBA', (a.size[0] + b.size[0], height))
