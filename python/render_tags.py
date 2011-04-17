@@ -287,7 +287,7 @@ class TaggedImage:
     for (tag, (_, pixel)) in tags:
       location = geom.picknearestll(pixelmap, tag)
       dist = tag.xydistance(location)
-      if dist < 2.0:
+      if dist < 3.0:
         min_upper_bound = max(min_upper_bound, tag.distance(obs))
       if dist < 10.0:
         outside.append((tag, (_, pixel)))
@@ -334,15 +334,17 @@ class TaggedImage:
     INFO("mapped %d/%d possible tags" % (len(tags), len(possible_tags)))
     return tags
 
-  def taggedcopy(self, points, image):
+  def taggedcopy(self, points, image, correction=False):
     MIN_SIZE = 1
     draw = ImageDraw.Draw(image)
     def dist(p):
       return info.distance(p[0].lat, p[0].lon, self.lat, self.lon)
     points.sort(key=dist, reverse=True) # draw distant first
-    for tag, (dist, point) in points:
+    if not correction:
+      points = [(t,(d,p),1) for (t,(d,p)) in points]
+    for tag, (dist, point), correction in points:
       color = self.colordist(dist, 30.0)
-      size = int(300.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
+      size = int(300.0*correction/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2
