@@ -377,18 +377,22 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
     # transfer using H matrix
     # confusing geometry. x and y switch between the reprs.
     for (tag, (dist, pixel)) in points:
-      x = pixel[1]
-      y = pixel[0]
+      y, x = pixel # backwards
+      x2 = x+5
       dest = H*np.matrix([x,y,1]).transpose()
+      dest2 = H*np.matrix([x2,y,1]).transpose()
       try:
         dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+        dest2 = tuple(map(int, (dest2[0].item()/dest2[2].item(), dest2[1].item()/dest2[2].item())))
       except ZeroDivisionError:
-        dest = (0,0)
+        dest = dest2 = (0,0)
       except ValueError:
-        dest = (0,0)
+        dest = dest2 = (0,0)
       tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
+      correction = min(15, max(.1, abs(dest[0]-dest2[0])/5.0))
       dest = (dest[1]*scale, dest[0]*scale)
-      proj_points.append((tag, (dist, dest)))
+      dest2 = (dest2[1]*scale, dest2[0]*scale)
+      proj_points.append((tag, (dist, dest), correction))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
@@ -414,11 +418,11 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
         drawcircle(match, colorize(rot_delta(match, 0)))
 
   # ImageDraw :(
-  a2 = img.taggedcopy(proj_points, a)
+  a2 = img.taggedcopy(proj_points, a, correction=True)
   b2 = img.taggedcopy(points, b)
   a = Image.new('RGBA', (a.size[0], height))
   b = Image.new('RGBA', (b.size[0], height))
-  a = img.taggedcopy(proj_points, a)
+  a = img.taggedcopy(proj_points, a, correction=True)
   b = img.taggedcopy(points, b)
   tags = Image.new('RGBA', (a.size[0] + b.size[0], height))
   tagfilled = Image.new('RGBA', (a.size[0] + b.size[0], height))
