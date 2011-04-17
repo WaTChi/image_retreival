@@ -74,58 +74,63 @@ class CameraModel:
     self.imsize = source.image.size
     self.lat = source.lat
     self.lon = source.lon
-    self.alt = source.alt
-    self.pitch = source.pitch
+    self.alt = 0
+    self.pitch = 0
     self.yaw = source.yaw
-    self.roll = source.roll
+    self.roll = 0
 
   def as_array(self):
-    return (self.lat, self.lon, self.alt, self.pitch, self.yaw, self.roll, self.focal_length - 500)
+    return (0,0)
 
   def evaluator(self, map3d, matches):
+    meter = 1/1e5
     best = [9999999]
     def euclidean_error_function(arr):
       error = 0.0
       ctr = 0
       buf = []
+      cbuf = []
       for m in matches:
         d, q = m['db'], m['query']
         feature = map3d[int(d[0]), int(d[1])]
         if not feature:
           continue
         ctr += 1
-        pz, px = geom.lltom(arr[0], arr[1], feature['lat'], feature['lon'])
-        py = feature['alt'] - arr[2]
-        x, y, z = geom.camera_transform(px, py, pz, arr[3], arr[4], arr[5])
-        coord = geom.project2d(x, y, z, arr[6])
+        pz, px = geom.lltom(self.lat + meter*arr[0], self.lon + meter*arr[1], feature['lat'], feature['lon'])
+        py = feature['alt'] # feature['alt'] - arr[2]
+        x, y, z = geom.camera_transform(px, py, pz, self.pitch, self.yaw, self.roll)
+        coord = geom.project2d(x, y, z, self.focal_length)
         pixel = geom.center(coord, self.imsize)
-        error += ((pixel[0] - q[0])**2 + (pixel[1] - q[1])**2)**0.5
-        buf.append((q[0], q[1]))
-      print
-      for x,y in buf:
-        print x,y
-      print
+        error += abs(pixel[0] - q[0])
+        buf.append((pixel[0], pixel[1]))
+        cbuf.append((q[0], q[1]))
+#      for i,j in buf:
+#        print i,j
+#      print
+#      for i,j in cbuf:
+#        print i,j
       if error < best[0]:
         best[0] = min(error, best[0])
 #        print best[0]/ctr
-#        INFO("moved %f meters" % info.distance(self.lat, self.lon, arr[0], arr[1]))
       return error/ctr
     return euclidean_error_function
 
   def mutate(self, args):
-    meter = 1/1e5
-    deg = 1
-    return (plusminus(args[0], meter), plusminus(args[1], meter), plusminus(args[2], deg), plusminus(args[3], deg), plusminus(args[4], deg), plusminus(args[5], deg), plusminus(args[6], 10))
+    return (plusminus(args[0], .5), plusminus(args[1], .5))
 
   def setlat(self, args, delta):
-    return (args[0] + delta, args[1], args[2], args[3], args[4], args[5], args[6])
+    return (args[0] + delta, args[1])
 
   def trysomething(self, evaluator):
     meter = 1/1e5
-    for i in range(2):
-      delta = i*meter/10.0
-      pt = self.setlat(self.as_array(), delta)
-      print delta, evaluator(pt)
+    evaluator((self.lat + meter * 25, self.lon + meter * -32))
+#    file = open('debug', 'w')
+#    for dx in range(-50, 50, 3):
+#      print dx
+#      for dy in range(-50, 50, 3):
+#        pt = (self.lat + meter*dx, self.lon + meter*dy)
+#        print >>file, dx, dy, evaluator(pt)
+#    file.close()
 
   def man_opt(self, evaluator):
     best, best_score = self.as_array(), evaluator(self.as_array())
@@ -133,12 +138,13 @@ class CameraModel:
     closed.add(best)
     pq = util_cs188.PriorityQueue()
     pq.push(best, best_score)
-    while not pq.isEmpty():
+    iter = 0
+    while not pq.isEmpty() and iter < 50:
+      iter += 1
       score, x = pq.pop()
       if score < best_score:
         best = x
         best_score = score
-        print best_score
       for i in range(5):
         candidate = self.mutate(x)
         if candidate in closed:
@@ -146,19 +152,23 @@ class CameraModel:
         closed.add(candidate)
         score = evaluator(candidate)
         pq.push(candidate, score)
-    return best
+    INFO("moved %f meters" % (best[0]**2 + best[1]**2)**0.5)
+#    print "dx", best[0], "dy", best[1]
+    meter = 1/1e5
+    return (self.lat + best[0]*meter, self.lon + best[1]*meter)
 
   def scipy_opt(self, evaluator):
     INFO("*** SCIPY BEGIN ***")
-    arr = scipy.optimize.anneal(evaluator, self.as_array())
-    return arr
+    arr, _ = scipy.optimize.anneal(evaluator, self.as_array(), maxeval=100)
+    meter = 1/1e5
+    print 'final result', arr
+    return (self.lat + arr[0]*meter, self.lon + arr[1]*meter)
 
 def compute_pose(C, matches, dbimgpath, dbsiftpath):
-  info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4]  +'.info')
+  info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4] + '.info')
   source = render_tags.EarthmineImageInfo(dbimgpath, info)
   model = CameraModel(source)
-  model.trysomething(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
-  exit()
+  return model.man_opt(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
 
 MAX_SPATIAL_ERROR = 0
 def getSpatiallyOrdered(matches, axis, inliers):
@@ -300,7 +310,8 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLine=True, showtag=True, showHom=False):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=True):
+  # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
   b = Image.open(db_img)
@@ -335,11 +346,15 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
 
   draw = ImageDraw.Draw(target)
 
-  db = render_tags.TagCollection(os.path.expanduser(os.path.join(C.maindir, 'Research/app/dev/tags.csv')))
   source = render_tags.get_image_info(db_img)
-  img = render_tags.TaggedImage(db_img, source, db)
-  points = img.map_tags_culled(C.pixelmap.open(db_img[:-4] + 'sift.txt'))
-  proj_points = []
+  img = render_tags.TaggedImage(db_img, source, C.tags)
+  if C.compute2dpose:
+    elat, elon = compute_pose(C, rsc_matches, db_img, matchsiftpath)
+    points = img.map_tags_camera()
+    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
+  else:
+    proj_points = []
+    points = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -358,20 +373,26 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
       g['query'][0]*=scale
       g['query'][1]*=scale
 
-  # confusing geometry. x and y switch between the reprs.
-  for (tag, (dist, pixel)) in points:
-    x = pixel[1]
-    y = pixel[0]
-    dest = H*np.matrix([x,y,1]).transpose()
-    try:
-      dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
-    except ZeroDivisionError:
-      dest = (0,0)
-    except ValueError:
-      dest = (0,0)
-    tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
-    dest = (dest[1]*scale, dest[0]*scale)
-    proj_points.append((tag, (dist, dest)))
+  if not proj_points:
+    # transfer using H matrix
+    # confusing geometry. x and y switch between the reprs.
+    for (tag, (dist, pixel)) in points:
+      y, x = pixel # backwards
+      x2 = x+5
+      dest = H*np.matrix([x,y,1]).transpose()
+      dest2 = H*np.matrix([x2,y,1]).transpose()
+      try:
+        dest = tuple(map(int, (dest[0].item()/dest[2].item(), dest[1].item()/dest[2].item())))
+        dest2 = tuple(map(int, (dest2[0].item()/dest2[2].item(), dest2[1].item()/dest2[2].item())))
+      except ZeroDivisionError:
+        dest = dest2 = (0,0)
+      except ValueError:
+        dest = dest2 = (0,0)
+      tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
+      correction = min(15, max(.1, abs(dest[0]-dest2[0])/5.0))
+      dest = (dest[1]*scale, dest[0]*scale)
+      dest2 = (dest2[1]*scale, dest2[0]*scale)
+      proj_points.append((tag, (dist, dest), correction))
 
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
@@ -397,11 +418,11 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
         drawcircle(match, colorize(rot_delta(match, 0)))
 
   # ImageDraw :(
-  a2 = img.taggedcopy(proj_points, a)
+  a2 = img.taggedcopy(proj_points, a, correction=True)
   b2 = img.taggedcopy(points, b)
   a = Image.new('RGBA', (a.size[0], height))
   b = Image.new('RGBA', (b.size[0], height))
-  a = img.taggedcopy(proj_points, a)
+  a = img.taggedcopy(proj_points, a, correction=True)
   b = img.taggedcopy(points, b)
   tags = Image.new('RGBA', (a.size[0] + b.size[0], height))
   tagfilled = Image.new('RGBA', (a.size[0] + b.size[0], height))
@@ -425,23 +446,6 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, showLi
         dest = (0,0)
       dest = (dest[1]*scale, dest[0]*scale)
       dests.append(dest)
-
-    while dests[0][0] < 100:
-      dests[0] = dests[0][0] + 100, dests[0][1]
-      dests[1] = dests[1][0] + 100, dests[1][1]
-      dests[2] = dests[2][0] + 100, dests[2][1]
-    while dests[0][0] > a.size[0] - 100:
-      dests[0] = dests[0][0] - 100, dests[0][1]
-      dests[1] = dests[1][0] - 100, dests[1][1]
-      dests[2] = dests[2][0] - 100, dests[2][1]
-    while dests[0][1] > a.size[1] - 100:
-      dests[0] = dests[0][0], dests[0][1] - 100
-      dests[1] = dests[1][0], dests[1][1] - 100
-      dests[2] = dests[2][0], dests[2][1] - 100
-    while dests[0][1] < 100:
-      dests[0] = dests[0][0], dests[0][1] + 100
-      dests[1] = dests[1][0], dests[1][1] + 100
-      dests[2] = dests[2][0], dests[2][1] + 100
 
     xdrawline((pts[0], pts[1]), 'violet', off=a.size[0])
     xdrawline((pts[0], pts[2]), 'yellow', off=a.size[0])

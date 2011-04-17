@@ -6,6 +6,8 @@ import Image, ImageDraw, ImageFont
 import os
 import earthMine
 import geom
+import reader
+import util
 import colorsys
 import math
 import info
@@ -87,7 +89,9 @@ class EarthmineImageInfo(ImageInfo):
     self.yaw = self.info['view-direction']['yaw']
     self.roll = 0
     self.viewId = self.info['id']
-    self.image = Image.open(image)
+    self.image = Image.open(image) if image else None
+    if not self.image:
+      return
     self.focal_length = 0.8625 * self.image.size[0]
     center = geom.center((0,0), self.image.size)
     cloc = self.get_pixel_location(center)
@@ -101,7 +105,7 @@ class EarthmineImageInfo(ImageInfo):
 
   def get_pixel_locations(self, pixels):
     return earthMine.ddGetAllPixels(pixels, self.viewId)
-  
+         
 class TaggedImage:
   """Tags an EarthMine image."""
   def __init__(self, image, source, db):
@@ -140,15 +144,18 @@ class TaggedImage:
       for y in range(0, self.image.size[1], stepy):
         yield (x,y)
 
-  def map_tags_camera(self):
+  def map_tags_camera(self, elat=0, elon=0, ep=0, ey=0, er=0):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
+    if not elat or not elon:
+      elat = self.lat
+      elon = self.lon
     tags = []
     possible_tags = self.get_frustum()
 
     for tag in possible_tags:
-      pz, px = geom.lltom(self.lat, self.lon, tag.lat, tag.lon)
+      pz, px = geom.lltom(elat, elon, tag.lat, tag.lon)
       py = tag.alt - self.alt;
-      x, y, z = geom.camera_transform(px, py, pz, self.pitch, self.yaw, self.roll)
+      x, y, z = geom.camera_transform(px, py, pz, self.pitch + ep, self.yaw + ey, self.roll + er)
       coord = geom.project2d(x, y, z, self.source.focal_length)
       pixel = geom.center(coord, self.image.size)
 #      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
@@ -156,14 +163,29 @@ class TaggedImage:
 
     return tags
 
-  def map_tags_culled(self, pixelmap):
-    THRESHOLD = 15.0 # meters
+  def map_tags_ocs(self, C):
+
     tags = self.map_tags_camera()
+    accepted, bad = [], []
+
+    for (tag, (_, pixel)) in tags:
+      if tag.emIsVisible(self.source, C, 20):
+        accepted.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (999, pixel)))
+
+    return accepted + bad
+
+  def map_tags_hybrid(self, pixelmap, C, elat, elon):
+    """Uses tag projection from estimated lat, lon.
+       Tags are filtered by using the image's pt cloud
+       when source tag is visible in the db image. Otherwise,
+       3d occlusion detection is performed."""
+    THRESHOLD = 15.0 # meters
+    tags = self.map_tags_camera(elat, elon)
     accepted = []
     outside = []
     bad = []
-    min_upper_bound = 0
-    obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
       location = pixelmap[geom.picknearest(pixelmap, *pixel)]
       if location is None:
@@ -175,16 +197,120 @@ class TaggedImage:
         dist = tag.xydistance(location)
         if dist < THRESHOLD:
           accepted.append((tag, (_, pixel)))
-          min_upper_bound = max(min_upper_bound, tag.distance(obs))
         elif not geom.contains(pixel, self.image.size):
           outside.append((tag, (_, pixel)))
         else:
           bad.append((tag, (999, pixel)))
+
+    # use ocs method for tags outside db image
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
     for (tag, (_, pixel)) in outside:
-      if tag.distance(obs) < min_upper_bound + THRESHOLD:
+      if tag.isVisible2(self.source, tree3d, elat, elon):
         accepted.append((tag, (_, pixel)))
       else:
-        accepted.append((tag, (15, pixel)))
+        bad.append((tag, (15, pixel)))
+
+    return accepted + bad
+
+  def map_tags_hybrid2(self, pixelmap, C):
+    """Tags are filtered by using the image's pt cloud
+       when source tag is visible in the db image. Otherwise,
+       a combination of earthmine occlusion queries and
+       database occlusion queries are performed."""
+    tags = self.map_tags_camera(self.lat, self.lon)
+    accepted = []
+    outside = []
+    bad = []
+    THRESHOLD = 15
+    outside = tags # XXX
+#    for (tag, (_, pixel)) in tags:
+#      location = pixelmap[geom.picknearest(pixelmap, *pixel)]
+#      if location is None:
+#        if not geom.contains(pixel, self.image.size):
+#          outside.append((tag, (_, pixel)))
+#        else:
+#          bad.append((tag, (999, pixel)))
+#      else:
+#        dist = tag.xydistance(location)
+#        if dist < THRESHOLD:
+#          accepted.append((tag, (_, pixel)))
+#        elif not geom.contains(pixel, self.image.size):
+#          outside.append((tag, (_, pixel)))
+#        else:
+#          bad.append((tag, (999, pixel)))
+
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    pm = reader.get_reader(C.params['descriptor'])\
+      .load_PointToViewsMap(cellpath, C.infodir)
+
+    for (tag, (_, pixel)) in outside:
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 30)
+      emv = tag.emIsVisible(self.source, C, 30)
+      if (vis or emv):
+        if geom.norm_compatible(tag, self):
+          accepted.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (12, pixel)))
+      else:
+        bad.append((tag, (17, pixel)))
+
+    return accepted + bad
+
+  def map_tags_lookup(self, C):
+    tags = self.map_tags_camera()
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+
+    pm = reader.get_reader(C.params['descriptor'])\
+      .load_PointToViewsMap(cellpath, C.infodir)
+
+    accepted, bad = [], []
+
+    for (tag, (_, pixel)) in tags:
+      vis, t = pm.hasView(C, tag.lat, tag.lon, self.lat, self.lon, self.yaw, 20)
+      if vis:
+        accepted.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (999, pixel)))
+    return accepted + bad
+
+  def map_tags_hybrid3(self, pixelmap, C):
+    tags = self.map_tags_camera()
+    accepted = []
+    outside = []
+    bad = []
+#    min_upper_bound = 0
+    obs = self.source.get_loc_dict()
+    for (tag, (_, pixel)) in tags:
+      location = geom.picknearestll(pixelmap, tag)
+      dist = tag.xydistance(location)
+#      if dist < 3.0:
+#        min_upper_bound = max(min_upper_bound, tag.distance(obs))
+      if dist < 15.0 or not geom.contains(pixel, self.image.size):
+        outside.append((tag, (_, pixel)))
+      else:
+        bad.append((tag, (999, pixel)))
+
+    cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
+    cellpath = os.path.join(C.dbdir, cell)
+    pm = reader.get_reader(C.params['descriptor'])\
+      .load_PointToViewsMap(cellpath, C.infodir)
+
+    for (tag, (_, pixel)) in outside:
+      vis, t = pm.hasView(C, tag.lat, tag.lon,\
+        self.lat, self.lon, self.yaw, 30)
+      emv = tag.emIsVisible(self.source, C, 30)
+#      bv = tag.distance(obs) < min_upper_bound + 15.0
+      if (vis or emv): # or bv):
+        if geom.norm_compatible(tag, self):
+          accepted.append((tag, (_, pixel)))
+        else:
+          bad.append((tag, (12, pixel)))
+      else:
+        bad.append((tag, (15, pixel)))
     return accepted + bad
 
   def map_tags_earthmine(self):
@@ -208,15 +334,17 @@ class TaggedImage:
     INFO("mapped %d/%d possible tags" % (len(tags), len(possible_tags)))
     return tags
 
-  def taggedcopy(self, points, image):
+  def taggedcopy(self, points, image, correction=False):
     MIN_SIZE = 1
     draw = ImageDraw.Draw(image)
     def dist(p):
       return info.distance(p[0].lat, p[0].lon, self.lat, self.lon)
     points.sort(key=dist, reverse=True) # draw distant first
-    for tag, (dist, point) in points:
+    if not correction:
+      points = [(t,(d,p),1) for (t,(d,p)) in points]
+    for tag, (dist, point), correction in points:
       color = self.colordist(dist, 30.0)
-      size = int(150.0/info.distance(tag.lat, tag.lon, self.lat, self.lon))
+      size = int(300.0*correction/info.distance(tag.lat, tag.lon, self.lat, self.lon))
       fontPath = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf"
       font = ImageFont.truetype(fontPath, max(size, MIN_SIZE))
       off_x = -size*2

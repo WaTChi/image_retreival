@@ -1,21 +1,65 @@
 # place for geometric utility functions
-from info import distance
+from info import distance, getbearing
 import numpy as np
+import scipy.optimize as sio
 import math
-from numpy import matrix, sin, cos, sqrt
+from numpy import matrix, sin, cos, sqrt, pi
 
 def euclideandist(x,y,x2,y2):
   return ((x-x2)**2 + (y-y2)**2)**.5
+
+# all units are in radians
+# finds minimum angle difference between t1,t2
+def anglediff(t1, t2):
+  a = math.e ** (1.0j * t1)
+  b = math.e ** (1.0j * t2)
+  c = b/a
+  return abs(np.arctan2(c.imag, c.real))
+
+# yaws = angles looking torwards the point
+# returns the angle a such that the sum of cubes of
+# anglediff(a, yaw_i) is minimized
+def compute_norm(yaws):
+  def f(t):
+    error = 0.0
+    for y in yaws:
+        error += anglediff(y,t)**3
+    return error
+  return sio.brute(f, [(0,2*math.pi)])[0]
+
+# return True if pt is visible at from viewpt
+def norm_compatible(pt, viewpt, verbose=False):
+  yaw = getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
+  diff = anglediff(pt.bearing*pi/180, yaw*pi/180)*180/math.pi
+  if verbose:
+    print "Point", pt
+    print "pt bearing", pt.bearing
+    print "view bearing", yaw
+    print "diff", diff
+    print
+  return diff < 85
+
+def picknearestll(dict2d, tag):
+  """Returns closest value in dict"""
+  locs = []
+  for pixel, loc in dict2d.items():
+    if loc:
+      locs.append((tag.xydistance(loc), loc))
+  locs.sort()
+  return locs[0][1]
 
 def picknearest(dict2d, x, y):
   """Returns closest key in dict of (x,y) to (x,y)"""
   return min(map(lambda k: (euclideandist(k[0],k[1],x,y),k), dict2d))[1]
 
+def midpoint(lat1, lon1, alt1, lat2, lon2, alt2):
+  return (lat1 + lat2) / 2.0, (lon1 + lon2) / 2.0, (alt1 + alt2) / 2.0
+
 def lltom(lat1, lon1, lat2, lon2):
   """Returns lat2,lon2 relative to lat1,lon1 in meters.
      Does not handle wraparound at 360."""
   if lat1 == lat2 and lon1 == lon2:
-    return 0
+    return [0, 0]
   dx = distance(lat1, lon1, lat2, lon1) * (-1 if lat2 < lat1 else 1)
   dy = distance(lat1, lon1, lat1, lon2) * (-1 if lon2 < lon1 else 1)
   return [dx,dy]
@@ -48,12 +92,15 @@ def constrain(point, screen):
 def contains(point, screen):
   return point == constrain(point, screen)
 
+def distance3d6(x1, y1, z1, x2, y2, z2):
+  xydist = distance(x1, y1, x2, y2)
+  vert = abs(z1-z2)
+  return sqrt(xydist**2 + vert**2)
+
 def distance3d(d1, d2):
   """Finds distance between {'lat': deg, 'lon': deg, 'alt': meters} points."""
   x1, y1, z1 = d1['lat'], d1['lon'], d1['alt']
   x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
-  xydist = distance(x1, y1, x2, y2)
-  vert = abs(d1['alt']-d2['alt'])
-  return sqrt(xydist**2 + vert**2)
+  return distance3d6(x1, y1, z1, z2, y2, z2)
 
 # vim: et sw=2

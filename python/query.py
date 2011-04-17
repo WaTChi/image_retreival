@@ -10,9 +10,9 @@ from config import *
 import reader
 import util
 import corr
-from multiprocessing import cpu_count
 import time
 import pyflann
+import geom
 import threading
 import numpy as np
 import os
@@ -33,6 +33,46 @@ PARAMS_DEFAULT = {
 # custom configuration notation
   'confstring': '',
 }
+
+class Tree3D:
+  def __init__(self, map3d, C, cellid):
+    self.map3d = map3d
+    self.flann = pyflann.FLANN()
+    self.params = PARAMS_DEFAULT.copy()
+    self.params['num_neighbors'] = 10
+    self.params['checks'] = 4096
+    index = os.path.join(CACHE_PATH, "%s.tree3d.index" % cellid)
+    if os.path.exists(index):
+      self.flann.load_index(index, map3d)
+    else:
+      INFO('building index...')
+      self.flann.build_index(map3d.view(), **self.params)
+      INFO('saving index...')
+      save_atomic(lambda d: self.flann.save_index(d), index)
+
+  def countHigherPtsNear(self, mlat, mlon, malt, threshold):
+    dists = []
+    querypt = np.ndarray(1, '3float64')
+    querypt[0][0] = mlat
+    querypt[0][1] = mlon
+    querypt[0][2] = malt
+    results, dists = self.flann.nn_index(querypt, **self.params)
+    results, dists = results[0], dists[0]
+    count = 0
+    for i, dist in enumerate(dists):
+      meters = geom.distance3d6(
+        self.map3d[results[i]][0],
+        self.map3d[results[i]][1],
+        self.map3d[results[i]][2],
+        mlat, mlon, malt)
+      if meters < 1.0:
+        count += 1
+      # ignore lower points for rough threshold
+      if self.map3d[results[i]][2] < mlat:
+        continue
+      if meters < threshold:
+        count += 1
+    return 1 if count > 2 else 0
 
 # I'm not actually sure if the distance function affects
 # index compatibility. Someone check please?
@@ -55,7 +95,7 @@ def searchtype(params):
     conf = ',%s' % params['confstring']
   return '%s,threshold=%dk,searchparam=%d%s%s%s' % (indextype(params), params['dist_threshold']/1000, params['checks'], nn, vote_method, conf)
 
-def run_parallel(C, Q, cells, outputFilePaths, num_threads=cpu_count()):
+def run_parallel(C, Q, cells, outputFilePaths, num_threads=1):
   semaphore = threading.Semaphore(num_threads)
   threads = []
   INFO_TIMING("running queries with up to %d threads" % num_threads)
@@ -80,6 +120,7 @@ class Query(threading.Thread):
     threading.Thread.__init__(self)
     self.qpath = Q.siftpath
     self.cellpath = os.path.join(C.dbdir, cell)
+    self.infodir = C.infodir
     self.celldir = C.dbdir
     self.outfile = outfile
     self.params = C.params
@@ -134,8 +175,7 @@ class Query(threading.Thread):
        bubble around the original vote location. This requires nn >> 1.
        Params to tweak: ratio threshold, bubble radius"""
     assert self.params['num_neighbors'] > 1
-    # TODO eliminate hardcoded path
-    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, os.path.expanduser('~/shiraz/Research/collected_images/earthmine-fa10.1/37.871955,-122.270829'))
+    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     accept, reject, matchonce, ratio = 0, 0, 0, 0
     counts = {} # map from img to counts
     closed = set()

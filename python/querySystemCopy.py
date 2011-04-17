@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
+print 'import modules...',
+import sys
+sys.stdout.flush()
+print
+
 import system
+import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
@@ -15,14 +21,25 @@ C.params.update({
 })
 
 C.max_matches_to_analyze = 1
-C.stop_on_homTrue = 1
+C.stop_on_homTrue = 0
 C.put_into_dirs = 0
 C.do_posit = 0
+C.solve_pnp = 0
+C.compute2dpose = 0
 C.dump_hom = 0
+C.ransac_max_filt = 20
 C.ransac_min_filt = 1
-C.selection = ['8852']
 
-with system.MultiprocessExecution():
+## Query3 tagging issues
+C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']
+
+# Query2 tagging issues
+#C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776']
+
+if 'DEBUG' in os.environ:
   system.characterize(C)
+else:
+  with system.MultiprocessExecution():
+    system.characterize(C)
 
 # vim: et sw=2

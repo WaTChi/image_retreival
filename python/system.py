@@ -6,16 +6,19 @@ import os.path
 import query
 from config import INFO
 import posit
+import pnp
 
-try:
-    if 'NUM_THREADS' in os.environ:
-        NUM_THREADS = int(os.environ['NUM_THREADS'])
-    else:
-        import multiprocessing
-        NUM_THREADS = multiprocessing.cpu_count()
-except:
-    import multiprocessing
-    NUM_THREADS = multiprocessing.cpu_count()
+#try:
+#    if 'NUM_THREADS' in os.environ:
+#        NUM_THREADS = int(os.environ['NUM_THREADS'])
+#    else:
+#        import multiprocessing
+#        NUM_THREADS = multiprocessing.cpu_count()
+#except:
+#    import multiprocessing
+#    NUM_THREADS = multiprocessing.cpu_count()
+
+NUM_THREADS = 4 # ! for now
 
 import time
 
@@ -116,16 +119,16 @@ def match(C, Q):
         outputFilePaths.append(outputFilePath)
 
     # start query
-    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths)
+    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, NUM_THREADS)
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
+
+    #geometric consistency reranking
     ranked = distance_sort(C, Q, \
-      combine_ransac(comb_matches, C.ransac_min_filt))
-#    print Q.name
-#    print cells_in_range
-#    for i,r in enumerate(ranked):
-#      print i, r
+      combine_ransac(comb_matches, C)
+    )
+#    combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -149,7 +152,7 @@ def match(C, Q):
     return stats, matchedimg, matches, ranked
 
 def getlatlonfromdbimagename(C, dbimg):
-    if C.QUERY == 'emeryville':
+    if C.QUERY == 'emeryville' or C.QUERY == 'cory' or C.QUERY == 'cory-25':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
@@ -176,9 +179,9 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             assert os.path.exists(matchimgpath)
         match = any(check_img(C, Q, ranked_matches[i-1]))
 
+#        matches = db_matches
         # rematch for precise fit
         db_matches = comb_matches[matchedimg + 'sift.txt']
-        matches = db_matches
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(C, Q, matchsiftpath)
 
@@ -190,15 +193,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-#        # compute pose [experimental]
-#        if data.get('success'):
-#          corr.compute_pose(C, rsc_matches, matchimgpath, matchsiftpath)
 
         if C.drawtopcorr:
+
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
           try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath)
+            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath)
           except IOError, e:
             INFO(e)
 
@@ -215,16 +216,20 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         ### POSIT ###
         if C.do_posit:
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
+
+        ### Perspective N-Point Problem ###
+        if C.solve_pnp:
+            pnp.solve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
         
 
-def combine_ransac(counts, min_filt=0):
+def combine_ransac(counts, C):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     filtered = {}
     bound = -1
     num_filt = 0
     for siftfile, matches in sorted_counts:
       siftfile = siftfile[:-8]
-      if num_filt > min_filt and (len(matches) < bound or num_filt > 20):
+      if num_filt > C.ransac_min_filt and (len(matches) < bound or num_filt > C.ransac_max_filt):
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
@@ -244,9 +249,15 @@ def combine_ransac(counts, min_filt=0):
       return condense2(sorted_counts)
     return condense(rsorted_counts)
 
+def combine_vote(counts, min_filt=0):
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    def condense2(list):
+        return map(lambda x: (x[0][:-8], len(x[1])), list)
+    return condense2(sorted_counts)
+
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
-    if C.QUERY == 'query1':
+    if C.QUERY == 'query1' or C.QUERY == 'query1-m':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
     elif C.QUERY == 'query3':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
@@ -279,6 +290,7 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
     outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
+    print outputFilePath
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -303,6 +315,7 @@ def characterize(C):
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
+        print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1

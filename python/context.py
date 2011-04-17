@@ -2,9 +2,11 @@ import os
 import info
 import Image
 import pixels
+import numpy as np
 import util
 import shutil
 import query
+from config import *
 
 from android import AndroidReader
 from tags import TagCollection
@@ -67,8 +69,10 @@ class _Context(object):
     self.QUERY = None # set before calling characterize()
     self.params = query.PARAMS_DEFAULT.copy()
     self.cacheEnable = 0 # instance-local caching of results
-    self.ransac_min_filt = 1
+    self.ransac_min_filt = 1 # takes precedence over max_filt
+    self.ransac_max_filt = 20
     self.do_posit = 0
+    self.solve_pnp = 0
     self.print_per = 1
     self.max_matches_to_analyze = 1
     self.stop_on_homTrue = 0
@@ -81,6 +85,8 @@ class _Context(object):
     self.datasource = None
     self.matchdistance = 25
     self.selection = None
+    self.tagcompute = True # false is like NO_HOM, NO_DRAW
+    self.compute2dpose = False
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
     self.resultsdir = os.path.expanduser('~/topmatches')
@@ -117,7 +123,19 @@ class _Context(object):
   def copy(self):
     return _Context(self)
 
+  def loadkey(self, key):
+    p = os.path.join(CACHE_PATH, key + '.npy')
+    if os.path.exists(p):
+      return np.load(p).item()
+    else:
+      return None
+
+  def savekey(self, key, value):
+    p = os.path.join(CACHE_PATH, key + '.npy')
+    save_atomic(lambda d: np.save(d, value), p)
+
   def pickleable(self):
+    self.tags # force lazy load here
     copy = self.copy()
     for k,v in self.__dict__.items():
       if type(v) == type(lambda:0):
@@ -127,7 +145,11 @@ class _Context(object):
   @property
   def tags(self):
     if not self._tags:
-      self._tags = TagCollection(os.path.join(self.maindir, 'Research/app/code/tags.csv'))
+      src = os.path.dirname(os.path.dirname(__file__))
+      self._tags = TagCollection(
+        os.path.join(src, 'tags.csv'),
+        os.path.join(src, 'bearings.csv'),
+      )
     return self._tags
 
   @property
@@ -140,12 +162,20 @@ class _Context(object):
   def dbdump(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
+    elif self.QUERY == 'cory-4':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
+    elif self.QUERY == 'cory-25':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-25')
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829')
 
   @property
   def dbdir(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
+    elif self.QUERY == 'cory-4':
+      return    os.path.join(self.maindir, 'Research/cells/cory-4')
+    elif self.QUERY == 'cory-25':
+      return    os.path.join(self.maindir, 'Research/cells/cory-25')
     return os.path.join(self.maindir, 'Research/cells/g=100,r=d=236.6/')
 
   @property
@@ -158,7 +188,7 @@ class _Context(object):
 
   @property
   def infodir(self):
-	return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
+    return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
 
   @property
   def querydir(self):
@@ -166,11 +196,11 @@ class _Context(object):
 
   @property
   def drawtopcorr(self):
-    return 'NO_DRAW' not in os.environ
+    return self.tagcompute and 'NO_DRAW' not in os.environ
 
   @property
   def compute_hom(self):
-    return 'NO_HOM' not in os.environ
+    return self.tagcompute and 'NO_HOM' not in os.environ
 
   def initdirs(self):
     """Creates and cleans result data directories."""
@@ -193,7 +223,9 @@ class _Context(object):
 
   def iter_queries_unfiltered(self):
     """Returns iter over _Query for files in query"""
-    if self.QUERY == 'query4':
+
+    #if query taken from a cell phone
+    if self.QUERY == 'query4' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()
@@ -205,11 +237,13 @@ class _Context(object):
           yield image
       return iter0()
 
-    if self.QUERY == 'emeryville':
+    #if taken from d2x with no coordinates
+    if self.QUERY == 'emeryville' or self.QUERY == 'cory-4' or self.QUERY == 'cory-25':
       def iter1():
         for file in util.getSiftFileNames(self.querydir):
           image = _Query()
           image.siftpath = os.path.join(self.querydir, file)
+          #TODO: this uses a hard coded dimension
           image.pgm_scale = max(Image.open(os.path.join(self.querydir, image.siftname[:-8] + '.pgm')).size) / max(2592.0, 1456.0)
           image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.jpg')
           image.setSensorCoord(0,0)
@@ -220,6 +254,8 @@ class _Context(object):
     def iter2():
       for file in util.getSiftFileNames(self.querydir):
         image = _Query()
+        if self.QUERY == 'query2':
+          image.pgm_scale = 512/2592.0
         image.siftpath = os.path.join(self.querydir, file)
         image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.JPG')
         image.setSensorCoord(*info.getQuerySIFTCoord(file))

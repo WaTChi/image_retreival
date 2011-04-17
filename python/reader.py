@@ -9,8 +9,13 @@
 #  }
 
 from config import *
+import query
 import numpy as np
 import time
+from info import distance
+import geom
+import render_tags
+import sys
 import os
 
 def get_reader(typehint):
@@ -22,6 +27,53 @@ def get_reader(typehint):
     return CHoGReader()
   else:
     raise NotImplementedError
+
+LOCATION_UNIT = 1/1e5 # 1 meter
+disc = lambda la: int(la/LOCATION_UNIT)
+
+# provides map from 2dpt -> earthmine views of point
+class PointToViewsMap(object):
+
+  def __init__(self, lookup_table):
+    self.lookup_table = lookup_table
+    INFO_TIMING("initialized pt to view map with %d entries" % len(lookup_table))
+
+  def _expandSet(self, k, di):
+    for dx in range(-di, di + 1):
+      for dy in range(-di, di + 1):
+        yield (k[0] + dx, k[1] + dy)
+
+  def _getViewStrs(self, lat, lon, rad=5):
+    k0 = disc(lat), disc(lon)
+    imgset = set()
+    for k in self._expandSet(k0, rad):
+      imgset = imgset.union(self.lookup_table.get(k, set()))
+    return imgset
+
+  def getViews(self, C, lat, lon, rad):
+    for dbimg in self._getViewStrs(lat, lon, rad):
+      info = os.path.join(C.infodir, os.path.basename(dbimg)[:-8] + '.info')
+      source = render_tags.EarthmineImageInfo(None, info)
+      yield source
+
+  # return True if (lat, lon) is visible from (qlat, qlon, qyaw)
+  # yaw is in radians
+  def hasView(self, C, lat, lon, qlat, qlon, qyaw, thresh):
+    dist = distance(lat, lon, qlat, qlon)
+    rad = min(20, max(3, int(dist/10)))
+
+    def similar(view):
+      return distance(view.lat, view.lon, qlat, qlon) < thresh
+
+    def yawof(view):
+      return view.yaw
+
+    views = list(self.getViews(C, lat, lon, rad))
+#    print "dist is %d, rad is %d, nviews is %d" % (dist, rad, len(views))
+    closeyaws = map(lambda (k,v): v, sorted([(distance(v.lat, v.lon, qlat, qlon), yawof(v)) for v in views]))[:10]
+    norm = geom.compute_norm(closeyaws)
+
+    return any([similar(v) for v in views]), norm
 
 class FeatureReader(object):
   def __init__(self, name, dtype):
@@ -77,6 +129,52 @@ class FeatureReader(object):
       save_atomic(lambda d: np.save(d, dataset), dest)
     for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
+
+  def load_tree3d(self, directory, C):
+    """Returns a tree class against which queries of the form
+       tree3d.countPtsNear(lat, lon, threshold_meters)
+       can be performed efficiently."""
+    pixmap_dir = C.infodir
+    try:
+      map3d = self.load_3dmap_for_cell(directory, None, None, None)
+    except:
+      INFO('exception... rereading 3d pts')
+      dataset, mapping = self.load_cell(directory)
+      INFO('building 3d map...')
+      map3d = self.load_3dmap_for_cell(directory, dataset, mapping, pixmap_dir)
+
+    amap3d = map3d.view((np.float64, 3))
+    return query.Tree3D(amap3d, C, getcellid(directory))
+
+  # these maps are on the order of 5MB in size
+  # and contain ~100k entries
+  def load_PointToViewsMap(self, directory, pxdir):
+
+    cellid = getcellid(directory)
+    v_out = getfile(directory, cellid + '-pvmap.npy')
+
+    if os.path.exists(v_out):
+      return PointToViewsMap(np.load(v_out).item())
+
+    dataset, mapping = self.load_cell(directory)
+    map3d = self.load_3dmap_for_cell(directory, dataset, mapping, pxdir)
+
+    lookup_table = {}
+    for i in range(len(map3d)):
+      if i % 123456 == 0:
+        print ('\r -> %d/%d' % (i, len(map3d))),
+        sys.stdout.flush()
+      ds_lat = disc(map3d[i]['lat'])
+      ds_lon = disc(map3d[i]['lon'])
+      key = (ds_lat, ds_lon)
+      if key not in lookup_table:
+        lookup_table[key] = set()
+      lookup_table[key].add(mapping[dataset[i]['index']])
+
+    for dest in getdests(directory, cellid + '-pvmap.npy'):
+      save_atomic(lambda d: np.save(d, lookup_table), dest)
+
+    return PointToViewsMap(lookup_table)
 
   def load_3dmap_for_cell(self, directory, dataset, mapping, pixmap_dir):
     """For the cell specified, return a vector v such that

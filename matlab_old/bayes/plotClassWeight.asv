@@ -18,11 +18,6 @@ function plotClassWeight(classifier,class1,class2,min_samp,fignum)
 %         class1, while a weight < 1 in the plot favors class 2.
 %   fignum:     Optional figure start. Plots in figure(fignum+1:fignum+M)
 
-if nargin<4
-    min_samp = 20;
-end
-min_samp = min(min_samp,0.1*sum(classifier.nsamps));
-
 % Size parameters
 C = length(classifier.nsamps);
 M = length(classifier.bins);
@@ -68,6 +63,7 @@ for f=1:M
     x = spacing/2 : spacing : (B-1/2)*spacing;
     
     % Get relative weighing via classify function bin expansion method
+    
     weight = zeros(B,1);
     for b=1:B
         
