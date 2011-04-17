@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from config import *
-import pyflann
 import time
 import info
 import Image, ImageDraw
@@ -55,6 +54,7 @@ def rematch(C, Q, dbsift):
   reader = get_reader(C.params['descriptor'])
   q = reader.load_file(Q.siftpath)
   db = reader.load_file(dbsift)
+  import pyflann
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
   matches = []

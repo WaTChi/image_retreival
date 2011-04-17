@@ -7,18 +7,24 @@ import query
 from config import INFO
 import posit
 import pnp
+import subprocess
 
-#try:
-#    if 'NUM_THREADS' in os.environ:
-#        NUM_THREADS = int(os.environ['NUM_THREADS'])
-#    else:
-#        import multiprocessing
-#        NUM_THREADS = multiprocessing.cpu_count()
-#except:
-#    import multiprocessing
-#    NUM_THREADS = multiprocessing.cpu_count()
+def get_free_mem_gb():
+  txt = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).communicate()[0]
+  return int(txt.split('\n')[2].split()[-1])
 
-NUM_THREADS = 4 # ! for now
+# based on memory usage
+# rule of thumb:
+#   we need 1.3gb of free memory per thread
+#   and should allow 10gb for disk cache
+def estimate_threads_avail():
+  import multiprocessing
+  tmax = multiprocessing.cpu_count()
+  gb_free = get_free_mem_gb()
+  t = int((gb_free - 10.0)/1.3)
+  t = min(tmax, max(1, t))
+  INFO("I think we have enough memory for %d threads" % t)
+  return t
 
 import time
 
@@ -30,7 +36,6 @@ import query1GroundTruth
 import query2Groundtruth
 import query5horizGroundTruth
 import query5vertGroundTruth
-import query2Groundtruth
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -46,7 +51,7 @@ class MultiprocessExecution:
   pool = None
 
   def __enter__(self):
-    MultiprocessExecution.pool = Pool(cpu_count())
+    MultiprocessExecution.pool = Pool(MAX_THREADS)
 
   def __exit__(self, *args):
     print "Waiting for background jobs to finish..."
@@ -122,7 +127,7 @@ def match(C, Q):
         outputFilePaths.append(outputFilePath)
 
     # start query
-    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, NUM_THREADS)
+    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, estimate_threads_avail())
 
     # combine results
     comb_matches = corr.combine_matches(outputFilePaths)
