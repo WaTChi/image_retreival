@@ -282,14 +282,14 @@ class TaggedImage:
     accepted = []
     outside = []
     bad = []
-    min_upper_bound = 0
+#    min_upper_bound = 0
     obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
       location = geom.picknearestll(pixelmap, tag)
       dist = tag.xydistance(location)
-      if dist < 3.0:
-        min_upper_bound = max(min_upper_bound, tag.distance(obs))
-      if dist < 10.0:
+#      if dist < 3.0:
+#        min_upper_bound = max(min_upper_bound, tag.distance(obs))
+      if dist < 15.0 or not geom.contains(pixel, self.image.size):
         outside.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
@@ -303,14 +303,14 @@ class TaggedImage:
       vis, t = pm.hasView(C, tag.lat, tag.lon,\
         self.lat, self.lon, self.yaw, 30)
       emv = tag.emIsVisible(self.source, C, 30)
-      bv = tag.distance(obs) < min_upper_bound + 5.0
-      if (vis or emv or bv):
+#      bv = tag.distance(obs) < min_upper_bound + 15.0
+      if (vis or emv): # or bv):
         if geom.norm_compatible(tag, self):
           accepted.append((tag, (_, pixel)))
         else:
           bad.append((tag, (12, pixel)))
       else:
-        accepted.append((tag, (15, pixel)))
+        bad.append((tag, (15, pixel)))
     return accepted + bad
 
   def map_tags_earthmine(self):
