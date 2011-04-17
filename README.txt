@@ -6,8 +6,11 @@ Dependencies:
   SciPy
   httplib
 
-Important Libraries:
-  earthmine.py - download data from earthmine
+How to access git repository:
+	1. add your ssh public key to the authorized keys of ericl on gorgan:
+		/home/ericl/.ssh/authorized_keys
+	2. clone from this url:
+		$ git clone ssh://ericl@gorgan.eecs.berkeley.edu/home/ericl/query.git	
 
 Workflow:
   Downloading new earthmine data:
