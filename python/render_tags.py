@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# code for filtering and drawing tags onto images
 # all angles are as in unit circle; unit degrees
 
 from config import INFO

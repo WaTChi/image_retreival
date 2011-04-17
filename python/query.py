@@ -11,6 +11,7 @@ import reader
 import util
 import corr
 import time
+import pyflann
 import geom
 import threading
 import numpy as np
@@ -36,7 +37,6 @@ PARAMS_DEFAULT = {
 class Tree3D:
   def __init__(self, map3d, C, cellid):
     self.map3d = map3d
-    import pyflann
     self.flann = pyflann.FLANN()
     self.params = PARAMS_DEFAULT.copy()
     self.params['num_neighbors'] = 10
@@ -126,7 +126,6 @@ class Query(threading.Thread):
     self.params = C.params
     self.barrier = barrier
     self.dump = self.outfile + '-detailed.npy'
-    import pyflann
     pyflann.set_distance_type(C.params['distance_type'])
     self.reader = reader.get_reader(C.params['descriptor'])
 

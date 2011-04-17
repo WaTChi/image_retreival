@@ -1,3 +1,9 @@
+# the Query class usually named Q
+# holds all information relevant to a query image
+
+# the Context class usually named C
+# holds configuration information needed to run the query
+
 import os
 import info
 import Image

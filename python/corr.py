@@ -1,9 +1,13 @@
-#!/usr/bin/env python
+# Anything related to feature-to-feature matches.
+# find_corr() and draw_matches() are the main functions;
+# there are also some experimental pose compute methods
+# that don't really work that well (the 2d one might work ok)
 
 from config import *
 import time
 import info
 import Image, ImageDraw
+import pyflann
 import render_tags
 import scipy.optimize
 from reader import get_reader
@@ -54,7 +58,6 @@ def rematch(C, Q, dbsift):
   reader = get_reader(C.params['descriptor'])
   q = reader.load_file(Q.siftpath)
   db = reader.load_file(dbsift)
-  import pyflann
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
   matches = []

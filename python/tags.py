@@ -1,3 +1,6 @@
+# tag data format and occlusion information
+# intermediary for some earthmine api calls
+
 import info
 import os
 import math

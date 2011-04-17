@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# SURF extractor script
+
 import numpy as np
 import os
 import time

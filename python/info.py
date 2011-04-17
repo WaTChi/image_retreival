@@ -1,3 +1,5 @@
+# as far as I can tell earthmine .info file related util
+
 import os
 import shutil
 import math

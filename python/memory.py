@@ -1,3 +1,5 @@
+# **TODO FUTURE** intended for use in long-running server daemon
+
 # Thread-safe allocator of flann instances and other large memory objects.
 # Use this class for efficient repeated loads of large files.
 # 

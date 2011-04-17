@@ -1,3 +1,12 @@
+# There are some nice utility functions for preprocessing an image here.
+#
+# However, this script is deprecated.
+#
+# You should assemble a single-image pipeline
+# using context.py and pieces from system.py
+#
+# I think singleImage.py is an example of a single-image context.
+
 import os
 import corr
 import info

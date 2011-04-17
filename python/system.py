@@ -8,6 +8,7 @@ from config import INFO
 import posit
 import pnp
 import subprocess
+import multiprocessing
 
 def get_free_mem_gb():
   txt = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).communicate()[0]
@@ -18,7 +19,6 @@ def get_free_mem_gb():
 #   we need 1.3gb of free memory per thread
 #   and should allow 10gb for disk cache
 def estimate_threads_avail():
-  import multiprocessing
   tmax = multiprocessing.cpu_count()
   gb_free = get_free_mem_gb()
   t = int((gb_free - 10.0)/1.3)
@@ -51,7 +51,7 @@ class MultiprocessExecution:
   pool = None
 
   def __enter__(self):
-    MultiprocessExecution.pool = Pool(MAX_THREADS)
+    MultiprocessExecution.pool = Pool(multiprocessing.cpu_count())
 
   def __exit__(self, *args):
     print "Waiting for background jobs to finish..."

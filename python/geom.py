@@ -1,4 +1,7 @@
 # place for geometric utility functions
+# usually relating to lat/lon/angles/pixels
+# also see util.py and info.py
+
 from info import distance, getbearing
 import numpy as np
 import scipy.optimize as sio

@@ -1,3 +1,6 @@
+# experiments with opencv's support for solving pnp
+# doesn't seem to be working very well
+
 import cv
 import render_tags
 import numpy as np
