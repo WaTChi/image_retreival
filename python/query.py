@@ -347,6 +347,7 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_ransac(self, queryset, dataset, mapping, results, dists):
+    INFO('DEPRECATED method: may mess up aarons training')
     if self.params['num_neighbors'] > 1:
       sorted_counts = self._vote_top_n(queryset, dataset, mapping, results, dists)
     else:

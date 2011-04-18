@@ -151,11 +151,13 @@ class _Context(object):
   @property
   def tags(self):
     if not self._tags:
-      src = os.path.dirname(os.path.dirname(__file__))
-      self._tags = TagCollection(
-        os.path.join(src, 'tags.csv'),
-        os.path.join(src, 'bearings.csv'),
-      )
+      src = os.path.dirname(__file__)
+      self._tags = TagCollection(os.path.join(src, 'tags-canonical.csv'))
+#      src = os.path.dirname(os.path.dirname(__file__))
+#      self._tags = TagCollection(
+#        os.path.join(src, 'tags.csv'),
+#        os.path.join(src, 'bearings.csv'),
+#      )
     return self._tags
 
   @property

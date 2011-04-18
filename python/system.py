@@ -2,6 +2,7 @@
 # Collection of functions that act on contexts.
 
 import os
+import time
 import os.path
 import query
 from config import INFO
@@ -18,15 +19,19 @@ def get_free_mem_gb():
 # rule of thumb:
 #   we need 1.3gb of free memory per thread
 #   and should allow 10gb for disk cache
+t_avg = multiprocessing.cpu_count()
+tmax = multiprocessing.cpu_count()
+last_sampled = 0
 def estimate_threads_avail():
-  tmax = multiprocessing.cpu_count()
-  gb_free = get_free_mem_gb()
-  t = int((gb_free - 10.0)/1.3)
-  t = min(tmax, max(1, t))
-  INFO("I think we have enough memory for %d threads" % t)
+  global t_avg, last_sampled
+  if time.time() - last_sampled > 5:
+    last_sampled = time.time()
+    gb_free = get_free_mem_gb()
+    t = int((gb_free - 10.0)/1.3)
+    t_avg = t*.3 + t_avg*.7
+    INFO("I think we have enough memory for %d threads" % t_avg)
+  t = min(tmax, max(1, int(t_avg)))
   return t
-
-import time
 
 from config import *
 import info
@@ -133,9 +138,8 @@ def match(C, Q):
     comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    ranked = distance_sort(C, Q, \
-      combine_ransac(comb_matches, C)
-    )
+    imm, rsc_ok = combine_ransac(comb_matches, C)
+    ranked = distance_sort(C, Q, imm)
 #    combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
@@ -154,7 +158,7 @@ def match(C, Q):
     if C.cacheEnable:
         cache[key] = (stats, matchedimg, matches, ranked)
     if C.match_callback:
-        C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range)
+        C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
 
     # done
     return stats, matchedimg, matches, ranked
@@ -254,8 +258,8 @@ def combine_ransac(counts, C):
         return map(lambda x: (x[0][:-8], len(x[1])), list)
     if not rsorted_counts:
       INFO('W: postcomb ransac rejected everything, not filtering')
-      return condense2(sorted_counts)
-    return condense(rsorted_counts)
+      return condense2(sorted_counts), False
+    return condense(rsorted_counts), True
 
 def combine_vote(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
@@ -292,7 +296,7 @@ def check_topn_img(C, Q, dupCountLst, topnres=1):
         record = map(lambda a,b: a + b, record, new)
     return map(bool, record)
 
-def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
+def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_ok):
     # For Aaron's analysis
     table = {}
     for line in open(os.path.join(C.dbdir, 'cellmap.txt')):
@@ -308,6 +312,10 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
         os.makedirs(d)
     def save(outputFilePath):
         with open(outputFilePath, 'w') as outfile:
+            if rsc_ok:
+              outfile.write('ransac_ok\n')
+            else:
+              outfile.write('ransac_failed\n')
             for matchedimg, score in matches:
                 outfile.write(str(score))
                 outfile.write('\t')

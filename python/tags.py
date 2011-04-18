@@ -128,7 +128,16 @@ class Tag:
     return math.sqrt(xydist**2 + vert**2)
 
   def __str__(self):
-    return str(self.kv)
+    desc = [self.lat, self.lon, self.alt]
+    if self.business:
+      desc.extend(['business'])
+    else:
+      desc.extend([self.name])
+    for k,v in self.kv:
+      desc.extend([k, v])
+    if self.bearing is not None:
+      desc.extend(['bearing', self.bearing])
+    return ",".join(map(str, desc))
 
   def __repr__(self):
     return str(self)
@@ -171,6 +180,16 @@ class TagCollection:
       for tag in self.tags:
         print >>file, ",%s,%f,%f" % (tag.name, tag.lat, tag.lon)
 
+  def __str__(self):
+    return '\n'.join(map(str, self.tags))
+
+  def dump(self, outname):
+    """Writes a new file such that TagCollection(newfile) will
+       yield this object. This means bearings are included."""
+    with open(outname, 'w') as f:
+      f.write(str(self))
+      f.write('\n')
+
   def __init__(self, taglist, bearinglist=None):
     bearings = {}
     if bearinglist is not None:
@@ -200,12 +219,11 @@ class TagCollection:
       al = int(float(line[2])*1e4)
       if bearings and not (la, lo, al) in bearings:
         self.skipped += 1
-        continue
       tag = {
         'lat': float(line[0]),
         'lon': float(line[1]),
         'alt': float(line[2]),
-        'bearing': 0 if not bearings else bearings[la,lo,al],
+        'bearing': None if not bearings else bearings.get((la,lo,al)),
         'name': line[3],
       }
       key = None
@@ -213,11 +231,14 @@ class TagCollection:
         if key is None:
           key = elem
         else:
-          tag[key] = elem.strip()
+          if key == 'bearing':
+            tag[key] = float(elem.strip())
+          else:
+            tag[key] = elem.strip()
           key = None
       self.tags.append(Tag(tag))
     if self.skipped:
-      print "W: discarded %d tags with no bearing" % self.skipped
+      print "W: %d tags have no bearing" % self.skipped
 
   def select_frustum(self, lat, lon, yaw, fov=270, radius=100):
     contained = []

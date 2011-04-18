@@ -18,7 +18,7 @@ def run():
     C.print_per = 1000
     C.ambiguity = 75
     C.topnresults = [1,2,3,4,5,6,7,8,9,10]
-#    C.locator_function = system.skew_location
+    C.locator_function = system.skew_location
 #    C.locator_function = system.load_location
 #    C.match_callback = system.dump_combined_matches
     C.cacheEnable = 1
