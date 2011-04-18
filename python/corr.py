@@ -10,7 +10,7 @@ import Image, ImageDraw
 import pyflann
 import render_tags
 import scipy.optimize
-from reader import get_reader
+import reader
 import random
 import numpy as np
 import geom
@@ -55,9 +55,9 @@ def hashmatch(m):
 # eqv of 70k, euclidean, matchonce
 def rematch(C, Q, dbsift):
   start = time.time()
-  reader = get_reader(C.params['descriptor'])
-  q = reader.load_file(Q.siftpath)
-  db = reader.load_file(dbsift)
+  rdr = reader.get_reader(C.params['descriptor'])
+  q = rdr.load_file(Q.siftpath)
+  db = rdr.load_file(dbsift)
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
   matches = []
