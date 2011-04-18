@@ -2,6 +2,7 @@
 # Collection of functions that act on contexts.
 
 import os
+import time
 import os.path
 import query
 from config import INFO
@@ -18,15 +19,19 @@ def get_free_mem_gb():
 # rule of thumb:
 #   we need 1.3gb of free memory per thread
 #   and should allow 10gb for disk cache
+t_avg = multiprocessing.cpu_count()
+tmax = multiprocessing.cpu_count()
+last_sampled = 0
 def estimate_threads_avail():
-  tmax = multiprocessing.cpu_count()
-  gb_free = get_free_mem_gb()
-  t = int((gb_free - 10.0)/1.3)
-  t = min(tmax, max(1, t))
-  INFO("I think we have enough memory for %d threads" % t)
+  global t_avg, last_sampled
+  if time.time() - last_sampled > 5:
+    last_sampled = time.time()
+    gb_free = get_free_mem_gb()
+    t = int((gb_free - 10.0)/1.3)
+    t_avg = t*.3 + t_avg*.7
+    INFO("I think we have enough memory for %d threads" % t_avg)
+  t = min(tmax, max(1, int(t_avg)))
   return t
-
-import time
 
 from config import *
 import info
