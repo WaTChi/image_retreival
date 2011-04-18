@@ -231,7 +231,7 @@ class _Context(object):
     """Returns iter over _Query for files in query"""
 
     #if query taken from a cell phone
-    if self.QUERY == 'query4' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
+    if self.QUERY == 'query4' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()

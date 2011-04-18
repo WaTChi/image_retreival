@@ -265,9 +265,9 @@ def combine_vote(counts, min_filt=0):
 
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
-    if C.QUERY == 'query1' or C.QUERY == 'query1-m':
+    if C.QUERY == 'query1' or C.QUERY == 'query1-m' or C.QUERY == 'query1-a':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
-    elif C.QUERY == 'query3':
+    elif C.QUERY == 'query3' or C.QUERY == 'query3a':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
         y += check_truth(Q.name, entry[0], groundtruthY.matches)
         r += check_truth(Q.name, entry[0], groundtruthR.matches)
@@ -275,7 +275,7 @@ def check_img(C, Q, entry):
         o += check_truth(Q.name, entry[0], groundtruthO.matches)
     elif C.QUERY == 'query2':
         g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
-    elif C.QUERY == 'query4':
+    elif C.QUERY == 'query4' or C.QUERY == 'query4a':
         g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
     elif C.QUERY == 'query5horizontal':
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
