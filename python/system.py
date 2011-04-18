@@ -133,9 +133,8 @@ def match(C, Q):
     comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    ranked = distance_sort(C, Q, \
-      combine_ransac(comb_matches, C)
-    )
+    imm, rsc_ok = combine_ransac(comb_matches, C)
+    ranked = distance_sort(C, Q, imm)
 #    combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
@@ -154,7 +153,7 @@ def match(C, Q):
     if C.cacheEnable:
         cache[key] = (stats, matchedimg, matches, ranked)
     if C.match_callback:
-        C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range)
+        C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
 
     # done
     return stats, matchedimg, matches, ranked
@@ -254,8 +253,8 @@ def combine_ransac(counts, C):
         return map(lambda x: (x[0][:-8], len(x[1])), list)
     if not rsorted_counts:
       INFO('W: postcomb ransac rejected everything, not filtering')
-      return condense2(sorted_counts)
-    return condense(rsorted_counts)
+      return condense2(sorted_counts), False
+    return condense(rsorted_counts), True
 
 def combine_vote(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
@@ -292,7 +291,7 @@ def check_topn_img(C, Q, dupCountLst, topnres=1):
         record = map(lambda a,b: a + b, record, new)
     return map(bool, record)
 
-def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
+def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_ok):
     # For Aaron's analysis
     table = {}
     for line in open(os.path.join(C.dbdir, 'cellmap.txt')):
@@ -308,6 +307,10 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range):
         os.makedirs(d)
     def save(outputFilePath):
         with open(outputFilePath, 'w') as outfile:
+            if rsc_ok:
+              outfile.write('ransac_ok\n')
+            else:
+              outfile.write('ransac_failed\n')
             for matchedimg, score in matches:
                 outfile.write(str(score))
                 outfile.write('\t')
