@@ -291,7 +291,7 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
     elif C.QUERY == 'query5vertical':
         g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)
-    elif C.QUERY == 'cory-25':
+	elif C.QUERY == 'cory-25':
         g += check_truth(Q.name, entry[0], cory25GroundTruth.matches)
     else:
         return [0,0,0,0,0]
