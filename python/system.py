@@ -250,7 +250,7 @@ def rerank_ransac(counts, C):
     for siftfile, matches in sorted_counts:
 
       # the bottom g items in 'reranked' are in their final order
-      g = len(reranked) - bisect.bisect(reranked, len(matches))
+      g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
       if g >= C.ranking_min_consistent:
         INFO('stopped after filtering %d' % num_filt)
         break

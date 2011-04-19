@@ -283,14 +283,13 @@ class TaggedImage:
     accepted = []
     outside = []
     bad = []
-#    min_upper_bound = 0
     obs = self.source.get_loc_dict()
     for (tag, (_, pixel)) in tags:
       location = geom.picknearestll(pixelmap, tag)
       error = tag.xydistance(location)
-#      if error < 3.0:
-#        min_upper_bound = max(min_upper_bound, tag.distance(obs))
-      if error < 15.0 or not geom.contains(pixel, self.image.size):
+      if error < 2.0:
+        accepted.append((tag, (_, pixel)))
+      elif error < 15.0 or not geom.contains(pixel, self.image.size):
         outside.append((tag, (_, pixel)))
       else:
         bad.append((tag, (999, pixel)))
@@ -302,10 +301,9 @@ class TaggedImage:
 
     for (tag, (_, pixel)) in outside:
       vis, t = pm.hasView(C, tag.lat, tag.lon,\
-        self.lat, self.lon, self.yaw, 30)
-      emv = tag.emIsVisible(self.source, C, 30)
-#      bv = tag.distance(obs) < min_upper_bound + 15.0
-      if (vis or emv): # or bv):
+        self.lat, self.lon, self.yaw, 25)
+      emv = tag.emIsVisible(self.source, C, 25)
+      if (vis or emv):
         if geom.norm_compatible(tag, self):
           accepted.append((tag, (_, pixel)))
         else:
