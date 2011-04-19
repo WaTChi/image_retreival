@@ -1,3 +1,5 @@
+This readme outlines how to create and query against cells.
+
 Dependencies:
   Numpy
   OpenCV
@@ -12,6 +14,14 @@ How to access git repository:
 	2. clone from this url:
 		$ git clone ssh://ericl@gorgan.eecs.berkeley.edu/home/ericl/query.git	
 
+How to run python code:
+NOTE: the python portion of this project is intended to be run from a linux machine
+-if executable: python [executable].py [args]
+-if not:  python
+          import [filename]
+          [filename].[methodname]([args])
+          [ctrl-d to exit python interpreter when done]
+    
 Workflow:
   Downloading new earthmine data:
 
@@ -26,9 +36,12 @@ Workflow:
       radius: size of cells
       outputdir: where the cells are placed.
 
-  Extracting SIFT Features:
+  Extracting SIFT Features (used for query and db):
+    note: .bat scripts are intended for *Windows* machines.
     scripts/extractSIFT.bat data_directory
-      make sure to check resizing option in the file.
+      make sure to check resizing option in the file. Currently, we down-sample all query images to have roughly the same resolution as our database images.
+      if extracting query SIFT: make sure sizing is specified to match dataset
+      if extracting dataset SIFT: make sure sizing is reasonable (depends on # of images per cell. currently we use 768x512)
     
   Querying a database:
     1. place query images in a directory
@@ -47,10 +60,26 @@ Workflow:
       Additional parameters can be set: see context.py/Context/init
     
     tagged output should be in ~/topmatches
-
+    
+    notes:
+    -if a ground truth file is available, include it in system.check_img to get retrieval statistics
+    -depending the filename/file format of your query, you may need to list your dataset as one of the special formats we handle in context.iter_queries_unfiltered
+     currently we handle the following formats:
+     -(default) lat,lon embeded in filename
+     -lat,lon included in separate xml file (there ase typcially cell phone images generated using the Imageotag Android app)
+     -no location information available (this is a debugging option intended for queries against a single cell)
+    -running querySystem will automatically build the neccisary index/kd-tree data structures in the local search cell if they do not exist.
+    -caching is partially based on the name of your query folder/files. Be sure you don't use the same names for different query sets.
+     you can clear the cach by purging the dirs/files present in Research/results
+    -we're currently set up to do batch query processing. If you want query a single image, either have it be the only file in a query directory, or modify querySystem.py to call system.match instead of system.characterize
+     
   Utilities:
     plotSIFT.py siftfile imagefile outfile
     plots sift features on the given image file.
 
-      SIFTStats.py directory
-      computes mean, stddev and histogram of SIFT features per file in directory.
+    SIFTStats.py directory
+    computes mean, stddev and histogram of SIFT features per file in directory.
+
+    util.py
+    contains several utility methods for manipulating cells and analysing data
+    including python_to_matlab_groundTruth, which converts groundtruth files from python to matlab format.

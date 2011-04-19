@@ -212,7 +212,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
           try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath)
+            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
           except IOError, e:
             INFO(e)
 
@@ -284,7 +284,7 @@ def check_img(C, Q, entry):
         o += check_truth(Q.name, entry[0], groundtruthO.matches)
     elif C.QUERY == 'query2':
         g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
-    elif C.QUERY == 'query4' or C.QUERY == 'query4a':
+    elif C.QUERY == 'query4' or C.QUERY == 'query4-cropped' or C.QUERY == 'query4a':
         g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
     elif C.QUERY == 'query5horizontal':
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)

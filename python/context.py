@@ -91,6 +91,7 @@ class _Context(object):
     self.matchdistance = 25
     self.selection = None
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
+    self.show_feature_pairs = False
     self.compute2dpose = False
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
@@ -232,7 +233,7 @@ class _Context(object):
     """Returns iter over _Query for files in query"""
 
     #if query taken from a cell phone
-    if self.QUERY == 'query4' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
+    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()

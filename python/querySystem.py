@@ -19,12 +19,14 @@ def run():
     C.ambiguity = 75
     C.topnresults = [1,2,3,4,5,6,7,8,9,10]
 #    C.locator_function = system.skew_location
-    C.locator_function = system.load_location
-    C.match_callback = system.dump_combined_matches
-    C.cacheEnable = 1
-    C.tagcompute = 0
-    C.ncells = 10
+#    C.locator_function = system.load_location
+#    C.match_callback = system.dump_combined_matches
+    C.cacheEnable = 0
+    C.tagcompute = 1
+    C.show_feature_pairs = True
     C.ranking_min_consistent = max(C.topnresults)
+    C.ncells = 10
+    C.resultsdir="/media/DATAPART2/jz/q1matches"
     results, count = system.characterize(C)
 
     for n in C.topnresults:
