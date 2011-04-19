@@ -27,8 +27,7 @@ C.do_posit = 0
 C.solve_pnp = 0
 C.compute2dpose = 0 # [experimental, not recommended]
 C.dump_hom = 0
-C.ransac_max_filt = 100
-C.ransac_min_filt = 1
+C.ranking_min_consistent = 1
 
 ## Query3 tagging issues
 #C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']

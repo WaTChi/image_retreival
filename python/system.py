@@ -2,6 +2,7 @@
 # Collection of functions that act on contexts.
 
 import os
+import bisect
 import time
 import os.path
 import query
@@ -138,9 +139,9 @@ def match(C, Q):
     comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = combine_ransac(comb_matches, C)
+    imm, rsc_ok = rerank_ransac(comb_matches, C)
     ranked = distance_sort(C, Q, imm)
-#    combine_vote(comb_matches, C.ransac_min_filt))
+#   ranked = combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -232,39 +233,43 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         ### Perspective N-Point Problem ###
         if C.solve_pnp:
             pnp.solve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
-        
 
-def combine_ransac(counts, C):
+def condense2(list):
+    return map(lambda x: (x[0][:-8], len(x[1])), list)
+
+def condense3(list):
+    return map(lambda x: (x[1][:-8], x[0]), list)
+
+def rerank_ransac(counts, C):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    filtered = {}
-    bound = -1
+    # tuples of (len, siftfile, matches) ordered [(1..), (2..), (3..)]
+    reranked = []
     num_filt = 0
+
     for siftfile, matches in sorted_counts:
-      siftfile = siftfile[:-8]
-      if num_filt > C.ransac_min_filt and (len(matches) < bound or num_filt > C.ransac_max_filt):
+
+      # the bottom g items in 'reranked' are in their final order
+      g = len(reranked) - bisect.bisect(reranked, len(matches))
+      if g >= C.ranking_min_consistent:
         INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
+
+      # perform ransac
       F, inliers = corr.find_corr(matches)
-      bound = max(sum(inliers), bound)
-      pts = np.ndarray(len(matches), np.object)
-      pts[0:len(matches)] = matches
       if any(inliers):
-        filtered[siftfile] = list(np.compress(inliers, pts))
-    rsorted_counts = sorted(filtered.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    def condense(list):
-        return map(lambda x: (x[0], len(x[1])), list)
-    def condense2(list):
-        return map(lambda x: (x[0][:-8], len(x[1])), list)
-    if not rsorted_counts:
-      INFO('W: postcomb ransac rejected everything, not filtering')
+        m = np.compress(inliers, matches)
+        bisect.insort(reranked, (len(m), siftfile, m))
+
+    if not reranked:
+      INFO('W: no db matches passed ransac, not filtering')
       return condense2(sorted_counts), False
-    return condense(rsorted_counts), True
+    else:
+      reranked.reverse()
+      return condense3(reranked), True
 
 def combine_vote(counts, min_filt=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    def condense2(list):
-        return map(lambda x: (x[0][:-8], len(x[1])), list)
     return condense2(sorted_counts)
 
 def check_img(C, Q, entry):

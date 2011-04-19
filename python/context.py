@@ -75,8 +75,6 @@ class _Context(object):
     self.QUERY = None # set before calling characterize()
     self.params = query.PARAMS_DEFAULT.copy()
     self.cacheEnable = 0 # instance-local caching of results
-    self.ransac_min_filt = 1 # takes precedence over max_filt
-    self.ransac_max_filt = 20
     self.do_posit = 0
     self.solve_pnp = 0
     self.print_per = 1
@@ -85,6 +83,7 @@ class _Context(object):
     self.put_into_dirs = 0
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.cellradius = 236.6
+    self.ranking_min_consistent = 10
     self.match_callback = None
     self.dump_hom = 0
     self.ambiguity = 75
