@@ -10,7 +10,7 @@ import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query4'
+C.QUERY = 'query3'
 C.params.update({
   'checks': 1024,
   'trees': 1,
@@ -23,9 +23,10 @@ C.params.update({
 C.max_matches_to_analyze = 1
 C.stop_on_homTrue = 0
 C.put_into_dirs = 0
+C.show_feature_pairs = False
 C.do_posit = 0
 C.solve_pnp = 0
-C.compute2dpose = 0 # [experimental, not recommended]
+C.compute2dpose = 1 # [experimental, not recommended]
 C.dump_hom = 0
 C.ranking_min_consistent = 1
 

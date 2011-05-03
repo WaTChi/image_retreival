@@ -22,6 +22,7 @@ class _Query:
     self.jpgpath = None
     self.siftpath = None
     self.sensor_lat = None
+    self.datasource = None
     self.sensor_lon = None
     self._query_lat = None
     self._query_lon = None
@@ -87,7 +88,6 @@ class _Context(object):
     self.match_callback = None
     self.dump_hom = 0
     self.ambiguity = 75
-    self.datasource = None
     self.matchdistance = 25
     self.selection = None
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
@@ -192,7 +192,7 @@ class _Context(object):
 
   @property
   def matchdir(self):
-    return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
+    return os.path.join(self.maindir, 'Research/results/old/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
 
   @property
   def infodir(self):

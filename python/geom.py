@@ -32,8 +32,15 @@ def compute_norm(yaws):
 
 # return True if pt is visible at from viewpt
 def norm_compatible(pt, viewpt, verbose=False):
-  if pt.bearing is None: # no bearing given
+
+  # no bearing: corner, middle of street, etc
+  if pt.bearing is None:
     return True
+
+  # really close up!
+  if distance(pt.lat, pt.lon, viewpt.lat, viewpt.lon) < 20:
+    return True
+
   yaw = getbearing(pt.lat, pt.lon, viewpt.lat, viewpt.lon)
   diff = anglediff(pt.bearing*pi/180, yaw*pi/180)*180/math.pi
   if verbose:

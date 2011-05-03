@@ -313,7 +313,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=True):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=False):
   # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
@@ -351,10 +351,14 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
 
   source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, C.tags)
+  print "db yaw", source.yaw
+  print "q  yaw", Q.datasource.yaw
+  print "q  pitch", Q.datasource.pitch
+  print "q  roll", Q.datasource.roll
   if C.compute2dpose:
     elat, elon = compute_pose(C, rsc_matches, db_img, matchsiftpath)
     points = img.map_tags_camera()
-    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
+    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon, Q.datasource.yaw)
   else:
     proj_points = []
     points = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)

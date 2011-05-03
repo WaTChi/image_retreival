@@ -16,10 +16,10 @@ import numpy as np
 from tags import TagCollection
 from android import AndroidReader
 
-def get_image_info(db_img):
+def get_image_info(db_img, imginit=True):
   if os.path.basename(db_img).startswith('DSC_'):
     return NikonImageInfo(db_img)
-  return EarthmineImageInfo(db_img, db_img[:-4] + '.info')
+  return EarthmineImageInfo(db_img if imginit else None, db_img[:-4] + '.info')
 
 class ImageInfo:
   """Metadata source for image. Provides:
@@ -58,7 +58,7 @@ class AndroidImageInfo(ImageInfo):
     # TODO not sure if these are right.
     # It's hard to tell when lat/lon/alt are so wrong
     self.pitch = (self.pitch + 90) * math.pi / 180
-    self.yaw = (self.yaw - 60) * math.pi / 180
+    self.yaw = self.yaw * math.pi / 180
     self.roll = (self.roll) * math.pi / 180
   
   def get_pixel_locations(self, pixels):
@@ -95,10 +95,15 @@ class EarthmineImageInfo(ImageInfo):
       return
     self.focal_length = 0.8625 * self.image.size[0]
     center = geom.center((0,0), self.image.size)
-    cloc = self.get_pixel_location(center)
+#    try:
+#      cloc = self.get_pixel_location(center)
+#    except Exception, e:
+#      INFO('W %s' % e)
+#      cloc = None
+    cloc = None
     if not cloc:
       self.pitch = 0
-      INFO("WARNING: Earthmine returned None for center pixel; set pitch=0")
+#      INFO("WARNING: Earthmine returned None for center pixel; set pitch=0")
       return
     hyp = geom.distance3d(cloc, self.info['view-location'])
     d_alt = cloc['alt'] - self.alt
@@ -145,7 +150,7 @@ class TaggedImage:
       for y in range(0, self.image.size[1], stepy):
         yield (x,y)
 
-  def map_tags_camera(self, elat=0, elon=0, ep=0, ey=0, er=0):
+  def map_tags_camera(self, elat=0, elon=0, ep=None, ey=None, er=None):
     "Returns (tag, (dist, pixel)) pairs using camera transform."
     if not elat or not elon:
       elat = self.lat
@@ -156,7 +161,7 @@ class TaggedImage:
     for tag in possible_tags:
       pz, px = geom.lltom(elat, elon, tag.lat, tag.lon)
       py = tag.alt - self.alt;
-      x, y, z = geom.camera_transform(px, py, pz, self.pitch + ep, self.yaw + ey, self.roll + er)
+      x, y, z = geom.camera_transform(px, py, pz, self.pitch if ep is None else ep, ey if ey is not None else self.yaw, self.roll if er is None else er)
       coord = geom.project2d(x, y, z, self.source.focal_length)
       pixel = geom.center(coord, self.image.size)
 #      tags.append((tag, (0, geom.constrain(pixel, self.image.size))))
@@ -177,13 +182,13 @@ class TaggedImage:
 
     return accepted + bad
 
-  def map_tags_hybrid(self, pixelmap, C, elat, elon):
+  def map_tags_hybrid(self, pixelmap, C, elat, elon, eyaw):
     """Uses tag projection from estimated lat, lon.
        Tags are filtered by using the image's pt cloud
        when source tag is visible in the db image. Otherwise,
        3d occlusion detection is performed."""
     THRESHOLD = 15.0 # meters
-    tags = self.map_tags_camera(elat, elon)
+    tags = self.map_tags_camera(elat, elon, ey=eyaw)
     accepted = []
     outside = []
     bad = []
@@ -281,25 +286,14 @@ class TaggedImage:
   def map_tags_hybrid3(self, pixelmap, C):
     tags = self.map_tags_camera()
     accepted = []
-    outside = []
     bad = []
-    obs = self.source.get_loc_dict()
-    for (tag, (_, pixel)) in tags:
-      location = geom.picknearestll(pixelmap, tag)
-      error = tag.xydistance(location)
-      if error < 2.0:
-        accepted.append((tag, (_, pixel)))
-      elif error < 15.0 or not geom.contains(pixel, self.image.size):
-        outside.append((tag, (_, pixel)))
-      else:
-        bad.append((tag, (999, pixel)))
 
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
     pm = reader.get_reader(C.params['descriptor'])\
       .load_PointToViewsMap(cellpath, C.infodir)
 
-    for (tag, (_, pixel)) in outside:
+    for (tag, (_, pixel)) in tags:
       vis, t = pm.hasView(C, tag.lat, tag.lon,\
         self.lat, self.lon, self.yaw, 25)
       emv = tag.emIsVisible(self.source, C, 25)
