@@ -2,11 +2,13 @@
 # Collection of functions that act on contexts.
 
 import os
+import geom
 import bisect
 import time
 import os.path
 import query
 from config import INFO
+import render_tags
 import posit
 import pnp
 import subprocess
@@ -81,7 +83,7 @@ def skew_location(C, Q):
     for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
         for j in range(length+1):
-            point = info.moveLocation(row[0], row[1], j, 90)
+            point = info.moveLocation(row[0], row[1], j, 60)
             if info.distance(Q.sensor_lat, Q.sensor_lon, point[0], point[1]) <= C.ambiguity:
                 points.append(point)
     return points
@@ -140,7 +142,7 @@ def match(C, Q):
     comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C)
+    imm, rsc_ok = rerank_ransac(comb_matches, C, Q, yaw_filter_deg=90)
     ranked = distance_sort(C, Q, imm)
 #   ranked = combine_vote(comb_matches, C.ransac_min_filt))
 
@@ -150,7 +152,7 @@ def match(C, Q):
     # compute homography and draw images maybe
     if C.compute_hom:
       if MultiprocessExecution.pool:
-        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+        MultiprocessExecution.pool.apply_async(safe_compute_hom, [C.pickleable(), Q, ranked, comb_matches])
       else:
         compute_hom(C, Q, ranked, comb_matches)
 
@@ -172,6 +174,13 @@ def getlatlonfromdbimagename(C, dbimg):
     clon = float(dbimg.split(",")[1][0:-5])
     return clat, clon
     
+def safe_compute_hom(C, Q, ranked_matches, comb_matches):
+  try:
+    compute_hom(C, Q, ranked_matches, comb_matches)
+  except Exception, e:
+    import traceback
+    traceback.print_exc(e)
+
 # top entry is ranked_matches[0], etc
 def compute_hom(C, Q, ranked_matches, comb_matches):
     if C.put_into_dirs:
@@ -241,13 +250,26 @@ def condense2(list):
 def condense3(list):
     return map(lambda x: (x[1][:-8], x[0]), list)
 
-def rerank_ransac(counts, C):
+def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     # tuples of (len, siftfile, matches) ordered [(1..), (2..), (3..)]
     reranked = []
     num_filt = 0
 
     for siftfile, matches in sorted_counts:
+      if yaw_filter_deg and Q.datasource:
+        matchedimg = siftfile[:-8]
+        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
+        if not os.path.exists(matchimgpath):
+          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
+          print matchimgpath
+          assert os.path.exists(matchimgpath)
+        source = render_tags.get_image_info(matchimgpath)
+        dyaw = source.yaw * np.pi/180
+        qyaw = Q.datasource.yaw * np.pi/180
+        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
+        if diff > yaw_filter_deg:
+          continue
 
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))

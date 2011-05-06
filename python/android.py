@@ -39,9 +39,9 @@ class TaggedImage(object):
     self.net_acc = float(self.data['net_accuracy'])
     self.net_lat = float(self.data['net_latitude'])
     self.net_lon = float(self.data['net_longitude'])
-    self.pitch = float(self.data['orientation_y'])
-    self.yaw = float(self.data['orientation_x'])
-    self.roll = float(self.data['orientation_z'])
+    self.pitch = float(self.data['orientation_y']) - 180
+    self.yaw = (float(self.data['orientation_x']) + 90) % 360
+    self.roll = float(self.data['orientation_z']) + 90
 
   def getCanonicalName(self):
     """Name in line with previous naming schemes."""
