@@ -313,7 +313,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=True):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=False):
   # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
@@ -377,8 +377,8 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       g['query'][1]*=scale
 
   if not proj_points:
-    # transfer using H matrix
-    # confusing geometry. x and y switch between the reprs.
+#     transfer using H matrix
+#     confusing geometry. x and y switch between the reprs.
     for (tag, (dist, pixel)) in points:
       y, x = pixel # backwards
       x2 = x+5
@@ -396,7 +396,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       dest = (dest[1]*scale, dest[0]*scale)
       dest2 = (dest2[1]*scale, dest2[0]*scale)
       proj_points.append((tag, (dist, dest), correction))
-
+  print Q.jpgpath
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 

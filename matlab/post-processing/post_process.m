@@ -105,6 +105,8 @@ if reset
     results.total = zeros(1,0);
     results.match_pct = zeros(ntop,0);
     results.query_pct = zeros(nq,0);
+    results.match_top = zeros(ntop,0);
+    results.false_top = zeros(ntop,0);
 else
     try
         load(results_file)
@@ -114,17 +116,8 @@ else
         results.total = zeros(1,0);
         results.match_pct = zeros(ntop,0);
         results.query_pct = zeros(nq,0);
-    end
-end
-
-% Load the classifier if necessary
-if strcmp(decision,'bayes')
-    bayes_file = ['.\',decision,'\classifier\',distr, ...
-        num2str(dRound(method.cell_dist,0)),'_',decision,'.mat'];
-    try
-        load(bayes_file)
-    catch
-        error('No Bayes classifier trained.')
+        results.match_top = zeros(ntop,0);
+        results.false_top = zeros(ntop,0);
     end
 end
 
@@ -142,6 +135,8 @@ end
 total = 0;
 match = zeros(ntop,1);
 query_pct = zeros(nq,1);
+match_top = zeros(ntop,1);
+false_top = zeros(ntop,1);
 
 fprintf('\nRunning post processing...\n')
 
@@ -221,6 +216,14 @@ for k=1:nq
             total = total + weight;
             to = to + weight;
             
+            % Update match confidence indicator performance
+            bin = 1 + min(9,floor(ntop*s(1,1)));
+            if m(1)
+                match_top(bin) = match_top(bin)+weight;
+            else
+                false_top(bin) = false_top(bin)+weight;
+            end
+            
             % Write to file if conditions are correct
             if recordFlag
                 fn = [rdir,query{k}(1:end-8),'.bay'];
@@ -250,6 +253,8 @@ results.total(1,end+1) = total;
 results.match(:,end+1) = match;
 results.match_pct(:,end+1) = match / total;
 results.query_pct(:,end+1) = query_pct;
+results.match_top(:,end+1) = match_top;
+results.false_top(:,end+1) = false_top;
 
 save(results_file,'results')
 

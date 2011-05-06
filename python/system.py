@@ -49,6 +49,7 @@ import groundtruthR
 import groundtruthY
 import query4GroundTruth
 import cory25GroundTruth
+import emeryvilleGroundTruth
 import util
 import util_cs188
 
@@ -141,8 +142,8 @@ def match(C, Q):
 
     #geometric consistency reranking
     imm, rsc_ok = rerank_ransac(comb_matches, C)
+#    imm, rsc_ok = combine_vote(comb_matches)
     ranked = distance_sort(C, Q, imm)
-#   ranked = combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -166,7 +167,7 @@ def match(C, Q):
     return stats, matchedimg, matches, ranked
 
 def getlatlonfromdbimagename(C, dbimg):
-    if C.QUERY == 'emeryville' or C.QUERY == 'cory' or C.QUERY == 'cory-25':
+    if C.QUERY == 'emeryville' or C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
@@ -207,15 +208,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-
         if C.drawtopcorr:
-
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
-          try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
-          except IOError, e:
-            INFO(e)
+#          try:
+          corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
+#          except IOError, e:
+#            INFO(e)
 
         if C.dump_hom:
           if C.put_into_dirs:
@@ -251,8 +250,9 @@ def rerank_ransac(counts, C):
 
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
-      if g >= C.ranking_min_consistent:
-        INFO('stopped after filtering %d' % num_filt)
+      if g >= C.ranking_min_consistent or num_filt >= C.ranking_max_considered:
+        if C.verbosity > 0:
+          INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
 
@@ -269,9 +269,9 @@ def rerank_ransac(counts, C):
       reranked.reverse()
       return condense3(reranked), True
 
-def combine_vote(counts, min_filt=0):
+def combine_vote(counts):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    return condense2(sorted_counts)
+    return condense2(sorted_counts), False
 
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
@@ -291,8 +291,10 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
     elif C.QUERY == 'query5vertical':
         g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)
-    elif C.QUERY == 'cory-25':
+    elif C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         g += check_truth(Q.name, entry[0], cory25GroundTruth.matches)
+    elif C.QUERY == 'emeryville':
+        g += check_truth(Q.name, entry[0], emeryvilleGroundTruth.matches)
     else:
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
@@ -313,8 +315,8 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_
     def cellsetstr(cells):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
-    outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
-    print outputFilePath
+    outputFilePath = os.path.join(C.matchdir, C.aarondir, Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
+#    print outputFilePath
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -343,7 +345,8 @@ def characterize(C):
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
-        print '-- query', Q.name, '--'
+        if C.verbosity>0:
+            print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1

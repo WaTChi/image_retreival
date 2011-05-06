@@ -232,7 +232,7 @@ def writeQueryCoords(querydir, fname):
 
 def writedbImgCoords(dbdir="E:/Research/collected_images/earthmine-new,culled/37.871955,-122.270829/",
                      fname = "E:/dl.txt"):
-    """writes coordinates for all querysift in path into a file fname for use in google earth"""
+    """writes coordinates for all database jpegs in path into a file fname for use in google earth"""
     if not os.path.exists(dbdir):
         return
     f = open(fname, "w")
