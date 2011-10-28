@@ -3,11 +3,13 @@
 
 import os
 import geom
+import math
 import bisect
 import time
 import os.path
 import query
 from config import INFO
+import collections
 import render_tags
 import posit
 import pnp
@@ -25,15 +27,18 @@ def get_free_mem_gb():
 t_avg = multiprocessing.cpu_count()
 tmax = multiprocessing.cpu_count()
 last_sampled = 0
+thread_mem_gb = 1.3
 def estimate_threads_avail():
+  if os.getenv('NUM_THREADS'):
+    return int(os.getenv('NUM_THREADS'))
   global t_avg, last_sampled
   if time.time() - last_sampled > 5:
     last_sampled = time.time()
     gb_free = get_free_mem_gb()
-    t = int((gb_free - 10.0)/1.3)
+    t = int((gb_free - 10.0)/thread_mem_gb)
     t_avg = t*.3 + t_avg*.7
     INFO("I think we have enough memory for %d threads" % t_avg)
-  t = min(tmax, max(1, int(t_avg)))
+  t = max(1, min(tmax, int(t_avg)))
   return t
 
 from config import *
@@ -51,6 +56,7 @@ import groundtruthR
 import groundtruthY
 import query4GroundTruth
 import cory25GroundTruth
+import emeryvilleGroundTruth
 import util
 import util_cs188
 
@@ -101,6 +107,94 @@ def load_location(C, Q):
 def derive_key(closest_cells, name):
     return (name,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
 
+class DiscreteCell(object):
+  def __init__(self):
+    self.count = 0
+    self.images = set()
+
+  def incr(self):
+    self.count += 1
+
+  def register(self, i):
+    self.images.add(i)
+
+  def __repr__(self):
+    return "%d over %d" % (self.count, len(self.images))
+
+def weight_by_coverage(C, Q, matches):
+  area = collections.defaultdict(DiscreteCell)
+  scores = collections.defaultdict(int)
+
+  def discretize(lat, lon):
+    EARTH_DIAMETER = 12756000 # meters
+    SIZE = 3.0 # meters
+
+
+    size = 360.0*SIZE/EARTH_DIAMETER
+    return size*int(lat/size), size*int(lon/size)
+
+  pm = C.pixelmap
+
+  # put all 3d points of db image into map
+  # for possible matching
+  preregister = False
+  if preregister:
+    for image, _, _ in matches:
+      locs = pm.open(image + 'sift.txt')
+      for loc in locs.values():
+        if loc:
+          lld = discretize(loc['lat'], loc['lon'])
+          area[lld].register(image)
+
+  for target in matches:
+    image, score, pairs = target
+
+    for p in pairs:
+      x, y = p['db'][:2]
+      loc = pm.get(image + 'sift.txt', x, y)
+      if loc is None:
+        # increment individual score by 1
+        scores[image] += 1
+      else:
+        # increment area score for loc by 1
+        lld = discretize(loc['lat'], loc['lon'])
+        area[lld].incr()
+        area[lld].register(image)
+
+  print "Area map len", len(area)
+  # tally area contributions
+  for k, cell in area.iteritems():
+    for i in cell.images:
+      scores[i] += cell.count
+
+  return distance_sort(C, Q, scores.items())
+
+def weight_by_distance(C, Q, matches):
+
+  def weighting_function(dist):
+    # exponential decay with w=0.36 @ 20 meters
+    ONE_OVER_E_POINT = 20.0
+    return math.e**(-dist/ONE_OVER_E_POINT)
+
+  def contrib_function(contributer):
+    # squared contribution
+    return contributer[1]**2
+
+  def contribution(target, contributer):
+    lat, lon = getlatlonfromdbimagename(C, target[0])
+    lat2, lon2 = getlatlonfromdbimagename(C, contributer[0])
+    dist = info.distance(lat, lon, lat2, lon2)
+    return contrib_function(contributer) * weighting_function(dist)
+  newmatches = []
+  for target in matches:
+    score = 0.0
+    for contributer in matches:
+      score += contribution(target, contributer)
+    newmatches.append((target[0], score))
+  print "BEFORE", distance_sort(C, Q, matches)[0]
+  print "AFTER", distance_sort(C, Q, newmatches)[0]
+  return distance_sort(C, Q, newmatches)
+
 def distance_sort(C, Q, matches):
   def extract_key(match):
     line = match[0]
@@ -110,11 +204,18 @@ def distance_sort(C, Q, matches):
 
 cache = {}
 def match(C, Q):
-    # compute closest cells
-    closest_cells = util.getclosestcells(Q.query_lat, Q.query_lon, C.dbdir)
-    cells_in_range = [(cell, dist)
-      for cell, dist in closest_cells[0:C.ncells]
-        if dist < C.cellradius + C.ambiguity + C.matchdistance]
+    if C.override_cells:
+      INFO('override cells')
+      cells_in_range = [(c,0) for c in C.override_cells]
+    else:
+      # compute closest cells
+      closest_cells = util.getclosestcells(Q.query_lat, Q.query_lon, C.dbdir)
+      if C.restrict_cells:
+        closest_cells = filter(lambda c: c[0] in C.restrict_cells, closest_cells)
+      cells_in_range = [(cell, dist)
+        for cell, dist in closest_cells[0:C.ncells]
+          if dist < C.cellradius + C.ambiguity + C.matchdistance]
+    INFO('Using %d cells' % len(cells_in_range))
 
     if not cells_in_range:
         raise LocationOutOfRangeError
@@ -126,25 +227,43 @@ def match(C, Q):
             return cache[key]
 
     # compute output file paths for the cells
-    outputFilePaths = []
-    for cell, dist in cells_in_range:
-        latcell, loncell = cell.split(',')
-        latcell = float(latcell)
-        loncell = float(loncell)
-        actualdist = info.distance(Q.query_lat, Q.query_lon, latcell, loncell)
-        outputFilePath = os.path.join(C.matchdir, Q.siftname + ',' + cell + ',' + str(actualdist)  + ".res")
-        outputFilePaths.append(outputFilePath)
+
+    cellpath = [c for c,d in cells_in_range]
+    if C.one_big_cell:
+      INFO('Using 1 big cell (%d union)' % len(cells_in_range))
+      outputFilePaths = [os.path.join(C.matchdir, Q.siftname + ',' + getcellid(cellpath) + ".res")]
+      cellpath = [cellpath]
+    else:
+      outputFilePaths = []
+      for cell, dist in cells_in_range:
+          if ',' in cell:
+            latcell, loncell = cell.split(',')
+            latcell = float(latcell)
+            loncell = float(loncell)
+          else:
+            latcell, loncell = 0,0
+          actualdist = info.distance(Q.query_lat, Q.query_lon, latcell, loncell)
+          outputFilePath = os.path.join(C.matchdir, Q.siftname + ',' + cell + ',' + str(actualdist)  + ".res")
+          outputFilePaths.append(outputFilePath)
 
     # start query
-    query.run_parallel(C, Q, [c for c,d in cells_in_range], outputFilePaths, estimate_threads_avail())
+    query.run_parallel(C, Q, cellpath, outputFilePaths, estimate_threads_avail())
 
     # combine results
-    comb_matches = corr.combine_matches(outputFilePaths)
+    if C.spatial_comb:
+      comb_matches = corr.combine_spatial(outputFilePaths)
+    else:
+      comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C, Q, yaw_filter_deg=90)
-    ranked = distance_sort(C, Q, imm)
-#   ranked = combine_vote(comb_matches, C.ransac_min_filt))
+    imm, rsc_ok = rerank_ransac(comb_matches, C, 90)
+#    imm, rsc_ok = combine_vote(comb_matches)
+    if C.weight_by_coverage:
+      ranked = weight_by_coverage(C, Q, imm)
+    elif C.weight_by_distance:
+      ranked = weight_by_distance(C, Q, imm)
+    else:
+      ranked = distance_sort(C, Q, imm)
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -168,7 +287,7 @@ def match(C, Q):
     return stats, matchedimg, matches, ranked
 
 def getlatlonfromdbimagename(C, dbimg):
-    if C.QUERY == 'emeryville' or C.QUERY == 'cory' or C.QUERY == 'cory-25':
+    if C.QUERY == 'emeryville' or C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
@@ -191,7 +310,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         os.makedirs(udir)
     i = 0
     data = {}
-    for matchedimg, score in ranked_matches[:C.max_matches_to_analyze]:
+    for matchedimg, score, pairs in ranked_matches[:C.max_matches_to_analyze]:
         i += 1
         if C.stop_on_homTrue and data.get('success'):
             break # we are done (found good homography)
@@ -216,15 +335,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-
         if C.drawtopcorr:
-
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
-          try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
-          except IOError, e:
-            INFO(e)
+#          try:
+          corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
+#          except IOError, e:
+#            INFO(e)
 
         if C.dump_hom:
           if C.put_into_dirs:
@@ -245,10 +362,10 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             pnp.solve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
 
 def condense2(list):
-    return map(lambda x: (x[0][:-8], len(x[1])), list)
+    return map(lambda x: (x[0][:-8], len(x[1]), x[1]), list)
 
 def condense3(list):
-    return map(lambda x: (x[1][:-8], x[0]), list)
+    return map(lambda x: (x[1][:-8], x[0], x[2]), list)
 
 def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
@@ -262,7 +379,6 @@ def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
         matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
         if not os.path.exists(matchimgpath):
           matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-          print matchimgpath
           assert os.path.exists(matchimgpath)
         source = render_tags.get_image_info(matchimgpath)
         dyaw = source.yaw * np.pi/180
@@ -273,8 +389,9 @@ def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
 
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
-      if g >= C.ranking_min_consistent:
-        INFO('stopped after filtering %d' % num_filt)
+      if g >= C.ranking_min_consistent or num_filt >= C.ranking_max_considered:
+        if C.verbosity > 0:
+          INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
 
@@ -291,9 +408,9 @@ def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
       reranked.reverse()
       return condense3(reranked), True
 
-def combine_vote(counts, min_filt=0):
+def combine_vote(counts):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    return condense2(sorted_counts)
+    return condense2(sorted_counts), False
 
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
@@ -313,8 +430,10 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
     elif C.QUERY == 'query5vertical':
         g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)
-    elif C.QUERY == 'cory-25':
+    elif C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         g += check_truth(Q.name, entry[0], cory25GroundTruth.matches)
+    elif C.QUERY == 'emeryville':
+        g += check_truth(Q.name, entry[0], emeryvilleGroundTruth.matches)
     else:
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
@@ -335,8 +454,7 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_
     def cellsetstr(cells):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
-    outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
-    print outputFilePath
+    outputFilePath = os.path.join(C.matchdir, C.aarondir, Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -365,7 +483,8 @@ def characterize(C):
     b_count = 0
     o_count = 0
     for Q in C.iter_queries():
-        print '-- query', Q.name, '--'
+        if C.verbosity>0:
+            print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1

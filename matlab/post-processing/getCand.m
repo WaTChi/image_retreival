@@ -27,9 +27,12 @@ vote_file = struct2cell(dir(vdir));
 vote_file = vote_file(1,:)';
 vote_file = vote_file( find(~cellfun('isempty',strfind(vote_file,filestr)),1) );
 if isempty(vote_file)
-    error('Combination results not found.')
+    error(['Combination results not found for query ',query])
 end
-[cand_vote,cand] = textread([vdir,vote_file{1}],'%d%s');
+cand = textread([vdir,vote_file{1}],'%s');
+cand_vote = str2double(cand(2:2:end));
+cand = cand(3:2:end);
+
 
 % Get candidate locations and add sift.txt to the end of each candidate
 comma_idx = strfind(cand,',');

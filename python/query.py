@@ -118,13 +118,16 @@ class Query(threading.Thread):
     assert len(C.params) == len(PARAMS_DEFAULT)
     threading.Thread.__init__(self)
     self.qpath = Q.siftpath
-    self.cellpath = os.path.join(C.dbdir, cell)
+    if type(cell) is list:
+      self.cellpath = [os.path.join(C.dbdir, c) for c in cell]
+    else:
+      self.cellpath = os.path.join(C.dbdir, cell)
     self.infodir = C.infodir
     self.celldir = C.dbdir
     self.outfile = outfile
     self.params = C.params
     self.barrier = barrier
-    self.dump = self.outfile + '-detailed.npy'
+    self.dump = self.outfile + ('-detailed%s.npy' % DETAIL_VERSION)
     pyflann.set_distance_type(C.params['distance_type'])
     self.reader = reader.get_reader(C.params['descriptor'])
 
@@ -159,12 +162,13 @@ class Query(threading.Thread):
   def vote(self, queryset, dataset, mapping, results, dists):
     INFO('voting with method %s' % self.params['vote_method'])
     counts = {
-      'highest': self._vote_highest,
       'matchonce': self._vote_matchonce,
       'filter': self._vote_filter,
-      'ratio': self._vote_spatial_ratio,
-      'top_n': self._vote_top_n,
-      'ransac': self._vote_ransac,
+# DEPRECATED, need to fix up detailed results
+#      'highest': self._vote_highest,
+#      'ratio': self._vote_spatial_ratio,
+#      'top_n': self._vote_top_n,
+#      'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
@@ -204,7 +208,8 @@ class Query(threading.Thread):
         if image not in counts:
           counts[image] = []
         counts[image].append({'db': dataset[results[i][0]]['geom'].copy(),
-                            'query': queryset[i]['geom'].copy()})
+                            'query': queryset[i]['geom'].copy(),
+                            'feature_dist': dist_array[0]})
         accept += 1
     INFO('accepted %d/%d votes' % (accept, accept + reject))
     INFO('discarded %d vote collisions' % matchonce)
@@ -248,7 +253,7 @@ class Query(threading.Thread):
     self.flann = None # release memory
     # TODO eliminate duplicated build index code
     # TODO eliminate hardcoded path
-    falsecellpath = os.path.expanduser('~/shiraz/Research/cells/g=100,r=d=236.6/37.8732916946,-122.279128355')
+    falsecellpath = os.path.join('/media/DATAPART2/Research/cells/g=100,r=d=236.6/', '37.8732916946,-122.279128355')
     falseflann = pyflann.FLANN()
     iname = '%s-%s.%s.index' % (getcellid(falsecellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
     index = getfile(falsecellpath, iname)
@@ -266,6 +271,8 @@ class Query(threading.Thread):
   def _vote_filter(self, queryset, dataset, mapping, results, dists):
     """Votes must beat false votes in another cell."""
     assert self.params['num_neighbors'] == 1
+    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
+    hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir)
     counts = {} # map from img to counts
     closed = set()
     closed2 = set()
@@ -290,8 +297,14 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
+        pt3d = map3d[results[i]]
+        pt = hsv[results[i]]
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
-                            'query': queryset[i]['geom'].copy()})
+                            'query': queryset[i]['geom'].copy(),
+                            'feature_dist': dist,
+                            'pt_3d': tuple(pt3d),
+                            'point': tuple(pt)
+                            })
     INFO('accepted %d/%d votes' % (accept, accept + reject))
     if matchonce:
       INFO('discarded %d vote collisions' % matchonce)
@@ -305,6 +318,8 @@ class Query(threading.Thread):
   def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
     """Like vote highest, but each db feature is matchonceed to 1 match"""
     assert self.params['num_neighbors'] == 1
+    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
+    hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir)
     counts = {} # map from img to counts
     closed = set()
     accept, reject, matchonce = 0, 0, 0
@@ -320,8 +335,13 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
+        pt3d = map3d[results[i]]
+        pt = hsv[results[i]]
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
-                            'query': queryset[i]['geom'].copy()})
+                            'query': queryset[i]['geom'].copy(),
+                            'feature_dist': dist,
+                            'point': tuple(pt),
+                            'pt_3d': (pt3d['lat'], pt3d['lon'], pt3d['alt'])})
     INFO('accepted %d/%d votes' % (accept, accept + reject))
     if matchonce:
       INFO('discarded %d vote collisions' % matchonce)
@@ -339,7 +359,8 @@ class Query(threading.Thread):
         if img not in counts:
           counts[img] = []
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
-                            'query': queryset[i]['geom'].copy()})
+                            'query': queryset[i]['geom'].copy(),
+                            'feature_dist': dist})
       else:
         reject += 1
     INFO('accepted %d/%d votes' % (accept, accept + reject))

@@ -7,6 +7,7 @@ from config import *
 import time
 import info
 import Image, ImageDraw
+from collections import defaultdict
 import pyflann
 import render_tags
 import scipy.optimize
@@ -30,16 +31,109 @@ def plusminus(i, m):
   else:
     return i - m
 
+def cluster_matches(matches, Ct = 15.0):
+  """return strongly connected components,
+     where connected means < Ct in distance"""
+  edges = defaultdict(list)
+
+  def connect(i,j):
+    edges[i].append(j)
+    edges[j].append(i)
+
+  for i, m in enumerate(matches):
+    for j, n in enumerate(matches):
+      d = geom.distance3dt(m['pt_3d'], n['pt_3d'])
+      if d <= Ct:
+        connect(i,j)
+
+  clusters = []
+  iclusters = []
+  closed = set()
+  for i, m in enumerate(matches):
+    cluster = []
+    icluster = []
+    fringe = set([i])
+    while fringe:
+      x = fringe.pop()
+      if x not in closed:
+        cluster.append(matches[x])
+        icluster.append(x)
+        closed.add(x)
+        for neighbor in edges[x]:
+          fringe.add(neighbor)
+    if cluster:
+      clusters.append(cluster)
+      iclusters.append(icluster)
+
+  return clusters, iclusters
+
+def pick_likeliest(matches):
+  """Given list of matches between 1 q feature and db cells,
+     return most likely correct, or []"""
+
+  mean = sum([f['feature_dist'] for f in matches])/len(matches)
+  clusters = cluster_matches(matches)[0]
+  clusters = sorted(clusters, key=len, reverse=True)
+  top = clusters[0]
+  out = []
+  for k in clusters:
+    if len(k) == len(top):
+      for l in k:
+        if l['feature_dist'] < mean:
+          out.append(l)
+  return out
+
+def combine_spatial(outputFilePaths):
+  """Returns dictionary of siftfile => matches
+     Eliminates spatially inconsistent feature matches"""
+
+  # group by query feature
+  space = defaultdict(list)
+  for res in outputFilePaths:
+    detailed = res + ('-detailed%s.npy' % DETAIL_VERSION)
+    for image, matches in np.load(detailed):
+      assert type(matches) == list
+      for match in matches:
+        match['db_image'] = image
+        space[tuple(match['query'])].append(match)
+
+  # TODO filter out spatially inconsistent features
+  # for now simply picks min dist feature across cells
+  comb = defaultdict(list)
+  for qf, matches in space.iteritems():
+    top = pick_likeliest(matches)
+    for t in top:
+      comb[t['db_image']].append(t)
+
+  return comb
+
+ngreen = 0
+ntotal = 0
+def filter_admits(match):
+  return True
+#  global ngreen, ntotal
+#  hue3 = match['point'][0]
+##  INFO(match['point'])
+#  ntotal += 1
+#  if 80 < hue3 < 160:
+#    ngreen += 1
+#    if random.random() < .01:
+#      print "green/total", ngreen, "/", ntotal
+#    return False
+#  return True
+
 def combine_matches(outputFilePaths):
   """Returns dictionary of siftfile => matches"""
   comb = {}
   for res in outputFilePaths:
-    detailed = res + '-detailed.npy'
+    detailed = res + ('-detailed%s.npy' % DETAIL_VERSION)
     for image, matches in np.load(detailed):
       assert type(matches) == list
       if image not in comb:
         comb[image] = []
-      comb[image].extend(matches)
+      for match in matches:
+        if filter_admits(match):
+          comb[image].append(match)
   return comb
 
 def hashmatch(m):
@@ -381,8 +475,8 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       g['query'][1]*=scale
 
   if not proj_points:
-    # transfer using H matrix
-    # confusing geometry. x and y switch between the reprs.
+#     transfer using H matrix
+#     confusing geometry. x and y switch between the reprs.
     for (tag, (dist, pixel)) in points:
       y, x = pixel # backwards
       x2 = x+5
@@ -400,7 +494,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       dest = (dest[1]*scale, dest[0]*scale)
       dest2 = (dest2[1]*scale, dest2[0]*scale)
       proj_points.append((tag, (dist, dest), correction))
-
+  print Q.jpgpath
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 

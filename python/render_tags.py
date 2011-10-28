@@ -95,15 +95,14 @@ class EarthmineImageInfo(ImageInfo):
       return
     self.focal_length = 0.8625 * self.image.size[0]
     center = geom.center((0,0), self.image.size)
-#    try:
-#      cloc = self.get_pixel_location(center)
-#    except Exception, e:
-#      INFO('W %s' % e)
-#      cloc = None
-    cloc = None
+    try:
+      cloc = self.get_pixel_location(center)
+    except Exception, e:
+      print e
+      cloc = None
     if not cloc:
       self.pitch = 0
-#      INFO("WARNING: Earthmine returned None for center pixel; set pitch=0")
+      INFO("WARNING: Earthmine returned None for center pixel; set pitch=0")
       return
     hyp = geom.distance3d(cloc, self.info['view-location'])
     d_alt = cloc['alt'] - self.alt

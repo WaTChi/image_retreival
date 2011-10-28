@@ -11,12 +11,26 @@
 from config import *
 import query
 import numpy as np
+import raster_tools
 import time
 from info import distance
 import geom
 import render_tags
 import sys
 import os
+
+# memory hungry! beware.
+memoize = False
+ans = {}
+
+def config_mem_pin(val):
+  global memoize
+  memoize = val
+
+def hashcells(cellpath):
+  if type(cellpath) is list:
+    return tuple(sorted(cellpath))
+  return cellpath
 
 def get_reader(typehint):
   if 'sift' in typehint:
@@ -97,17 +111,28 @@ class FeatureReader(object):
       if self.is_feature_file(name):
         yield os.path.join(directory, name)
 
-  def count_features_in_dir(self, directory):
+  def count_features_in_files(self, files):
     num_features = 0
-    for f in self.get_feature_files_in_dir(directory):
+    for f in files:
       num_features += self.count_features_in_file(f)
     return num_features
 
-  def save_directory(self, directory, cellid):
-    """Writes all features found in a directory to a file.
+  def save_multi(self, dirs, cellid):
+    """Generalization of the old save_directory.
+       Writes all features found in dirs to a file.
+       Deduplicate by files.
        Also builds a reverse lookup table."""
 
-    num_features = self.count_features_in_dir(directory)
+    files = set()
+    closed = set()
+    for dir in dirs:
+      for file in os.listdir(dir):
+        if self.is_feature_file(file):
+          if file not in closed:
+            files.add(os.path.join(dir, file))
+            closed.add(file)
+
+    num_features = self.count_features_in_files(files)
     assert num_features > 0
     dataset = np.ndarray(num_features, self.dtype)
     offset = 0
@@ -115,19 +140,19 @@ class FeatureReader(object):
     lookup_table = {}
     # now begin the actual read
     start = time.time()
-    for name in os.listdir(directory):
-      if self.is_feature_file(name):
-        offset = self.write_features_to_array(os.path.join(directory, name),
-          offset, dataset, image_index)
-        lookup_table[image_index] = name
-        if image_index % 200 == 0:
-          INFO('%d/%d features read' % (offset, num_features))
-          INFO_TIMING('%d features per second' % (offset/(time.time() - start)))
-        image_index += 1
-    INFO('saving features...')
-    for dest in getdests(directory, cellid + ('-%s.npy' % self.name)):
+    for file in files:
+      name = os.path.basename(file)
+      offset = self.write_features_to_array(file, offset,
+        dataset, image_index)
+      lookup_table[image_index] = name
+      if image_index % 200 == 0:
+        INFO('%d/%d features read' % (offset, num_features))
+        INFO_TIMING('%d features per second' % (offset/(time.time() - start)))
+      image_index += 1
+    INFO('saving features... [%s]' % cellid)
+    for dest in getdests(dirs[0], cellid + ('-%s.npy' % self.name)):
       save_atomic(lambda d: np.save(d, dataset), dest)
-    for dest in getdests(directory, cellid + ('-%s-pydata.npy' % self.name)):
+    for dest in getdests(dirs[0], cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
 
   def load_tree3d(self, directory, C):
@@ -176,6 +201,58 @@ class FeatureReader(object):
 
     return PointToViewsMap(lookup_table)
 
+  def load_hsv_for_cell(self, directory, dataset, mapping, pixmap_dir):
+    """For the cell specified, return a vector v such that
+       hsv,depth,plane(dataset[i]) == v[i]
+       This vector (~30MB) will be cached on disk."""
+    hsv_dtype = {
+      'names': ['h3', 's3', 'v3',
+                'plane', 'depth'],
+      'formats': ['uint8', 'uint8', 'uint8',
+                  'uint32', 'float32'],
+    }
+    cellid = getcellid(directory)
+    v_out = getfile(directory, cellid + '-hsv.npy')
+    if os.path.exists(v_out):
+      return np.load(v_out)
+    print v_out, "does not exist"
+    INFO('reading hsv, depth, plane values for %s' % cellid)
+
+    hsv = np.zeros(len(dataset), hsv_dtype)
+    oldindex = -1
+    for i, row in enumerate(dataset):
+      coord = row['geom']
+      index = row['index']
+      if index != oldindex:
+        if index % 200 == 0:
+          INFO('read %d/%d pts' % (i, len(dataset)))
+        oldindex = index
+        base = mapping[index][:-len('sift.txt')]
+        raster = os.path.join(pixmap_dir, base + '.jpg')
+        plane = os.path.join(pixmap_dir, base + '-planes.png')
+        depth = os.path.join(pixmap_dir, base + '-depth.png')
+        raster = raster_tools.RasterImage(raster)
+        if os.path.exists(plane):
+          plane = raster_tools.RasterImage(plane)
+        else:
+          plane = None
+        if os.path.exists(depth):
+          depth = raster_tools.RasterImage(depth)
+        else:
+          depth = None
+      for X in [3]:
+        h,s,v = raster.sampleHSV(coord[0], coord[1], X)
+        hsv[i]['h%d' % X] = h
+        hsv[i]['s%d' % X] = s
+        hsv[i]['v%d' % X] = v
+      if plane:
+        hsv[i]['depth'] = depth.getDepth(coord[0], coord[1])
+      if depth:
+        hsv[i]['plane'] = plane.getPlane(coord[0], coord[1])
+    for dest in getdests(directory, cellid + '-hsv.npy'):
+      save_atomic(lambda d: np.save(d, hsv), dest)
+    return hsv
+
   def load_3dmap_for_cell(self, directory, dataset, mapping, pixmap_dir):
     """For the cell specified, return a vector v such that
        3dcoord(dataset[i]) == v[i]
@@ -190,6 +267,7 @@ class FeatureReader(object):
     v_out = getfile(directory, cellid + '-map3d.npy')
     if os.path.exists(v_out):
       return np.load(v_out)
+    print v_out, "does not exist"
     INFO('reading 3d pts for %s' % cellid)
 
     import pixels # avoid circular imports
@@ -225,6 +303,11 @@ class FeatureReader(object):
   def load_cell(self, directory):
     """Efficiently loads a matrix of features and reverse lookup table
        for a directory of files."""
+    global ans
+    key = hashcells(directory)
+    if key in ans:
+      INFO('*** MEMOIZED CELL ***')
+      return ans[key]
     cellid = getcellid(directory)
     #features, geom, index
     data_out = getfile(directory, cellid + ('-%s.npy' % self.name))
@@ -232,8 +315,14 @@ class FeatureReader(object):
     pydata_out = getfile(directory, cellid + ('-%s-pydata.npy' % self.name))
     if not os.path.exists(data_out) or not os.path.exists(pydata_out):
       INFO('finding %s files' % self.name)
-      self.save_directory(directory, cellid)
-    return np.load(data_out), np.load(pydata_out).item()
+      if type(directory) is list:
+        self.save_multi(directory, cellid)
+      else:
+        self.save_multi([directory], cellid)
+    d, m = np.load(data_out), np.load(pydata_out).item()
+    if memoize:
+      ans[key] = (d,m)
+    return d, m
 
 class SIFTReader(FeatureReader):
   sift_dtype = {

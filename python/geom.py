@@ -109,6 +109,10 @@ def distance3d6(x1, y1, z1, x2, y2, z2):
   vert = abs(z1-z2)
   return sqrt(xydist**2 + vert**2)
 
+def distance3dt(d1, d2):
+  """Finds distance between (lat,lon,alt) points."""
+  return distance3d6(d1[0], d1[1], d1[2], d2[0], d2[1], d2[2])
+
 def distance3d(d1, d2):
   """Finds distance between {'lat': deg, 'lon': deg, 'alt': meters} points."""
   x1, y1, z1 = d1['lat'], d1['lon'], d1['alt']
