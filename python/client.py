@@ -13,20 +13,30 @@ import info
 import time
 from config import *
 import query
-import queryContext as context
+#import queryContext as context
 
-matchdir = '/tmp/client/%s' % query.searchtype(context.params)
-if not os.path.exists(matchdir):
-    os.makedirs(matchdir)
-SIFTEXEC = os.path.join(context.maindir, 'Research/app/siftDemoV4/sift')
-context.vars_init()
+#matchdir = '/tmp/client/%s' % query.searchtype(context.params)
+#if not os.path.exists(matchdir):
+#    os.makedirs(matchdir)
+SIFTEXEC = os.path.join('/media/DATAPART2/Research/app/siftDemoV4/sift')
+#context.vars_init()
 
-def preprocess_image(inputfile, outputfile=None, width=768, height=512):
-    """Use the convert utility to preprocess an image."""
+def preprocess_image(inputfile, outputfile=None, width=768, height=512, fill=False):
+    """
+    Use the convert utility to preprocess an image.
+    The fill argument specifies whether or not the image should take up the full dimension
+    specified. If so, cropping may occur. Default behavior is for the image to be resized
+    just small enough that it fits in a width x height box.
+    """
+    print "hello"
     timer = time.time()
     if outputfile == None:
         outputfile = inputfile.rsplit(".",1)[0] + ".pgm"
-    os.system("convert {0} -resize {2}x{3} {1}".format(inputfile, outputfile, width, height))
+    if fill:
+        fillparams = "^ -gravity center -extent {0}x{1}".format(width, height)
+    else:
+        fillparams = ""
+    os.system("convert {0} -resize {2}x{3}{4} {1}".format(inputfile, outputfile, width, height, fillparams))
     INFO("--> Image conversion: " + str(time.time()-timer) + "s")
     return outputfile
 

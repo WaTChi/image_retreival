@@ -12,7 +12,7 @@ def moveLocation(lat1, lon1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
        along a great circle heading along the bearing"""
 
-    R = 6371e3 #Earth's radius in meters
+    R = 6.3781e6 #Earth's radius in meters
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
 
@@ -73,7 +73,7 @@ def distance(lat1, lon1, lat2, lon2):
     """Gets geographic distance between locations using spherical law of cosines"""
     if lat1 == lat2 and lon1 == lon2:
         return 0
-    R = 6371e3
+    R = 6.3781e6
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
     lat2 = math.radians(lat2)

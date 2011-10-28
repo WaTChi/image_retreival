@@ -19,13 +19,17 @@ class PixelMap:
       os.mkdir(self.datastore)
     self.cached = {}
 
-  def ddFetch(self, featurefile, view):
+  def ddFetch(self, featurefile, view, info=0):
     "Fetches pixels for view using ddObject"
-    info = eval(open(os.path.join(self.infodir, view + '.info')).read())
+    if info == 0:
+        info = eval(open(os.path.join(self.infodir, view + '.info')).read())
+    else:
+        info = eval(open(info).read())
     pixels = set()
     reader = get_reader(os.path.basename(featurefile))
     for x,y,foo,bar in reader.load_file(featurefile)['geom']:
       pixels.add((int(x), int(y)))
+      print str(int(x)) + ', ' + str(int(y))
     data = ddGetAllPixels(pixels, info['id'], keep_None=True)
     assert len(data) == len(pixels)
     return data
@@ -42,14 +46,17 @@ class PixelMap:
     print time.time() - start
     return pixmap[x,y]
   
-  def open(self, featurefile):
+  def open(self, featurefile, info=0):
     """Returns map of (x,y) => {'lat':lat, lon, alt}"""
     name = os.path.basename(featurefile)[:-4] # gps coords, angle
     view = os.path.basename(featurefile)[:-8] # + descriptor type
-    cached = os.path.join(self.datastore, name) + '.npy'
+    if info == 0:
+        cached = os.path.join(self.datastore, name) + '.npy'
+    else:
+        cached = os.path.join(self.datastore, 'highres', name) + '.npy'
     if not os.path.exists(cached):
       INFO("*** fetching pixel data from earthmine ***")
-      data = self.ddFetch(featurefile, view)
+      data = self.ddFetch(featurefile, view, info)
       save_atomic(lambda d: np.save(d, data), cached)
     return np.load(cached).item()
 

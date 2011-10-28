@@ -4,7 +4,7 @@ import shutil
 import bundlerReader
 import math
 
-TMPDIR = '/tmp/bundler'
+TMPDIR = '/media/DATAPART2/ah/bundler'
 BUNDLERPATH = '/home/etzeng/bundler-v0.3-binary/RunBundler.sh'
 
 
@@ -15,11 +15,17 @@ def run_bundler(files):
     """
     cwd = os.getcwd()
     if os.path.exists(TMPDIR):
-        shutil.rmtree(TMPDIR)
-    os.mkdir(TMPDIR)
+        pass
+        #    shutil.rmtree(TMPDIR)
+    else:
+        os.mkdir(TMPDIR)
     for filename in files:
-        shutil.copy(filename, TMPDIR)
+        try:
+            shutil.copy(filename, TMPDIR)
+        except shutil.Error:
+            pass
     os.chdir(TMPDIR)
+    os.environ["LD_LIBRARY_PATH"] = "/usr/lib32/:/usr/lib/:/home/etzeng/bundler-v0.3-binary/bin/"
     os.system(BUNDLERPATH)
     outfile = os.path.join(TMPDIR, "bundle/bundle.out")
     if os.path.exists(outfile):

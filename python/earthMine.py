@@ -14,8 +14,10 @@ from PIL import Image
 #DD_KEY="v12ypuyn9a2renzw9ivvu5fg"
 #DD_SECRET="Q4xfUF0vqO"
 #Joe's
-DD_KEY = "bv5tdq3uw9mjudeqf6kjctm3"
-DD_SECRET = "M3jXvKKTKg"
+#DD_KEY = "bv5tdq3uw9mjudeqf6kjctm3"
+#DD_SECRET = "M3jXvKKTKg"
+DD_KEY = "sc9v12b8f6gs5kj8e52x1grl"
+DD_SECRET = "pdX4Z5YvaY"
 DD_MAX_IMAGE_SIZE = 2048
 # DEFWIDTH = 512
 # DEFHEIGHT = 512
@@ -70,7 +72,7 @@ class ddLocation( dict ):
             raise ddError(3, "Altitude less than zero")
         else:
             dict.__setitem__(self, key, value)
-            
+
 class ddImageSize( dict ):
     def __init__(self, width, height):
         dict.__init__(self)
@@ -113,7 +115,7 @@ class ddView( dict ):
             raise ddError(0, "Fail")
         else:
             dict.__setitem__(self, key, value)
-                 
+
 class ddViewRequest( dict ):
     def __init__(self, imageSize, viewSubject, FOV,
                   maxResults = 12, searchRadius = 60):
@@ -150,7 +152,7 @@ class ddViewPixel( dict ):
             self["x"] = data["x"]
             self["y"] = data["y"]
         except KeyError:
-            raise ddError(32, "Import failed because of incorrect dictionary.")      
+            raise ddError(32, "Import failed because of incorrect dictionary.")
 
 class ddViewLocationForViewPixelsRequest( dict ):
     def __init__(self, viewID, viewPixels):
@@ -176,7 +178,7 @@ class ddObject():
               content = ddObject.sendRequest()
           except ddError:
               HANDLE"""
-              
+
     def __init__(self):
         #Construct request headers
         self.requestURL = EARTHMINE_URL
@@ -221,7 +223,7 @@ class ddObject():
                         }
                     }
         self.JSONData = self.JSONEncoder.encode(requestDict)
-        
+
     def processViewSearchResult():
         pass
 
@@ -260,13 +262,14 @@ class ddObject():
 
     def getLocationsForViewPixels( self, viewID, viewPixels):
         request = {
-            "operation" : "get-locations-for-view-pixels",
+            "operation" : "get-locations-from-view",
             "parameters" : {
-                "request" : 
+                "request" :
                     ddViewLocationForViewPixelsRequest(viewID, viewPixels)
-                    
+
                 }
             }
+
         self.JSONData = self.JSONEncoder.encode(request)
         response = self.sendRequest()
         #correllate the pixels and locations in a dictionary
@@ -286,7 +289,7 @@ class ddObject():
                              "Exception in response: {resp}".format(resp=
                               repr(resultDict["exception"])))
 
-        
+
     def sendRequest(self):
         if self.JSONData == "":
             pass
@@ -320,7 +323,7 @@ def LocationSubtract(view1, view2):
 ##    print view2
     """Gets distance between locations using spherical law
        of cosines"""
-    R = 6371e3
+    R = 6.3781e6
     try:
         lat1 = math.radians(view1["lat"])
         lon1 = math.radians(view1["lon"])
@@ -332,7 +335,7 @@ def LocationSubtract(view1, view2):
         lon2 = math.radians(view2["lon"])
     except KeyError:
         raise ddError(3, "view1 did not have members 'lat' or 'lon'")
-    
+
     d = math.acos(math.sin(lat1)*math.sin(lat2) \
                   + math.cos(lat1)*math.cos(lat2) \
                   * math.cos(lon2 - lon1)) * R
@@ -342,7 +345,7 @@ def LocationSubtract(view1, view2):
 #    """Subtracts two ddLocations and returns the distance between them
 #       using the Haversine formula"""
 #
-#    R = 6371e3 #Earth's radius in meters
+#    R = 6.3781e6 #Earth's radius in meters
 #    dLat = math.radians(view1["lat"]-view2["lat"])
 #    dLon = math.radians(view1["lon"]-view2["lon"])
 #    a = math.sin(dLat/2)*math.sin(dLat/2) \
@@ -368,12 +371,12 @@ def getbearing(view1, view2):
 #    return tobearing(math.atan2(y,x))
 
 
-    
+
 def moveLocation(view1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
        along a great circle heading along the bearing"""
 
-    R = 6371e3 #Earth's radius in meters
+    R = 6.3781e6 #Earth's radius in meters
     try:
         lat1 = math.radians(view1["lat"])
         lon1 = math.radians(view1["lon"])
@@ -388,12 +391,12 @@ def moveLocation(view1, d, bearingDegrees):
                       math.cos(d/R) - math.sin(lat1)*math.sin(lat2))
 
     return ddLocation(math.degrees(lat2), math.degrees(lon2))
-    
+
 def moveLocation4(lat1, lon1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
        along a great circle heading along the bearing"""
 
-    R = 6371e3 #Earth's radius in meters
+    R = 6.3781e6 #Earth's radius in meters
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
 
@@ -408,7 +411,7 @@ def moveLocation4(lat1, lon1, d, bearingDegrees):
 def getCell(ddConnection, lat, lon, radius):
     conn = ddObject()
     views = earthMine.ddGetViews(conn, lat, lon, radius, maxResults=100)
-    
+
 
 def ddGetViews(ddConnection, lat, lon, radius=60, maxResults=12, FOV=DEFFOV, width=DEFWIDTH, height=DEFHEIGHT):
     """Gets a list of views within RADIUS meters of
@@ -427,7 +430,7 @@ def ddGetViews(ddConnection, lat, lon, radius=60, maxResults=12, FOV=DEFFOV, wid
         return result["views"]
     except KeyError:
         return None
-        
+
 def ddGetPanos(ddConnection, lat, lon, radius=60, maxResults=12):
     """Gets a list of panos within RADIUS meters of
        the given latitude and longitude."""
@@ -453,7 +456,7 @@ def getFrontalViews(ddConnection, lat, lon, radius=60, maxResults=12, FOV=DEFFOV
 def getFrontalView(ddConnection, pano, FOV, width, height):
     lat, lon = moveLocation4(pano['location']['lat'], pano['location']['lon'], .25, pano['pano-orientation']['yaw'])
     return ddGetViews(ddConnection, lat, lon, 10, maxResults=1, FOV=FOV, width=width, height=height)[0]
-        
+
 def saveViews(views, outputDir, getDepth=False):
     if not os.path.exists(outputDir):
             try:
@@ -468,7 +471,7 @@ def saveViews(views, outputDir, getDepth=False):
             try:
                 fname = os.path.join(outputDir, str(view["view-location"]["lat"])+","+str(view["view-location"]["lon"])+"-"+"{0:04}".format(count))
                 urllib.urlretrieve(view["url"]["href"], fname+".jpg")
-                                       
+
                 #Get depth image
                 #Other depth things...
                 if getDepth:
@@ -482,12 +485,12 @@ def saveViews(views, outputDir, getDepth=False):
                 error = 10
             except IOError:
                 error = error + 1
-        
+
         f = open(fname+".info", "w")
         f.write(repr(view))
         f.close()
         count += 1
-        
+
 def buildCylinderFromViewNoStreet(conn, spot, imagesPerCylinder):
     views = []
     FOV = max(360 / imagesPerCylinder + 20, 60) #For 4 views, FOV is 110, max allowed
@@ -497,7 +500,7 @@ def buildCylinderFromViewNoStreet(conn, spot, imagesPerCylinder):
             time.sleep(DD_DELAY)
             views.append(conn.adjustView(spot, FOV, panAmount*i)["view"])
     return views
-        
+
 def buildCylinderFromView(conn, spot, imagesPerCylinder):
     views = []
     FOV = max(360 / imagesPerCylinder + 20, 60) #For 4 views, FOV is 110, max allowed
@@ -512,7 +515,7 @@ def buildCylinderFromView(conn, spot, imagesPerCylinder):
         views.append(conn.adjustView(spot, FOV, panAmount*i)["view"])
         # count += 1
     return views
-    
+
 def ddMakeImageCyl(ddConnection, lat, lon, numImages, width=DEFWIDTH, height=DEFHEIGHT):
     """Given a latitude and longitude, get closest view
        and derive an image polygon from around this view. FOV
@@ -528,7 +531,7 @@ def ddMakeImageCyl(ddConnection, lat, lon, numImages, width=DEFWIDTH, height=DEF
     panAmount = 360 / numImages / 2 #Some unkown bug makes this division necessary
     nView = ddGetViews(ddConnection, lat, lon, FOV=FOV, width=width, height=height)[0]
     views.append(nView)
-    
+
     for i in range(1, numImages):
         time.sleep(DD_DELAY) #Don't exceed my rate limit
         views.append(ddConnection.adjustView(views[i-1], FOV, panAmount)["view"])
@@ -636,7 +639,7 @@ def ddViewLocationToECEFR(viewLocation):
     phi = math.radians(viewLocation["lon"])
     return numpy.matrix([r*math.cos(phi)*math.cos(theta),
             r*math.sin(phi)*math.cos(theta),
-            r*math.sin(theta)]).T                         
+            r*math.sin(theta)]).T
 
 def ddMakeDepthMap(lat, lon, conn, name, width=DEFWIDTH, height=DEFHEIGHT):
     """Given an earthmine view, build a sparse

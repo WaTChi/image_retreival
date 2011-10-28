@@ -2,17 +2,17 @@
 # Collection of functions that act on contexts.
 
 import os
-import geom
 import bisect
 import time
 import os.path
 import query
 from config import INFO
-import render_tags
 import posit
 import pnp
 import subprocess
 import multiprocessing
+import homographyDecomposition
+import computePose
 
 def get_free_mem_gb():
   txt = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).communicate()[0]
@@ -51,6 +51,7 @@ import groundtruthR
 import groundtruthY
 import query4GroundTruth
 import cory25GroundTruth
+import emeryvilleGroundTruth
 import util
 import util_cs188
 
@@ -83,7 +84,7 @@ def skew_location(C, Q):
     for i in range(length+1):
         row = info.moveLocation(corner[0], corner[1], i, 180)
         for j in range(length+1):
-            point = info.moveLocation(row[0], row[1], j, 60)
+            point = info.moveLocation(row[0], row[1], j, 90)
             if info.distance(Q.sensor_lat, Q.sensor_lon, point[0], point[1]) <= C.ambiguity:
                 points.append(point)
     return points
@@ -142,9 +143,9 @@ def match(C, Q):
     comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C, Q, yaw_filter_deg=90)
+    imm, rsc_ok = rerank_ransac(comb_matches, C)
+#    imm, rsc_ok = combine_vote(comb_matches)
     ranked = distance_sort(C, Q, imm)
-#   ranked = combine_vote(comb_matches, C.ransac_min_filt))
 
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
@@ -152,7 +153,7 @@ def match(C, Q):
     # compute homography and draw images maybe
     if C.compute_hom:
       if MultiprocessExecution.pool:
-        MultiprocessExecution.pool.apply_async(safe_compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
       else:
         compute_hom(C, Q, ranked, comb_matches)
 
@@ -168,19 +169,12 @@ def match(C, Q):
     return stats, matchedimg, matches, ranked
 
 def getlatlonfromdbimagename(C, dbimg):
-    if C.QUERY == 'emeryville' or C.QUERY == 'cory' or C.QUERY == 'cory-25':
+    if C.QUERY == 'emeryville' or C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         return 0,0
     clat = float(dbimg.split(",")[0])
     clon = float(dbimg.split(",")[1][0:-5])
     return clat, clon
     
-def safe_compute_hom(C, Q, ranked_matches, comb_matches):
-  try:
-    compute_hom(C, Q, ranked_matches, comb_matches)
-  except Exception, e:
-    import traceback
-    traceback.print_exc(e)
-
 # top entry is ranked_matches[0], etc
 def compute_hom(C, Q, ranked_matches, comb_matches):
     if C.put_into_dirs:
@@ -207,6 +201,8 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(C, Q, matchsiftpath)
+        matches1 = matches
+        rp_matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
         matches.extend(db_matches)
@@ -216,15 +212,14 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-
-        if C.drawtopcorr:
-
+        drawhom = False # nothing
+        if drawhom: #if C.drawtopcorr:
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
-          try:
-            corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
-          except IOError, e:
-            INFO(e)
+#          try:
+          corr.draw_matches(C, Q, matches, rsc_matches, H, inliers, matchimgpath, matchoutpath, matchsiftpath, C.show_feature_pairs)
+#          except IOError, e:
+#            INFO(e)
 
         if C.dump_hom:
           if C.put_into_dirs:
@@ -241,40 +236,60 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
 
         ### Perspective N-Point Problem ###
-        if C.solve_pnp:
-            pnp.solve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
+        if C.solve_pose and match:
+            #pnp.qsolve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
+            ct, ch_err, ch_matches = computePose.pose_triangle(C, Q, matchimgpath, matchsiftpath, udir)
 
+#        # draw homography matches
+#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';hom_matches;' + matchedimg + ';feature_pairs.jpg')
+#        corr.draw_pairs(C, Q, rsc_inliers, matchimgpath, matchoutpath)
+
+            
+#        fm_close = fm_err < 10
+#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Fgps' + str(fm_close) + ';fm_err=' + str(fm_err) + ';' + matchedimg + ';feature_pairs.jpg')
+#        corr.draw_pairs(C, Q, fm_matches, matchimgpath, matchoutpath)
+#        hm_close = hm_err < 10
+#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Hgps' + str(hm_close) + ';hm_err=' + str(hm_err) + ';' + matchedimg + ';feature_pairs.jpg')
+#        corr.draw_pairs(C, Q, hm_matches, matchimgpath, matchoutpath)
+#        tr_close = tr_err < 10
+#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Tgps' + str(hm_close) + ';tr_err=' + str(tr_err) + ';' + matchedimg + ';feature_pairs.jpg')
+#        corr.draw_pairs(C, Q, tr_matches, matchimgpath, matchoutpath)
+        
+        ### Minimize reprojection error ###
+        #if C.min_reproj and match:
+        #    (view,pos,map2d) = computePose.min_reproj(C, Q, rsc_inliers, matchimgpath, matchsiftpath)
+
+        #if C.draw_reproj and match:
+        #  matchoutpath = os.path.join(udir, Q.name + ';reproj' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + ';reproj_error.jpg')
+        #  corr.draw_reproj(C, Q, map2d, matchimgpath, matchoutpath)
+        #  matchoutpath = os.path.join(udir, Q.name + ';reproj' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + ';feature_pairs.jpg')
+        #  corr.draw_pairs(C, Q, rsc_inliers, matchimgpath, matchoutpath)
+
+        #if C.bundler:
+        #    print '1'
+        #    qbpath = os.path.join(C.bundlerdir, Q.name + '.jpg')
+        #    print '2'
+        #    corr.dbq_bundler(C, Q, matchimgpath, qbpath)
+          
 def condense2(list):
     return map(lambda x: (x[0][:-8], len(x[1])), list)
 
 def condense3(list):
     return map(lambda x: (x[1][:-8], x[0]), list)
 
-def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
+def rerank_ransac(counts, C):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     # tuples of (len, siftfile, matches) ordered [(1..), (2..), (3..)]
     reranked = []
     num_filt = 0
 
     for siftfile, matches in sorted_counts:
-      if yaw_filter_deg and Q.datasource:
-        matchedimg = siftfile[:-8]
-        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-        if not os.path.exists(matchimgpath):
-          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-          print matchimgpath
-          assert os.path.exists(matchimgpath)
-        source = render_tags.get_image_info(matchimgpath)
-        dyaw = source.yaw * np.pi/180
-        qyaw = Q.datasource.yaw * np.pi/180
-        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
-        if diff > yaw_filter_deg:
-          continue
 
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
-      if g >= C.ranking_min_consistent:
-        INFO('stopped after filtering %d' % num_filt)
+      if g >= C.ranking_min_consistent or num_filt >= C.ranking_max_considered:
+        if C.verbosity > 0:
+          INFO('stopped after filtering %d' % num_filt)
         break
       num_filt += 1
 
@@ -291,9 +306,9 @@ def rerank_ransac(counts, C, Q, yaw_filter_deg=0):
       reranked.reverse()
       return condense3(reranked), True
 
-def combine_vote(counts, min_filt=0):
+def combine_vote(counts):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    return condense2(sorted_counts)
+    return condense2(sorted_counts), False
 
 def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
@@ -313,8 +328,10 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
     elif C.QUERY == 'query5vertical':
         g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)
-    elif C.QUERY == 'cory-25':
+    elif C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':
         g += check_truth(Q.name, entry[0], cory25GroundTruth.matches)
+    elif C.QUERY == 'emeryville':
+        g += check_truth(Q.name, entry[0], emeryvilleGroundTruth.matches)
     else:
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
@@ -335,8 +352,8 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_
     def cellsetstr(cells):
         cells = sorted(map(lambda (cell, dist): str(table[cell]), cells))
         return '-'.join(cells)
-    outputFilePath = os.path.join(C.matchdir, 'fuzz2', Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
-    print outputFilePath
+    outputFilePath = os.path.join(C.matchdir, C.aarondir, Q.siftname + ',combined,' + cellsetstr(cells_in_range) + ".res")
+#    print outputFilePath
     d = os.path.dirname(outputFilePath)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -364,8 +381,10 @@ def characterize(C):
     r_count = 0
     b_count = 0
     o_count = 0
+    open(C.reproj_file,'w').close()
     for Q in C.iter_queries():
-        print '-- query', Q.name, '--'
+        if C.verbosity>0:
+            print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):
             Q.setQueryCoord(*loc)
             count += 1

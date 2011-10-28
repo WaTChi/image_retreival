@@ -10,13 +10,23 @@ import Image, ImageDraw
 import pyflann
 import render_tags
 import scipy.optimize
+import scipy.optimize.minpack as opt
 import reader
 import random
 import numpy as np
+import numpy.linalg as alg
+from numpy import array as arr
+from numpy import transpose as tp
+from numpy import dot
 import geom
 import util_cs188
 import cv
 import os
+import client
+import bundlerWrapper
+import earthMine
+import pnp
+import homographyDecomposition
 
 MAX_PIXEL_DEVIATION = 5
 FALLBACK_PIXEL_DEVIATIONS = [2,1]
@@ -60,20 +70,28 @@ def rematch(C, Q, dbsift):
   db = rdr.load_file(dbsift)
   flann = pyflann.FLANN()
   results, dists = flann.nn(db['vec'], q['vec'], 1, algorithm='linear')
+  results, dists, q = np.array(results), np.array(dists), np.array(q)
+  idx = np.argsort(dists)
+  results = results[idx]
+  dists = dists[idx]
+  q = q[idx]
+  count = 1000
   matches = []
   closed = set()
   for i in range(0,len(results)):
-    if dists[i] < 70000 and results[i] not in closed:
+    if results[i] not in closed and dists[i] < 40000:
       closed.add(results[i])
       atom = {'db': db[results[i]]['geom'].copy(),
                       'query': q[i]['geom'].copy()}
       matches.append(atom)
+      count -= 1
+    if count == 0:
+      break
   INFO_TIMING("rematch took %f" % (time.time() - start))
   return matches
 
 class CameraModel:
   def __init__(self, source):
-    self.focal_length = source.focal_length
     self.imsize = source.image.size
     self.lat = source.lat
     self.lon = source.lon
@@ -167,9 +185,9 @@ class CameraModel:
     print 'final result', arr
     return (self.lat + arr[0]*meter, self.lon + arr[1]*meter)
 
-def compute_pose(C, matches, dbimgpath, dbsiftpath):
+def compute_pose(C, Q, matches, dbimgpath, dbsiftpath):
   info = os.path.join(C.infodir, os.path.basename(dbimgpath)[:-4] + '.info')
-  source = render_tags.EarthmineImageInfo(dbimgpath, info)
+  source = render_tags.AndroidImageInfo(Q.datasource)
   model = CameraModel(source)
   return model.man_opt(model.evaluator(C.pixelmap.open(dbsiftpath), matches))
 
@@ -313,7 +331,7 @@ def scaledown(image, max_height):
     image = image.resize((int(w), int(h)), Image.ANTIALIAS)
   return image, scale
 
-def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=False, showtag=True, showHom=False):
+def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=True, showtag=False, showHom=False):
   # compute pose [experimental]
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
@@ -351,17 +369,13 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
 
   source = render_tags.get_image_info(db_img)
   img = render_tags.TaggedImage(db_img, source, C.tags)
-  print "db yaw", source.yaw
-  print "q  yaw", Q.datasource.yaw
-  print "q  pitch", Q.datasource.pitch
-  print "q  roll", Q.datasource.roll
   if C.compute2dpose:
     elat, elon = compute_pose(C, rsc_matches, db_img, matchsiftpath)
     points = img.map_tags_camera()
-    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon, Q.datasource.yaw)
+    proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
   else:
     proj_points = []
-    points = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
+    [points, badpoints] = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 
@@ -381,8 +395,8 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       g['query'][1]*=scale
 
   if not proj_points:
-    # transfer using H matrix
-    # confusing geometry. x and y switch between the reprs.
+#     transfer using H matrix
+#     confusing geometry. x and y switch between the reprs.
     for (tag, (dist, pixel)) in points:
       y, x = pixel # backwards
       x2 = x+5
@@ -400,7 +414,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       dest = (dest[1]*scale, dest[0]*scale)
       dest2 = (dest2[1]*scale, dest2[0]*scale)
       proj_points.append((tag, (dist, dest), correction))
-
+  print Q.jpgpath
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 
@@ -472,4 +486,83 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
   target.save(out_img, 'jpeg', quality=90)
   return H, inliers
 
-# vim: et sw=2
+def draw_reproj(C, Q, map2d, db_img, out_img):
+    
+  assert os.path.exists(db_img)
+  a = Image.open(Q.jpgpath)
+  if a.mode != 'RGB':
+    a = a.convert('RGB')
+  pgm_height = Q.pgm_scale*a.size[1]
+  scale = a.size[1]/pgm_height
+  assert a.mode == 'RGB'
+  target = Image.new('RGBA', (a.size[0], a.size[1]))
+
+  def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0):
+    start = [start[0] + off, start[1]]
+    stop = [stop[0] + off, stop[1]]
+    draw.line(start + stop, fill=color, width=3)
+
+  def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
+    r = 25
+    draw.ellipse((y-r+off, x-r, y+r+off, x+r), outline=col)
+
+  draw = ImageDraw.Draw(target)
+  target.paste(a, (0,0))
+
+  count = 0
+  for m2d in map2d:
+    start = np.array([0,0])
+    start[1],start[0] = scale*m2d[0:2]
+    stop = np.array([0,0])
+    stop[1],stop[0] = scale*m2d[2:]
+    xdrawcircle(start,'yellow')
+    xdrawline((start,stop),'orange')
+    xdrawcircle(stop,'red')
+    
+  
+  target.save(out_img, 'jpeg', quality=90)
+
+def draw_pairs(C, Q, matches, db_img, out_img):
+  # compute pose [experimental]
+  print Q.jpgpath
+  print db_img
+  assert os.path.exists(db_img)
+  a = Image.open(Q.jpgpath)
+  b = Image.open(db_img)
+  if a.mode != 'RGB':
+    a = a.convert('RGB')
+  if b.mode != 'RGB':
+    b = b.convert('RGB')
+  height = b.size[1]
+  pgm_height = Q.pgm_scale*a.size[1]
+  a, query_scale = scaledown(a, height)
+  # ratio needed to convert from query pgm size -> db size
+  scale = a.size[1]/pgm_height
+  assert a.mode == 'RGB'
+  off = a.size[0]
+  target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+
+  def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0):
+    start = [start[0] + off, start[1]]
+    stop = [stop[0] + off, stop[1]]
+    draw.line(start + stop, fill=color, width=1)
+
+  def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
+    r = 3
+    draw.ellipse((y-r+off, x-r, y+r+off, x+r), outline=col)
+
+  draw = ImageDraw.Draw(target)
+  target.paste(a, (0,0))
+  target.paste(b, (off,0))
+
+  for i in range(len(matches)):
+    start = np.array([0,0])
+    stop = np.array([0,0])
+    start[1],start[0] = scale*matches[i]['query'][0:2]
+    stop[1],stop[0] = matches[i]['db'][0:2]
+    stop[0] += off
+    xdrawcircle(start,'yellow')
+    xdrawline((start,stop),'orange')
+    xdrawcircle(stop,'red')
+
+  target.save(out_img, 'jpeg', quality=90)

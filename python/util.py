@@ -114,11 +114,10 @@ def compileGroundTruthFile(inputDir, outputFile):
         output.write('matches = ')
         pprint.pprint(all_matches, stream=output)
 
-def getNumJPGInRange(lat, lon, inputDir, radius):
+def getNumJPGInRange(lat, lon, inputDir, radius, files):
     """counts all images in inputDir within radius of given coordinate makes assumption about format of filename"""
     if os.path.exists(inputDir):
         count = 0
-        files = getJPGFileNames(inputDir)
         for file in files:
             lat2, lon2 = info.getImgCoord(str(file))
             dist = info.distance(lat, lon, lat2, lon2)
@@ -128,7 +127,7 @@ def getNumJPGInRange(lat, lon, inputDir, radius):
     else:
         raise OSError("{p} does not exist.".format(p=inputDir))
         
-def copyJPGInRange(lat, lon, inputDir, outputDir, radius):
+def copyJPGInRange(lat, lon, inputDir, outputDir, radius, files):
     """puts all images in inputDir within radius of given coordinate into outputDir.
     makes assumption about format of filename"""
     if not os.path.exists(outputDir):
@@ -137,15 +136,11 @@ def copyJPGInRange(lat, lon, inputDir, outputDir, radius):
         except Exception:
             print "Error making directory...quitting..."
             return
-    if os.path.exists(inputDir):
-        files = getJPGFileNames(inputDir)
-        for file in files:
-            lat2, lon2 = info.getImgCoord(str(file))
-            dist = info.distance(lat, lon, lat2, lon2)
-            if(dist < radius):
-                shutil.copy(os.path.join(inputDir, file), outputDir)  
-    else:
-        raise OSError("{p} does not exist.".format(p=inputDir))
+    for file in files:
+        lat2, lon2 = info.getImgCoord(str(file))
+        dist = info.distance(lat, lon, lat2, lon2)
+        if(dist < radius):
+            shutil.copy(os.path.join(inputDir, file), outputDir)
 
 def copyclosest(querydir="E:/Research/collected_images/query/query1/",
                 inputDir="E:/Research/collected_images/earthmine-new,culled/37.871955,-122.270829/",
@@ -162,7 +157,7 @@ def copyclosest(querydir="E:/Research/collected_images/query/query1/",
         print lat, lon
         copyJPGInRange(lat, lon, inputDir, outdir, radius)
 
-def copySIFTInRange(lat, lon, inputDir, outputDir, radius):
+def copySIFTInRange(lat, lon, inputDir, outputDir, radius, files):
     """puts all sift files in inputDir within radius of given coordinate into outputDir.
     makes assumption about format of filename"""
     if not os.path.exists(outputDir):
@@ -171,15 +166,11 @@ def copySIFTInRange(lat, lon, inputDir, outputDir, radius):
         except Exception:
             print "Error making directory...quitting..."
             return
-    if os.path.exists(inputDir):
-        files = getSiftFileNames(inputDir)
-        for file in files:
-            lat2, lon2 = info.getSIFTCoord(str(file))
-            dist = info.distance(lat, lon, lat2, lon2)
-            if(dist < radius):
-                shutil.copy(os.path.join(inputDir, file), outputDir)  
-    else:
-        raise OSError("{p} does not exist.".format(p=inputDir))
+    for file in files:
+        lat2, lon2 = info.getSIFTCoord(str(file))
+        dist = info.distance(lat, lon, lat2, lon2)
+        if(dist < radius):
+            shutil.copy(os.path.join(inputDir, file), outputDir)
     
 def writeCellCoordsIfInRange(path, fname, lat, lon, radius):
     if not os.path.exists(path):
@@ -232,7 +223,7 @@ def writeQueryCoords(querydir, fname):
 
 def writedbImgCoords(dbdir="E:/Research/collected_images/earthmine-new,culled/37.871955,-122.270829/",
                      fname = "E:/dl.txt"):
-    """writes coordinates for all querysift in path into a file fname for use in google earth"""
+    """writes coordinates for all database jpegs in path into a file fname for use in google earth"""
     if not os.path.exists(dbdir):
         return
     f = open(fname, "w")
@@ -249,7 +240,7 @@ def writedbImgCoords(dbdir="E:/Research/collected_images/earthmine-new,culled/37
 
 		
 def generateCellCoords(lat, lon, len, distance):
-#takes lat long as upper left corner and length as distance to go right and down 150degrees
+#takes lat long as upper left corner and length as distance to go right and down 210 degrees
 #distance is distance between cells
     coords = []
     candlat1 = lat
@@ -259,17 +250,24 @@ def generateCellCoords(lat, lon, len, distance):
         while(info.distance(candlat1, candlon1, candlat2, candlon2) < len):
             coords.append((candlat2, candlon2))
             candlat2, candlon2 = em.moveLocation4(candlat2, candlon2, distance, 90)
-        candlat1, candlon1 = em.moveLocation4(candlat1, candlon1, distance, 150)
+        candlat1, candlon1 = em.moveLocation4(candlat1, candlon1, distance, 210)
     return coords
     
 def makecellsgivenspots(spots, inputDir="E:\\Research\\collected_images\\earthmine-new,culled\\37.871955,-122.270829", radius=236.6, outputDir='E:\\Research\\newcells\\'):
     print "creating {0} cells from {1}".format(len(spots), inputDir)
+    if os.path.exists(inputDir):
+        print 'Generating list of jpg files...'
+        jpgfiles = getJPGFileNames(inputDir)
+        print 'Generating list of sift files...'
+        siftfiles = getSiftFileNames(inputDir)
+    else:
+        raise OSError("{p} does not exist.".format(p=inputDir))
     for spot in spots:
         spotstr = str(spot[0]) + ',' + str(spot[1]);
         if not os.path.exists(outputDir + spotstr):
             print "Moving spot:" + spotstr
-            copyJPGInRange(spot[0], spot[1], inputDir, outputDir + spotstr, radius)
-            copySIFTInRange(spot[0], spot[1], inputDir, outputDir + spotstr, radius)
+            copyJPGInRange(spot[0], spot[1], inputDir, outputDir + spotstr, radius, jpgfiles)
+            copySIFTInRange(spot[0], spot[1], inputDir, outputDir + spotstr, radius, siftfiles)
             if not os.listdir(outputDir + spotstr):
                 print "spot empty"
                 os.rmdir(outputDir + spotstr)
@@ -439,3 +437,17 @@ def generate_vector_tags(infile, outfile):
             except Exception as e:
                 print e
                 print "INPUT ERROR. redoing..."
+
+
+def flipLatLon(indir):
+    print 'Gathering list of files...'
+    files = os.listdir(indir)
+    print 'Renaming files...'
+    for file in files:
+        lon, rest = file.split(',')
+        idx = rest.find('-')
+        lat = rest[:idx]
+        rest = rest[idx:]
+        newfile = lat + ',' + lon + rest
+        os.rename(os.path.join(indir,file),os.path.join(indir,newfile))
+

@@ -22,7 +22,6 @@ class _Query:
     self.jpgpath = None
     self.siftpath = None
     self.sensor_lat = None
-    self.datasource = None
     self.sensor_lon = None
     self._query_lat = None
     self._query_lon = None
@@ -85,19 +84,26 @@ class _Context(object):
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.cellradius = 236.6
     self.ranking_min_consistent = 10
+    self.ranking_max_considered = 100
     self.match_callback = None
     self.dump_hom = 0
     self.ambiguity = 75
+    self.datasource = None
     self.matchdistance = 25
     self.selection = None
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
     self.show_feature_pairs = False
     self.compute2dpose = False
+    self.min_reproj = False
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
     self.resultsdir = os.path.expanduser('~/topmatches')
+    self.reproj_file = os.path.expanduser('~/topmatches/reproj')
     self.topnresults = []
     self.maindir = os.path.expanduser('/media/DATAPART2')
+    self.aarondir='fuzz2'
+    self.bundler = False
+    self.bundlerdir = '/media/DATAPART2/ah/bundler'
 
     # lazy load
     self._tags = None
@@ -174,6 +180,10 @@ class _Context(object):
       return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
     elif self.QUERY == 'cory-25':
       return os.path.join(self.maindir, 'Research/collected_images/cory/db-25')
+    elif self.QUERY == 'cory-2':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-2')
+    elif self.QUERY == 'cory-5':
+      return os.path.join(self.maindir, 'Research/collected_images/cory/db-5')
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1,culled/37.871955,-122.270829')
 
   @property
@@ -184,6 +194,10 @@ class _Context(object):
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
       return    os.path.join(self.maindir, 'Research/cells/cory-25')
+    elif self.QUERY == 'cory-2':
+      return    os.path.join(self.maindir, 'Research/cells/cory-2')
+    elif self.QUERY == 'cory-5':
+      return    os.path.join(self.maindir, 'Research/cells/cory-5')
     return os.path.join(self.maindir, 'Research/cells/g=100,r=d=236.6/')
 
   @property
@@ -192,7 +206,7 @@ class _Context(object):
 
   @property
   def matchdir(self):
-    return os.path.join(self.maindir, 'Research/results/old/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
+    return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
 
   @property
   def infodir(self):
@@ -248,7 +262,7 @@ class _Context(object):
       return iter0()
 
     #if taken from d2x with no coordinates
-    if self.QUERY == 'emeryville' or self.QUERY == 'cory-4' or self.QUERY == 'cory-25':
+    if self.QUERY == 'emeryville' or self.QUERY == 'cory-25' or self.QUERY == 'cory-2' or self.QUERY == 'cory-5':
       def iter1():
         for file in util.getSiftFileNames(self.querydir):
           image = _Query()
