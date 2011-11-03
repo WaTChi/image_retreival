@@ -119,4 +119,125 @@ def distance3d(d1, d2):
   x2, y2, z2 = d2['lat'], d2['lon'], d2['alt']
   return distance3d6(x1, y1, z1, z2, y2, z2)
 
+def cameramat(wx, wy, fov):
+    f = (wx-1) / (2*np.tan(fov/2))
+    return np.array( [[ f, 0, (wx-1)/2. ],
+                      [ 0, f, (wy-1)/2. ],
+                      [ 0, 0, 1 ]]  )
+
+def RfromYPR(yaw,pitch,roll):
+    # relative yaw->pitch->roll
+    yaw, pitch, roll = np.pi/180*yaw, np.pi/180*pitch, np.pi/180*roll
+    Ry = np.array([[np.cos(yaw),0,np.sin(yaw)],
+                   [0,1,0],
+                   [-np.sin(yaw),0,np.cos(yaw)]])
+    Rx = np.array([[1,0,0],
+                   [0,np.cos(pitch),-np.sin(pitch)],
+                   [0,np.sin(pitch),np.cos(pitch)]])
+    Rz = np.array([[np.cos(roll),-np.sin(roll),0],
+                   [np.sin(roll),np.cos(roll),0],
+                   [0,0,1]])
+    return np.dot(Ry,np.dot(Rx,Rz))
+
+def YPRfromR(R):
+    yaw   = 180 / np.pi * np.arctan2(R[0,2],R[2,2])
+    pitch = 180 / np.pi * np.arcsin(-R[1,2])
+    roll  = 180 / np.pi * np.arctan2(R[1,0],R[1,1])
+    return yaw, pitch, roll
+
+def xprodmat(x):
+    return np.array([[0,-x[2],x[1]],
+                     [x[2],0,-x[0]],
+                     [-x[1],x[0],0]])
+
+def NEtoLL(lat1, lon1, north, east):
+    # computes lat2, lon2 which is a given distance east and north of lat1, lon1
+    lat1 = math.pi/180 * lat1
+    lon1 = math.pi/180 * lon1
+    b = math.atan2(east,north)
+    d = (north**2 + east**2)**0.5
+    R = 6.3781e6
+    lat2 = 180/math.pi * math.asin(math.sin(lat1)*math.cos(d/R) + math.cos(lat1)*math.sin(d/R)*math.cos(b))
+    lon2 = 180/math.pi * ( lon1 + math.atan2(math.sin(b)*math.sin(d/R)*math.cos(lat1), math.cos(d/R)-math.sin(lat1)*math.sin(lat2)) )
+    return lat2, lon2
+
+def decomposeE(E):
+    U,s,Vt = alg.svd(E)
+    print 'singular values'
+    print s
+    S = np.array([[s[0],0,0],
+                  [0,s[1],0],
+                  [0,0,0]])
+    W = np.array([[0,-1,0],
+                  [1,0,0],
+                  [0,0,1]])
+    Z = np.array([[0,-1,0],
+                  [1,0,0],
+                  [0,0,0]])
+    R = np.transpose(np.dot(U,np.dot(W,Vt))) # orientation of I2 in I1 frame
+    y,p,r = YPRfromR(R)
+    if abs(y)>90 or abs(p)>90 or abs(r)>90: # wrong "sign" on orientation
+        R = np.transpose(np.dot(U,np.dot(np.transpose(W),Vt))) # orientation of I2 in I1 frame
+    tx = np.dot(np.transpose(Vt),np.dot(Z,Vt))
+    t = np.array([tx[2,1],tx[0,2],tx[1,0]])
+    return R,t,s[0]/s[1]
+
+def decomposeH(H):
+    U,s,Vt = alg.svd(H)
+    H = H / s[1]
+    s = s / s[1]
+    s2 = s**2
+    print 'singular values'
+    print s
+
+    # decompose homography
+    v1 = Vt[0,:]
+    v2 = Vt[1,:]
+    v3 = Vt[2,:]
+    u1 = ( np.sqrt(1-s2[2])*v1 + np.sqrt(s2[0]-1)*v3 ) / np.sqrt(s2[0]-s2[2])
+    u2 = ( np.sqrt(1-s2[2])*v1 - np.sqrt(s2[0]-1)*v3 ) / np.sqrt(s2[0]-s2[2])
+    Hv2 = np.dot(H,v2)
+    Hu1 = np.dot(H,u1)
+    Hu2 = np.dot(H,u2)
+    V2 = np.array( [ [ 0,-v2[2],v2[1] ],
+                     [ v2[2],0,-v2[0] ],
+                     [ -v2[1],v2[0],0 ] ] )
+    HV2 = np.array( [ [ 0,-Hv2[2],Hv2[1] ],
+                      [ Hv2[2],0,-Hv2[0] ],
+                      [ -Hv2[1],Hv2[0],0 ] ] )
+    U1 = np.transpose( np.array( [ v2,u1,np.dot(V2,u1) ] ) )
+    U2 = np.transpose( np.array( [ v2,u2,np.dot(V2,u2) ] ) )
+    W1 = np.transpose( np.array( [ Hv2,Hu1,np.dot(HV2,Hu1) ] ) )
+    W2 = np.transpose( np.array( [ Hv2,Hu2,np.dot(HV2,Hu2) ] ) )
+
+    # compute R and t
+    R1 = np.dot(W1,np.transpose(U1))
+    n1 = np.dot(V2,u1)
+    n1 = n1 / alg.norm(n1)
+    t1 = np.dot(R1,np.dot(H-R1,n1))
+    t1 = t1 / alg.norm(t1) # position of camera 2 in camera 1 frame
+    R1 = np.transpose(R1) # orientation of camera 2 in camera 1 frame
+    y1,p1,r1 = YPRfromR(R1)
+    print 'YPR, T, and N from homography: Candidate 1'
+    print np.array([y1,p1,r1])
+    print t1
+    print n1
+
+    R2 = np.dot(W2,np.transpose(U2))
+    n2 = np.dot(V2,u2)
+    n2 = n2 / alg.norm(n2)
+    t2 = np.dot(R2,np.dot(H-R2,n2))
+    t2 = t2 / alg.norm(t2) # position of camera 2 in camera 1 frame
+    R2 = np.transpose(R2) # orientation of camera 2 in camera 1 frame
+    y2,p2,r2 = YPRfromR(R2)
+    print 'YPR, T, and N from homography: Candidate 2'
+    print np.array([y2,p2,r2])
+    print t2
+    print n2
+
+#    if abs(y1)>np.pi/2 or abs(p1)>np.pi/2 or abs(r1)>np.pi/2: # wrong orientation
+    return R2,t2,n2
+#    else:
+#        return R1,t1,n1
+
 # vim: et sw=2

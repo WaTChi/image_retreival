@@ -34,7 +34,7 @@ ROT_THRESHOLD_RADIANS = 0.2 # .1 ~ 5 deg
 def highresSift(C, Q, dbsift):
 
     start = time.time()
-    maxmatch, maxdist, maxangle = 5, 5000000, np.pi#/6
+    maxmatch, maxdist, maxangle = 5, 50000, np.pi/6
     idx = dbsift.rfind('/')
     hrRematchFile = dbsift[:idx] + '/highres/rematch/' + Q.name + ';' + \
                     dbsift[idx+1:-8] + ';maxmatch=' + str(maxmatch) + \
@@ -99,6 +99,7 @@ def highresSift(C, Q, dbsift):
         np.savez( hrRematchFile, qidx=matches['qidx'], q2d=matches['q2d'], qprm=matches['qprm'],
                   d2d=matches['d2d'], dprm=matches['dprm'], nnd=matches['nnd'] )
         # END OF RUNNING NN SEARCH OR LOADING NN FILE
+    print matches['qidx']
     # fill in other keys
     nmat = matches['nmat']
     numq = matches['numq']
@@ -226,149 +227,152 @@ def pose_triangle(C, Q, dbimg, dbsift, udir, vpN=False):
     # get high res sift rematch
     matches = highresSift(C, Q, dbsift)
 
-#    # Get image information
-#    qsource = render_tags.QueryImageInfo(Q.datasource)
-#    info = os.path.join(C.infodir, os.path.basename(hrdbimg)[:-4] + '.info')
-#    dbsource = render_tags.EarthmineImageInfo(hrdbimg, info)
-#    lrinfo = os.path.join(C.infodir, os.path.basename(dbimg)[:-4] + '.info')
-#    lrdb = render_tags.EarthmineImageInfo(dbimg, lrinfo)
-#
-#    # Set Kq, Rq
-#    wx,wy = qsource.image.size
-#    fov = qsource.view_angle[0]
-#    Kq = geom.cameramat(wx, wy, fov)
-#    Kqinv = alg.inv(Kq)
-#    y,p,r = qsource.yaw, qsource.pitch, qsource.roll
-#    Rq = geom.RfromYPR(y,p,r) # camera orientation (camera to world)
-#
-#    # Set Kd, Rd
-#    wx,wy = dbsource.image.size
-#    fov = dbsource.fov
-#    Kd = geom.cameramat(wx, wy, fov)
-#    Kdinv = alg.inv(Kd)
-#    lr_matches = lowresSift(C, Q, dbsift)
-#    Rd,foo = pnp.dbsolve(C, Rq, lr_matches, dbsift, dbimg)
-#    db_err = alg.norm(np.array(foo))
-#
-#    # Fill out match information
-#    print 'Filling out query specific information on sift matches...'
-#    start = time.time()
-#    nmat = matches['nmat']
-#    matches['qray'] = tp(dot(Kqinv,np.append(tp(matches['q2d']),[np.ones(nmat)],0)))
-#    matches['dray'] = tp(dot(Kdinv,np.append(tp(matches['d2d']),[np.ones(nmat)],0)))
-#    lr3dmap = C.pixelmap.open(dbsift)
-#    lrKeys = lr3dmap.keys()
-#    if os.path.isfile(path3dmap):
-#        saveMap = False
-#        file3dmap = open(path3dmap,'r')
-#        try:
-#            hr3dmap = pickle.load(file3dmap)
-#        except EOFError:
-#            saveMap = True
-#            hr3dmap = lr3dmap
-#        file3dmap.close()
-#    else:
-#        saveMap = True
-#        hr3dmap = lr3dmap
-#    dbs = float(lrdb.image.size[0]) / dbsource.image.size[0]
-#    olat,olon,oalt = dbsource.lat,dbsource.lon,dbsource.alt # database location
-#    iremove = np.array([])
-#    for i in xrange(nmat):
-#        key = (int(round(dbs*matches['d2d'][i,0])),int(round(dbs*matches['d2d'][i,1])))
-#        if key in hr3dmap:
-#            data3d = hr3dmap[key]
-#        else:
-#            saveMap = True
-#            data3d = lr3dmap[tuple(lrKeys[np.argmin([alg.norm(arr(key)-k) for k in lrKeys])])]
-#            hr3dmap[key] = data3d
-#        if data3d is None:
-#            iremove = np.append(iremove,i)
-#        else:
-#            zx = geom.lltom(olat,olon,data3d['lat'],data3d['lon'])
-#            matches['w3d'][i,:] = np.array([zx[1],oalt-data3d['alt'],zx[0]])
-#    # Remove indices without 3d information
-#    matches['q2d'] = np.delete(matches['q2d'],iremove,0)
-#    matches['qprm'] = np.delete(matches['qprm'],iremove,0)
-#    matches['qray'] = np.delete(matches['qray'],iremove,0)
-#    matches['d2d'] = np.delete(matches['d2d'],iremove,0)
-#    matches['dprm'] = np.delete(matches['dprm'],iremove,0)
-#    matches['dray'] = np.delete(matches['dray'],iremove,0)
-#    matches['w3d'] = np.delete(matches['w3d'],iremove,0)
-#    matches['nnd'] = np.delete(matches['nnd'],iremove,0)
-#    matches['nmat'] -= len(iremove)
-#    matches['qidx'] = np.array(list(set( [ qi-np.sum(iremove<qi) for qi in matches['qidx']] )))
-#    matches['numq'] = len(matches['qidx'])-1
-#    matches['hmask'] = np.zeros(matches['nmat'])
-#    matches['herr'] = -1 * np.ones(matches['nmat'])
-#    matches['hvrf'] = 0
-#    # save hr3dmap if changed
-#    if saveMap:
-#        file3dmap = open(path3dmap,'w')
-#        pickle.dump(hr3dmap,file3dmap)
-#        file3dmap.close()
-#    print 'Retrieving 3d points took %.1f seconds.' % (time.time()-start)
-#
-#    # Get estimated groundd truth query location and normal direction
-#    qlocs = open('/media/DATAPART2/ah/query5horizontal-locs.txt','r')
-#    qstr = qlocs.read()
-#    qlocs.close()
-#    qstr = qstr[qstr.find(qsource.name):]
-#    qstr = qstr[qstr.find('\t')+1:]
-#    qidx = qstr.find('\t')
-#    qlat = float(qstr[:qidx])
-#    qstr = qstr[qidx+1:]
-#    qidx = qstr.find('\t')
-#    qlon = float(qstr[:qidx])
-#    qstr = qstr[qidx+1:]
-#    qidx = qstr.find('\n')
-#    qbear = int(qstr[:qidx])
-#    qzx = geom.lltom(olat,olon,qlat,qlon)
-#
-#    # Retrieve GPS query location
-#    glat,glon = qsource.lat,qsource.lon
-#    gzx = geom.lltom(olat,olon,glat,glon)
+    # Get image information
+    qsource = render_tags.QueryImageInfo(Q.datasource)
+    info = os.path.join(C.infodir, os.path.basename(hrdbimg)[:-4] + '.info')
+    dbsource = render_tags.EarthmineImageInfo(hrdbimg, info)
+    lrinfo = os.path.join(C.infodir, os.path.basename(dbimg)[:-4] + '.info')
+    lrdb = render_tags.EarthmineImageInfo(dbimg, lrinfo)
 
-#    # Solve for normal vector using vanishing points
-#    vpN = True
-#    if vpN:
-#        vbear, vbErr = computeNorm(Q.jpgpath,hrdbimg,Rq,Rd,Kq,Kd)
-#    else:
-#        vbear = np.nan
-#    vbeardeg = 180/np.pi*vbear - 180*round((vbear*180/np.pi-qbear)/180.)
-#    vAng_err = np.nan if np.isnan(vbear) else int(abs(vbeardeg-qbear))
-#    print vAng_err
+    # Set Kq, Rq
+    wx,wy = qsource.image.size
+    fov = qsource.view_angle[0]
+    Kq = geom.cameramat(wx, wy, fov)
+    Kqinv = alg.inv(Kq)
+    y,p,r = qsource.yaw, qsource.pitch, qsource.roll
+    Rq = geom.RfromYPR(y,p,r) # camera orientation (camera to world)
 
-#    # Solve for query pose using constrained homography
-#    mxit = 10000
-#    matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.03,maxiter=mxit)
-#    if matches['hvrf']==0 or alg.norm(ct)>50:
-#        print 'Attempting to solve constrained homography with relaxed parameters.'
-#        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.06,maxiter=mxit)
-#    if matches['hvrf']==0 or alg.norm(ct)>50:
-#        print 'Attempting to solve constrained homography with even more relaxed parameters.'
-#        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.12,maxiter=mxit)
-#    nbear = np.mod( 180 + 180/np.pi * nbear , 360 )
-#
-#    # compute location errors wrt estimated query locations
-#    ch_err = ( (ct[0]-qzx[1])**2 + (ct[2]-qzx[0])**2 )**0.5
-#    gps_err = ( (gzx[1]-qzx[1])**2 + (gzx[0]-qzx[0])**2 )**0.5
-#
-#    # compute the angle difference between T and ground truth translation
-#    tAng_err = int(abs( 180/np.pi * np.arccos( (ct[0]*qzx[1]+ct[2]*qzx[0]) / (alg.norm([ct[0],ct[2]])*alg.norm(qzx)) ) ))
-#
-#    # compute the plane normal angle error
-#    nAng_err = np.nan if np.isnan(nbear) else int(abs(nbear-qbear))
-#    vAng_err = np.nan if np.isnan(vbear) else int(abs(vbear-qbear))
-#
-#    # write pose estimation results to file
-#    with open(C.reproj_file,'a') as rp_file:
-#        print >>rp_file, '\t'.join([os.path.split(Q.jpgpath)[1][:-4], str(ch_err), str(gps_err),
-#              str(tAng_err), str(nAng_err), str(matches['hvrf']), str(matches['nmat']), str(ct[0]), str(ct[2]), str(db_err)])
-#
+    # Set Kd, Rd
+    wx,wy = dbsource.image.size
+    fov = dbsource.fov
+    Kd = geom.cameramat(wx, wy, fov)
+    Kdinv = alg.inv(Kd)
+    lr_matches = lowresSift(C, Q, dbsift)
+    Rd,foo = pnp.dbsolve(C, Rq, lr_matches, dbsift, dbimg)
+    db_err = alg.norm(np.array(foo))
+
+    # Fill out match information
+    print 'Filling out query specific information on sift matches...'
+    start = time.time()
+    nmat = matches['nmat']
+    matches['qray'] = tp(dot(Kqinv,np.append(tp(matches['q2d']),[np.ones(nmat)],0)))
+    matches['dray'] = tp(dot(Kdinv,np.append(tp(matches['d2d']),[np.ones(nmat)],0)))
+    lr3dmap = C.pixelmap.open(dbsift)
+    lrKeys = lr3dmap.keys()
+    if os.path.isfile(path3dmap):
+        saveMap = False
+        file3dmap = open(path3dmap,'r')
+        try:
+            hr3dmap = pickle.load(file3dmap)
+        except EOFError:
+            saveMap = True
+            hr3dmap = lr3dmap
+        file3dmap.close()
+    else:
+        saveMap = True
+        hr3dmap = lr3dmap
+    dbs = float(lrdb.image.size[0]) / dbsource.image.size[0]
+    olat,olon,oalt = dbsource.lat,dbsource.lon,dbsource.alt # database location
+    iremove = np.array([])
+    for i in xrange(nmat):
+        key = (int(round(dbs*matches['d2d'][i,0])),int(round(dbs*matches['d2d'][i,1])))
+        if key in hr3dmap:
+            data3d = hr3dmap[key]
+        else:
+            saveMap = True
+            data3d = lr3dmap[tuple(lrKeys[np.argmin([alg.norm(arr(key)-k) for k in lrKeys])])]
+            hr3dmap[key] = data3d
+        if data3d is None:
+            iremove = np.append(iremove,i)
+        else:
+            zx = geom.lltom(olat,olon,data3d['lat'],data3d['lon'])
+            matches['w3d'][i,:] = np.array([zx[1],oalt-data3d['alt'],zx[0]])
+    print len(iremove)
+    print len(set(iremove))
+    print list(set( [ qi-np.sum(iremove<qi) for qi in matches['qidx']] ))[1]
+    # Remove indices without 3d information
+    matches['q2d'] = np.delete(matches['q2d'],iremove,0)
+    matches['qprm'] = np.delete(matches['qprm'],iremove,0)
+    matches['qray'] = np.delete(matches['qray'],iremove,0)
+    matches['d2d'] = np.delete(matches['d2d'],iremove,0)
+    matches['dprm'] = np.delete(matches['dprm'],iremove,0)
+    matches['dray'] = np.delete(matches['dray'],iremove,0)
+    matches['w3d'] = np.delete(matches['w3d'],iremove,0)
+    matches['nnd'] = np.delete(matches['nnd'],iremove,0)
+    matches['nmat'] -= len(iremove)
+    matches['qidx'] = np.array(list(set( [ qi-np.sum(iremove<qi) for qi in matches['qidx']] )))
+    matches['numq'] = len(matches['qidx'])-1
+    matches['hmask'] = np.zeros(matches['nmat'])
+    matches['herr'] = -1 * np.ones(matches['nmat'])
+    matches['hvrf'] = 0
+    # save hr3dmap if changed
+    if saveMap:
+        file3dmap = open(path3dmap,'w')
+        pickle.dump(hr3dmap,file3dmap)
+        file3dmap.close()
+    print 'Retrieving 3d points took %.1f seconds.' % (time.time()-start)
+
+    # Get estimated groundd truth query location and normal direction
+    qlocs = open('/media/DATAPART2/ah/query5horizontal-locs.txt','r')
+    qstr = qlocs.read()
+    qlocs.close()
+    qstr = qstr[qstr.find(qsource.name):]
+    qstr = qstr[qstr.find('\t')+1:]
+    qidx = qstr.find('\t')
+    qlat = float(qstr[:qidx])
+    qstr = qstr[qidx+1:]
+    qidx = qstr.find('\t')
+    qlon = float(qstr[:qidx])
+    qstr = qstr[qidx+1:]
+    qidx = qstr.find('\n')
+    qbear = int(qstr[:qidx])
+    qzx = geom.lltom(olat,olon,qlat,qlon)
+
+    # Retrieve GPS query location
+    glat,glon = qsource.lat,qsource.lon
+    gzx = geom.lltom(olat,olon,glat,glon)
+
+    # Solve for normal vector using vanishing points
+    if vpN:
+        vbear, vbErr = computeNorm(Q.jpgpath,hrdbimg,Rq,Rd,Kq,Kd)
+    else:
+        vbear = np.nan
+    vbeardeg = 180/np.pi*vbear - 180*round((vbear*180/np.pi-qbear)/180.)
+    vAng_err = np.nan if np.isnan(vbear) else int(abs(vbeardeg-qbear))
+    print vbear
+    print vAng_err
+
+    # Solve for query pose using constrained homography
+    mxit = 100
+    matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.03,maxiter=mxit)
+    if matches['hvrf']==0 or alg.norm(ct)>50:
+        print 'Attempting to solve constrained homography with relaxed parameters.'
+        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.06,maxiter=mxit)
+    if matches['hvrf']==0 or alg.norm(ct)>50:
+        print 'Attempting to solve constrained homography with even more relaxed parameters.'
+        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=vbear,maxerr=.12,maxiter=mxit)
+    nbear = np.mod( 180 + 180/np.pi * nbear , 360 )
+
+    # compute location errors wrt estimated query locations
+    ch_err = ( (ct[0]-qzx[1])**2 + (ct[2]-qzx[0])**2 )**0.5
+    gps_err = ( (gzx[1]-qzx[1])**2 + (gzx[0]-qzx[0])**2 )**0.5
+
+    # compute the angle difference between T and ground truth translation
+    tAng_err = int(abs( 180/np.pi * np.arccos( (ct[0]*qzx[1]+ct[2]*qzx[0]) / (alg.norm([ct[0],ct[2]])*alg.norm(qzx)) ) ))
+
+    # compute the plane normal angle error
+    nAng_err = np.nan if np.isnan(nbear) else int(abs(nbear-qbear))
+    vAng_err = np.nan if np.isnan(vbear) else int(abs(vbear-qbear))
+
+    # write pose estimation results to file
+    with open(C.reproj_file,'a') as rp_file:
+        print >>rp_file, '\t'.join([os.path.split(Q.jpgpath)[1][:-4], str(ch_err), str(gps_err),
+              str(tAng_err), str(nAng_err), str(matches['hvrf']), str(matches['nmat']), str(ct[0]), str(ct[2]), str(db_err)])
+
     # draw matches
-#    close = ch_err < 10
-#    imgpath = udir + '/' + Q.name + ';gtTrue;' + 'close' + str(close) + ';err=' + str(ch_err) + ';tAng=' + str(tAng_err) + ';nAng=' + str(nAng_err) + ';feature_pairs.jpg'
-    imgpath = udir + '/' + Q.name + '.jpg'
+    close = ch_err < 10
+    imgpath = udir + '/' + Q.name + ';gtTrue;' + 'close' + str(close) + ';err=' + str(ch_err) + ';tAng=' + str(tAng_err) + ';nAng=' + str(nAng_err) + ';feature_pairs.jpg'
+#    imgpath = udir + '/' + Q.name + '.jpg'
     draw_matches(C, Q, matches, hrdbimg, imgpath)
 
 #    # write pose estimation results to file
@@ -396,7 +400,9 @@ def constrainedHomography(matches, wRd, wRq, nbear=np.nan, maxerr=.05, maxiter=1
     minfit = min( maxminfit , max( 3 , int(matches['numq']**0.5) ) )
     iter, stoperr = 0, .01*maxerr
     spd = 1e-3 # scale for plane distance errors relative to homography reprojection errors
-    knownN = np.isnan(nbear)
+    knownN = not np.isnan(nbear)
+    print nbear
+    print knownN
 
     # Ransac loop to eliminate outliers with homography
     # Solves homography matrix for homography matrix H=qRd(I+rn') using y ~ Hx
@@ -430,19 +436,21 @@ def constrainedHomography(matches, wRd, wRq, nbear=np.nan, maxerr=.05, maxiter=1
             r, k, e, n = lsqHprm_RN([mq1,mq2],[md1,md2],dRq,wRd) # directly solve to get initial conditions
             pd = np.mean([dot(n,mw1),dot(n,mw2)])
             mp = np.append(dot(wRd,k*r),[e,pd]) # initial conditions for reprojection error minimization
-            verr = np.reshape(homerrf(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
             if (abs(verr[:,:2])>stoperr).any():
                 mp[:3] = dot(wRd,-k*r)
-                verr = np.reshape(homerrf(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+                verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
             if (abs(verr[:,:2])>stoperr).any():
                 continue
-            mp = opt.leastsq(homerrf,mp,args=([mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),warning=False)[0]
-            verr = np.reshape(homerrf(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            mp = opt.leastsq(homerrf_RNP,mp,args=([mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),warning=False)[0]
+            verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
             if (abs(verr[:,:2]>stoperr)).any() or (abs(verr[:,2])>spd).any(): # verify homography solution and 3d world points
                 continue
-            errs = np.sum(np.reshape(hom_errf(mp,matches['qray'],matches['dray'],matches['w3d'],dRq,wRd,spd),[-1,3])**2,1)**0.5
+            errs = np.sum(np.reshape(homerrf_RNP(mp,matches['qray'],matches['dray'],matches['w3d'],dRq,wRd,spd),[-1,3])**2,1)**0.5
         emask = errs < maxerr
         imask = np.bool_(np.zeros(matches['nmat']))
+        print len(emask)
+        print qidx
         for i in rngN:
             qmask = emask[qidx[i]:qidx[i+1]]
             if np.sum(qmask) == 0:
@@ -454,8 +462,8 @@ def constrainedHomography(matches, wRd, wRq, nbear=np.nan, maxerr=.05, maxiter=1
             iq = qray[imask,:]
             id = dray[imask,:]
             iw = w3d[imask,:]
-            ip = opt.leastsq(homerrf,mp,args=(iq,id,iw,dRq,wRd,spd),warning=False)[0]
-            ierr = alg.norm(homerrf(ip,iq,id,iw,dRq,wRd,spd)) / numi
+            ip = opt.leastsq(homerrf_RNP,mp,args=(iq,id,iw,dRq,wRd,spd),warning=False)[0]
+            ierr = alg.norm(homerrf_RNP(ip,iq,id,iw,dRq,wRd,spd)) / numi
             if ierr < berr:
                 berr = ierr
                 T = ip[4]*ip[:3]
@@ -465,7 +473,7 @@ def constrainedHomography(matches, wRd, wRq, nbear=np.nan, maxerr=.05, maxiter=1
                 matches['Tvec'] = T
                 matches['Pnorm'] = arr([np.sin(ip[3]),0,np.cos(ip[3])])
                 matches['hmask'] = imask
-                matches['herr'][imask,:] = np.sum(np.reshape(homerrf(ip,iq,id,iw,dRq,wRd,spd),[-1,3])**2,1)**0.5
+                matches['herr'][imask,:] = np.sum(np.reshape(homerrf_RNP(ip,iq,id,iw,dRq,wRd,spd),[-1,3])**2,1)**0.5
                 matches['hvrf'] = sum(imask)
         if berr < stoperr:
             break
@@ -531,7 +539,7 @@ def lsqHprm_RN(q,d,dRq,wRd):
     zerof = lambda e: (1/m[0])*np.cos(e-f[0]) - (1/m[1])*np.cos(e-f[1])
     e = opt.fsolve(zerof,(f[0]+f[1])/2)
     e = np.mod(e,2*np.pi)
-    k = m[0] / np.cos(e1-f[0])
+    k = m[0] / np.cos(e-f[0])
 #    errf = lambda prm,argm,argf: prm[0]-argm/np.cos(prm[1]-argf)
 #    ke_init = arr([1.2*np.mean(m),np.mean(f)])
 #    k, e = tuple( opt.leastsq(errf,ke_init,args=(m,f))[0] )

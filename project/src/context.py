@@ -202,7 +202,7 @@ class _Context(object):
     elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
-      return None # TODO
+      return '/media/DATAPART1/oakland-cells'
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':

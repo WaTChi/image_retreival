@@ -258,7 +258,7 @@ def match(C, Q):
       comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C, 90)
+    imm, rsc_ok = rerank_ransac(comb_matches, C)#, 90)
 #    imm, rsc_ok = combine_vote(comb_matches)
     if C.weight_by_coverage:
       ranked = weight_by_coverage(C, Q, imm)
@@ -354,7 +354,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         if C.do_posit:
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
 
-        ### Perspective N-Point Problem ###
+        ### Query Pose Estimation ###
         if C.solve_pose and match:
             #pnp.qsolve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
             ct, ch_err, ch_matches = computePose.pose_triangle(C, Q, matchimgpath, matchsiftpath, udir)
@@ -403,18 +403,18 @@ def rerank_ransac(counts, C):
     num_filt = 0
 
     for siftfile, matches in sorted_counts:
-      if yaw_filter_deg and Q.datasource:
-        matchedimg = siftfile[:-8]
-        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-        if not os.path.exists(matchimgpath):
-          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-          assert os.path.exists(matchimgpath)
-        source = render_tags.get_image_info(matchimgpath)
-        dyaw = source.yaw * np.pi/180
-        qyaw = Q.datasource.yaw * np.pi/180
-        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
-        if diff > yaw_filter_deg:
-          continue
+#      if yaw_filter_deg and Q.datasource:
+#        matchedimg = siftfile[:-8]
+#        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
+#        if not os.path.exists(matchimgpath):
+#          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
+#          assert os.path.exists(matchimgpath)
+#        source = render_tags.get_image_info(matchimgpath)
+#        dyaw = source.yaw * np.pi/180
+#        qyaw = Q.datasource.yaw * np.pi/180
+#        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
+#        if diff > yaw_filter_deg:
+#          continue
 
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
