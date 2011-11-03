@@ -25,8 +25,8 @@ NOTE: the python portion of this project is intended to be run from a linux mach
 Workflow:
   Downloading new earthmine data:
 
-    python/cellget.py lat lon radius outdir
-      gets all earthmine bubbles in a square with length=2*radius centered at lat, lon.
+    python/cellget.py lat lon apothem outdir
+      gets all earthmine bubbles in a square with length=2*apothem centered at lat, lon.
       outputs images to outdir
     
   Generating Cells:
@@ -47,19 +47,22 @@ Workflow:
     1. place query images in a directory
     2. extract run extractSIFT
     3. copy and modify querySystem.py:
-      C.QUERY: specify location of query directory
-      C.params.update: specfies kdtree search parameters - do not change unless you know what you're doing
       C.ambiguity: specifies max location ambiguity
+      C.cacheEnable: should be on unless doing timing experiments
+      C.cellradius: distance between neighboring cells. used for cell creation
+      C.locator_function: optional pointer to location fuzzing method (currently either system.skew_location or system.load_location)
+      C.maindir: specify where the project is located (defaults to /media/DATAPART2)
+      C.match_callback: set to system.dump_combined_matches if outputing results for bayesian processing
       C.matchdistance: specifies max distance between two view locations capturing the same sceen
         ambiguity+matchdistance specifies the radius of the "ambiguity circle"
-      C.topnresults: specify a list of top n results you want displayed (not needed if postprocessing w/ bayesian)
       C.ncells: specify max # of cells to query (should correlate w/ # of cores on machine)
-      C.cacheEnable: should be on unless doing timing experiments
-      C.location_function: optional pointer to location fuzzing method (currently either system.skew_location or system.load_location)
-      C.match_callback: set to system.dump_combined_matches if outputing results for bayesian processing
+      C.params.update: specfies kdtree search parameters - do not modify unless you know what you're doing
+      C.resultsdir: where to put tagged outputs (~/topmatches)
+      C.QUERY: specify name of query directory (assumed to be in C.maindir)
+      C.topnresults: specify a list of top n results you want displayed (not needed if postprocessing w/ bayesian)
       Additional parameters can be set: see context.py/Context/init
     
-    tagged output should be in ~/topmatches
+    tagged output should be in C.resultsdir
     
     notes:
     -if a ground truth file is available, include it in system.check_img to get retrieval statistics
@@ -68,7 +71,7 @@ Workflow:
      -(default) lat,lon embeded in filename
      -lat,lon included in separate xml file (there ase typcially cell phone images generated using the Imageotag Android app)
      -no location information available (this is a debugging option intended for queries against a single cell)
-    -running querySystem will automatically build the neccisary index/kd-tree data structures in the local search cell if they do not exist.
+    -if cells are not present, running querySystem will automatically build the neccisary index/kd-tree data structures in the local search cell if they do not exist.
     -caching is partially based on the name of your query folder/files. Be sure you don't use the same names for different query sets.
      you can clear the cach by purging the dirs/files present in Research/results
     -we're currently set up to do batch query processing. If you want query a single image, either have it be the only file in a query directory, or modify querySystem.py to call system.match instead of system.characterize

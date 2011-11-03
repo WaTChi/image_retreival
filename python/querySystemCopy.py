@@ -10,7 +10,7 @@ import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query3'
+C.QUERY = 'query1'
 C.params.update({
   'checks': 1024,
   'trees': 1,
