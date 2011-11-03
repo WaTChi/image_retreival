@@ -38,12 +38,9 @@ class PixelMap:
     start = time.time()
     x, y = int(x), int(y)
     if featurefile in self.cached:
-      print 'cached'
       pixmap = self.cached[featurefile]
     else:
-      print 'uncached'
       pixmap = self.cached[featurefile] = self.open(featurefile)
-    print time.time() - start
     return pixmap[x,y]
   
   def open(self, featurefile, info=0):
