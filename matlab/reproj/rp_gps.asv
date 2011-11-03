@@ -1,0 +1,21 @@
+rp_data = importdata('Z:\ah\lastrun\reproj.txt');
+%rp_data = importdata('gps_err.txt');
+for k=1:size(rp_data,2)
+    figure(k)
+    bins = 2.5:5:97.5;
+    err = rp_data(:,k);
+    gidx = err < 10;
+    gcount = hist(err(gidx),bins);
+    bcount = hist(err(~gidx),bins);
+    bar(bins,gcount,'g')
+    hold on
+    bar(bins,bcount,'r')
+    
+rp_err = rp_data(:,8);
+gps_err = rp_data(:,12);
+gidx = gps_err < 10;
+
+figure(1)
+loglog(rp_err(gidx),gps_err(gidx),'go')
+hold on
+loglog(rp_err(~gidx),gps_err(~gidx),'ro')
