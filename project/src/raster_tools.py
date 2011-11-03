@@ -32,8 +32,10 @@ class RasterImage(object):
 
     def getDepth(self, x, y):
         """returns float32 (meters)"""
-        raise NotImplementedError
+        print "depth: %s" % self.im[x,y]
+        return self.im[x,y]/10.0
 
     def getPlane(self, x, y):
         """returns uint32"""
-        raise NotImplementedError
+        print "plane: %s" % self.im[x,y]
+        return np.uint32(self.im[x,y])

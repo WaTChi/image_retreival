@@ -183,6 +183,8 @@ class _Context(object):
   def dbdump(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
+    elif self.QUERY == 'oakland1':
+      return os.path.join(self.maindir, 'Research/collected_images/earthmine-oakland/oakland-rect')
     elif self.QUERY == 'cory-4':
       return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
     elif self.QUERY == 'cory-25':
@@ -199,6 +201,8 @@ class _Context(object):
       return self._dbdir
     elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
+    elif self.QUERY == 'oakland1':
+      return None # TODO
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -256,7 +260,7 @@ class _Context(object):
     """Returns iter over _Query for files in query"""
 
     #if query taken from a cell phone
-    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical':
+    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()
