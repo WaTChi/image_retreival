@@ -79,13 +79,23 @@ class _Context(object):
     self.do_posit = 0
     self.solve_pnp = 0
     self.print_per = 1
+    self.one_big_cell = 0
+    self.restrict_cells = False
+    self.override_cells = False
     self.max_matches_to_analyze = 1
     self.stop_on_homTrue = 0
     self.put_into_dirs = 0
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
+    self.weight_by_distance = False
+    self.weight_by_coverage = False
+    self._dbdir = False
     self.cellradius = 236.6
     self.ranking_min_consistent = 10
     self.ranking_max_considered = 100
+<<<<<<< HEAD
+=======
+    self.spatial_comb = 0
+>>>>>>> 43ddd122e2ae82692cadad662678db2b04ea6ac5
     self.match_callback = None
     self.dump_hom = 0
     self.ambiguity = 75
@@ -184,7 +194,9 @@ class _Context(object):
 
   @property
   def dbdir(self):
-    if self.QUERY == 'emeryville':
+    if self._dbdir:
+      return self._dbdir
+    elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')

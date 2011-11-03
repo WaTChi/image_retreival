@@ -269,6 +269,7 @@ class ddObject():
             }
 
         self.JSONData = self.JSONEncoder.encode(request)
+        print self.JSONData
         response = self.sendRequest()
         #correllate the pixels and locations in a dictionary
         return [(request["parameters"]["request"]["view-pixels"][i], response["locations"][i]) for i in range(len(response["locations"]))]

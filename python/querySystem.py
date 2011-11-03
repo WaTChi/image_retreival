@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import system
+import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
