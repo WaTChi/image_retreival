@@ -23,7 +23,6 @@ import os
 import pnp
 import pickle
 import solveHomography
-import solveEssMatrix
 #import vanPts
 
 MAX_PIXEL_DEVIATION = 1
@@ -117,12 +116,12 @@ def highresSift(C, dbmatch, qname):
     matches['qray'] = np.zeros([nmat,3])
     matches['w3d'] = np.zeros([nmat,3])
     matches['plane'] = np.int_( -1 * np.ones(nmat) )
-    matches['imask'] = np.bool_(np.zeros(nmat))
+    matches['hmask'] = np.bool_(np.zeros(nmat))
     matches['hvrf'] = 0
     # Print rematch statistics
     print 'Number of query features matched: %d' % numq
     print 'Total number of feature matches: %d' % nmat
-    print 'Average number of database matches considered = %.1f' % (float(nmat)/numq)
+    print 'Average number of query matches considered = %.1f' % (float(nmat)/numq)
     print 'High res rematch took %.1f seconds.' % (time.time() - start)
     return matches
 
@@ -167,12 +166,15 @@ def draw_matches(matches, qimg, dbimg, outimg):
     target.paste(a, (0,0))
     target.paste(b, (off,0))
 
-    match_idx = np.nonzero(matches['imask'])[0] # np.nonzero( np.ones(matches['nmat'] ) )[0]
+    match_idx = np.nonzero(matches['hmask'])[0] # np.nonzero( np.ones(matches['nmat'] ) )[0] # np.nonzero(matches['hmask'])[0]
     for idx in match_idx:
         start = scale*matches['q2d'][idx,:]
         stop = matches['d2d'][idx,:]
         stop[0] += off
-        xdrawcircle(start,'red')
+        try:
+            xdrawcircle(start,'red')
+        except ValueError:
+            print start
         xdrawline((start,stop),'orange')
         xdrawcircle(stop,'red')
 
@@ -203,7 +205,7 @@ def match_info(C, matches, dbmatch, domplane, wRd):
         matches['plane'][i] = plane if plane != 255 else -1
         depth = depth / 100.
         wray = np.dot( wRd , matches['dray'][i,:] )
-        matches['w3d'][i,:] = depth * wray
+        matches['w3d'][i,:] = depth * wray / geom.vecnorm(wray)
     # Remove indices without 3d information
     matches['q2d'] = np.delete(matches['q2d'],iremove,0)
     matches['qprm'] = np.delete(matches['qprm'],iremove,0)
@@ -216,7 +218,7 @@ def match_info(C, matches, dbmatch, domplane, wRd):
     matches['nmat'] -= len(iremove)
     matches['qidx'] = np.sort(np.array(list(set( [ qi-np.sum(iremove<qi) for qi in matches['qidx']] ))))
     matches['numq'] = len(matches['qidx'])-1
-    matches['imask'] = np.bool_(np.zeros(matches['nmat']))
+    matches['hmask'] = np.bool_(np.zeros(matches['nmat']))
     print 'Removed %d points, leaving %d feature matches' % (len(iremove), matches['nmat'])
     print 'Retrieving 3d points and planes took %.1f seconds.' % (time.time()-start)
     return matches
@@ -245,13 +247,9 @@ def getGTpose(C, qname):
 def find_domplane(C, dbmatch):
     print 'Finding dominant plane...'
     planes = np.asarray( Image.open( os.path.join(C.hiresdir,dbmatch+'-planes.png') ) )
-    h,w = planes.shape
-    centerplane = planes[int(h/2),int(w/2)]
     maxplane = np.max(planes[planes!=255])
     plane_count = [ np.sum(np.reshape(planes==k+1,-1)) for k in range(maxplane) ]
     domplane = np.argmax(plane_count) + 1
-    if domplane != centerplane:
-        return -1, 0, 1
     second = 0 if maxplane==1 else np.max(np.compress(plane_count!=plane_count[domplane-1],plane_count))
     domsize = plane_count[domplane-1] / np.float(np.size(planes))
     domratio = second / np.float(plane_count[domplane-1])
@@ -271,26 +269,18 @@ def planefrom3d(C, dbmatch, domplane, Kdinv, wRd):
     pray = tp( np.dot( wRd , np.dot( Kdinv , tp( np.array( [ [x,y,1] for (y,x) in zip(*np.nonzero(planes==domplane)) ] ) ) ) ) )
     pray = pray / np.tile( tp( [ np.sum( pray**2 , 1 )**0.5 ] ) , [1,3] )
     pdep = tp( np.tile( [ depths[y,x] for (y,x) in zip(*np.nonzero(planes==domplane)) ] , [3,1] ) )
-    p3d = np.append( pray * pdep , tp(np.array([np.ones(len(pray))])) , 1 )
+    p3d = np.append( pray * pdep , tp(np.array([np.ones(len(pray))])) )
 
     # extract least squared normal vector
-    try:
-        neig = alg.eig(np.dot(tp(p3d),p3d))
-        n = neig[1][:3,np.argmin(neig[0])]
-    except np.linalg.linalg.LinAlgError:
-        print p3d.shape
-        print np.dot(tp(p3d),p3d)
-        neig = alg.eig(np.dot(tp(p3d),p3d))
-        n = neig[1][:3,np.argmin(neig[0])]
-    #n = alg.eig(np.dot(tp(p3d),p3d))[1][2,:3]
+    n = alg.eig(np.dot(tp(p3d),p3d))[1][2,:3]
 
     # restrict normal vector to be perpendicular to gravity
     g = np.array([0,1,0])
     n = geom.normalrows( n - np.inner(n,g) * g )
 
     # get plane distance and flip n if needed
-    pd = np.mean(np.inner(p3d[:,:3],n))
-    if pd>0:
+    pd = np.mean(np.dot(p3d[:,:3],n))
+    if pd<0:
         n, pd = -n, -pd
 
     return n, pd
@@ -336,16 +326,21 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
     # get high res sift rematch
     matches = highresSift(C, dbmatch, qname)
 
-    # temporarily get tyaw to see performance with "good" yaw
-    tlat, tlon, tnorm, tyaw = getGTpose(C, qname) # true lat, lon, normal, yaw
+    # temporarily get qyaw to see performance with "good" yaw
+    qlat, qlon, qnorm, qyaw = getGTpose(C, qname)
 
     # Set Kq, Rq
     wx,wy = qsource.image.size
     fov = qsource.view_angle[0]
     Kq = geom.cameramat(wx, wy, fov)
     Kqinv = alg.inv(Kq)
-    cyaw,p,r = qsource.yaw, qsource.pitch, qsource.roll # cyaw - cell phone yaw
-    Rq = geom.RfromYPR(cyaw,p,r) # camera orientation (camera to world)
+    y,p,r = qsource.yaw, qsource.pitch, qsource.roll
+    yaw_used = qyaw
+    Rq = geom.RfromYPR(yaw_used,p,r) # camera orientation (camera to world)
+
+    # temporarily get yaw error
+    yaw_error = int(abs(np.mod(qyaw-yaw_used,360)))
+    yaw_error = yaw_error if yaw_error<180 else abs(yaw_error-360)
 
     # Set Kd, Rd, and db position
     wx,wy = dbsource.image.size
@@ -373,23 +368,23 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 
     # Fill out match information
     nmat = matches['nmat']
-    matches['qray'] = geom.normalrows(tp(np.dot(Kqinv,np.append(tp(matches['q2d']),[np.ones(nmat)],0))))
-    matches['dray'] = geom.normalrows(tp(np.dot(Kdinv,np.append(tp(matches['d2d']),[np.ones(nmat)],0))))
-    matches = match_info(C, matches, dbmatch, domplane, Rd)
+    matches['qray'] = tp(dot(Kqinv,np.append(tp(matches['q2d']),[np.ones(nmat)],0)))
+    matches['dray'] = tp(dot(Kdinv,np.append(tp(matches['d2d']),[np.ones(nmat)],0)))
+    match_info(C, matches, dbmatch, domplane, Rd)
 
     # approximate normal vector from 3d points and compute error
-    norm_err = -1
-    print 'Dominant plane: %d' % domplane
-    if C.QUERY == 'oakland1' and param['use_planes']:
-        n3d, pd3d = planefrom3d(C, dbmatch, domplane, Kdinv, Rd)
-        nbear3d = 180 / np.pi * np.arctan2(n3d[0],n3d[2])
-        norm_err = int(abs(np.mod(tnorm-nbear3d,360)))
-        norm_err = norm_err if norm_err<180 else abs(norm_err-360)
-        print 'Plane normal error from 3d points: %d degrees' % norm_err
+    norm_err = 180
+#    if C.QUERY == 'oakland1':
+#        print 'Dominant plane: %d' % domplane
+#        n3d, pd3d = planefrom3d(C, dbmatch, domplane, Kdinv, Rd)
+#        nbear3d = 180 / np.pi * np.arctan2(n3d[0],n3d[2])
+#        norm_err = int(abs(np.mod(180+qnorm-nbear3d,360)))
+#        norm_err = norm_err if norm_err<180 else abs(norm_err-360)
+#        print 'Plane normal error from 3d points: %d degrees' % norm_err
 
     # Get estimated ground truth query location and normal direction
-    tlat, tlon, tnorm, tyaw = getGTpose(C, qname)
-    qzx = geom.lltom(olat,olon,tlat,tlon)
+    qlat, qlon, qnorm, qyaw = getGTpose(C, qname)
+    qzx = geom.lltom(olat,olon,qlat,qlon)
 
     # Retrieve GPS query location
     glat,glon = qsource.lat,qsource.lon
@@ -405,128 +400,277 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 #    print vbear
 #    print vAng_err
 
-    # Solve for query pose using constrained homography or essential matrix
-    runflag = param['runflag']
-    if method == 'hom' and runflag != 7:
-        runflag = 0
-        parameters = ( Rq, Rd, cyaw, np.nan, 2, param['inlier_error'], param['ransac_iter'] )
-        matches, pose = solveGeom(matches,parameters)
-    elif method == 'ess':
-        runflag = 5
-        parameters = ( Rq, Rd, cyaw, np.nan, 5, param['inlier_error'], param['ransac_iter'] )
-        matches, pose = solveGeom(matches,parameters)
-    elif method == 'hom':
-        pr = geom.YPRfromR(Rq)[1:]
-        dyaws = range(-30,30,5)
-        yaw_matches, yaw_poses, yerrs = [], [], []
-        for dyaw in dyaws:
-            yaw_Rq = geom.RfromYPR(cyaw+dyaw, pr[0], pr[1])
-            parameters = ( yaw_Rq, Rd, cyaw+dyaw, np.nan, 2, param['inlier_error'], param['ransac_iter'] )
-            yaw_matches.append(matches.copy())
-            print 'Query yaw set to %d degrees' % (cyaw+dyaw)
-            m, p = solveGeom(matches,parameters)
-            yaw_poses.append(p)
-            yerrs.append(m['ierr'])
-        bestidx = np.argmin(yerrs)
-        matches, pose = yaw_matches[bestidx], yaw_poses[bestidx]
-
-    # extract pose parameters
-    tray = pose[:3]
-    qbear = pose[3]
-    nbear = pose[4] if method=='hom' else np.nan
-    
-
-    # Get scaled translation for query location
-    wRq_pr = geom.YPRfromR(Rq)[1:]
-    comp_wRq = geom.RfromYPR(qbear, wRq_pr[0], wRq_pr[1])
-    qloc = scalefrom3d(matches, tray, comp_wRq)[0]
-
-    # temporarily get yaw error
-    qyaw_error = int(abs(np.mod(tyaw-qbear,360)))
-    qyaw_error = qyaw_error if qyaw_error<180 else abs(qyaw_error-360)
+    # Solve for query pose using constrained homography
+    matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=np.nan,maxerr=param['inlier_error'],maxiter=param['ransac_iter'])
+    if matches['hvrf']==0 or alg.norm(ct)>50:
+        print 'Attempting to solve constrained homography with relaxed parameters.'
+        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=np.nan,maxerr=2*param['inlier_error'],maxiter=param['ransac_iter'])
+    if matches['hvrf']==0 or alg.norm(ct)>50:
+        print 'Attempting to solve constrained homography with even more relaxed parameters.'
+        matches, ct, nbear = constrainedHomography(matches,Rd,Rq,nbear=np.nan,maxerr=5*param['inlier_error'],maxiter=param['ransac_iter'])
+    nbear = np.mod( 180 + 180/np.pi * nbear , 360 )
 
     # compute location errors wrt estimated query locations
-    loc_err = ( (qloc[0]-qzx[1])**2 + (qloc[2]-qzx[0])**2 )**0.5
+    ch_err = ( (ct[0]-qzx[1])**2 + (ct[2]-qzx[0])**2 )**0.5
     gps_err = ( (gzx[1]-qzx[1])**2 + (gzx[0]-qzx[0])**2 )**0.5
 
     # compute the angle difference between T and ground truth translation
-    tyaw_error = int(abs( 180/np.pi * np.arccos( np.abs(qloc[0]*qzx[1]+qloc[2]*qzx[0]) / (alg.norm([qloc[0],qloc[2]])*alg.norm(qzx)) ) ))
+    tAng_err = int(abs( 180/np.pi * np.arccos( (ct[0]*qzx[1]+ct[2]*qzx[0]) / (alg.norm([ct[0],ct[2]])*alg.norm(qzx)) ) ))
 
     # compute the plane normal angle error
-    nyaw_error = np.nan if np.isnan(nbear) or np.isnan(tnorm) else np.mod(int(abs(nbear-tnorm)),180)
-    nyaw_error = nyaw_error if nyaw_error<90 else abs(nyaw_error-180)
+    nAng_err = np.nan if np.isnan(nbear) or np.isnan(qnorm) else int(abs(nbear-qnorm))
+#    vAng_err = np.nan if np.isnan(vbear) else int(abs(vbear-qbear))
 
     # write pose estimation results to file
-    yaw_err = np.nan
     with open(param['pose_file'],'a') as pose_file:
-        print >>pose_file, '\t'.join([qname, str(loc_err), str(gps_err), \
-            str(tyaw_error), str(qyaw_error), str(nyaw_error), str(matches['nvrf']), \
-            str(matches['numq']), str(matches['nmat']), str(matches['ierr']), \
-            str(qloc[0]), str(qloc[2]), str(norm_err), str(yaw_err), str(runflag)])
+        print >>pose_file, '\t'.join([qname, str(ch_err), str(gps_err), \
+            str(tAng_err), str(nAng_err), str(yaw_error), str(matches['hvrf']), \
+            str(matches['numq']), str(matches['nmat']), str(matches['herr']), \
+            str(ct[0]), str(ct[2]), str(norm_err)])
+#        print >>pose_file, '\t'.join([qname, str(ch_err), str(gps_err), \
+#            str(tAng_err), str(nAng_err), str(matches['hvrf']), \
+#            str(matches['numq']), str(matches['nmat']), str(matches['herr']), \
+#            str(ct[0]), str(ct[2]), str(geom.YPRfromR(Rq))])
 
     # draw matches
-    close = loc_err < 10
-    imgpath = os.path.join( param['resultsdir'] , qname + ';gt' + str(gtStatus) + ';' + 'close' + str(close) + ';locerr=' + str(loc_err) + ';tAng=' + str(tyaw_error) + ';qAng=' + str(qyaw_error) + ';nAng=' + str(nyaw_error) + ';' + dbmatch + '.jpg')
+    close = ch_err < 10
+    imgpath = os.path.join( param['resultsdir'] , qname + ';gt' + str(gtStatus) + ';' + 'close' + str(close) + ';err=' + str(ch_err) + ';tAng=' + str(tAng_err) + ';nAng=' + str(nAng_err) + ';yAng=' + str(yaw_error) + ';' + dbmatch + '.jpg')
     draw_matches(matches, qimg, dbimg, imgpath)
 
-    print 'Computed yaw / ground truth yaw        : %d / %d' % (qbear,tyaw)
-    if method == 'hom': print 'Computed normal bearing / ground truth : %d / %d' % (nbear,tnorm)
-    print 'Computed query location relative to db     : %.1f, %.1f, %.1f' % tuple(qloc)
-    print 'Ground truth query location relative to db : %.1f,  - , %.1f' % (qzx[1],qzx[0])
+    print 'YPR of wRq: ' + str(geom.YPRfromR(Rq))
+    print 'YPR of wRd: ' + str(geom.YPRfromR(Rd))
+    print 'YPR of dRq: ' + str(geom.YPRfromR(np.dot(tp(Rd),Rq)))
 
     input = (Rq, Rd)
 
-    return qloc, loc_err, matches, input
+
+    return ct, ch_err, matches, input
+
+def constrainedHomography(matches, wRd, wRq, nbear=np.nan, maxerr=.05, maxiter=1000):
+
+    print 'Solving constrained homography...'
+    start = time.time()
+
+    # Set variables
+    nmat, numq = matches['nmat'], matches['numq']
+    dRq = dot(tp(wRd),wRq)
+    infarr3 = arr([np.inf,np.inf,np.inf])
+    T, bp, bmask, bnumi, berr, nbear = infarr3, np.zeros(5), np.zeros(nmat), 0, np.inf, np.nan
+
+    # Set Ransac parameters
+    minsep = 0.1 # minimum separation between 2 random RANSAC points
+    maxminfit = 40 # maximum threshold for minimum fit
+    minfit = min( maxminfit , max( 3 , int(matches['numq']**0.5) ) )
+    iter, stoperr = 0, .01*maxerr
+    spd = 0 # 1e-2 # scale for plane distance errors relative to homography reprojection errors
+    knownN = not np.isnan(nbear)
+
+    # Ransac loop to eliminate outliers with homography
+    # Solves homography matrix for homography matrix H=qRd(I+rn') using y ~ Hx
+    qray, dray, w3d, qidx = matches['qray'], matches['dray'], matches['w3d'], matches['qidx']
+    while iter < maxiter and bnumi < np.inf:
+        iter += 1
+        # nfit random correspondences
+        i0 = rand.randint(0,nmat)
+        i1 = rand.randint(0,nmat-1)
+        i1 = i1+1 if i1>=i0 else i1
+        mq1, mq2 = matches['qray'][i0,:], matches['qray'][i1,:]
+        md1, md2 = matches['dray'][i0,:], matches['dray'][i1,:]
+        mw1, mw2 = matches['w3d'][i0,:], matches['w3d'][i1,:]
+        mq_dist = alg.norm(mq1-mq2)
+        if mq_dist < minsep:
+            continue
+        if knownN:
+            r, k, n = lsqHprm_R([mq1,mq2],[md1,md2],dRq,wRd,nbear) # directly solve to get initial conditions
+            pd = np.mean([dot(n,mw1),dot(n,mw2)])
+            mp = np.append(dot(wRd,k*r),pd) # initial conditions for reprojection error minimization
+            verr = np.reshape(homerrf_RP(mp,nbear,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            if (abs(verr[:,:2])>stoperr).any():
+                mp[:3] = dot(wRd,-k*r)
+                verr = np.reshape(homerrf_RP(mp,nbear,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            if (abs(verr[:,:2])>stoperr).any():
+                continue
+            mp = opt.leastsq(homerrf,mp,args=([mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),warning=False)[0]
+            verr = np.reshape(homerrf(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            if (abs(verr[:,:2]>stoperr)).any() or (abs(verr[:,2])>spd).any(): # verify homography solution and 3d world points
+                continue
+            if geom.vecnorm(mp[:3]) > 3:
+                continue
+            errs = np.sum(np.reshape(hom_errf(mp,matches['qray'],matches['dray'],matches['w3d'],dRq,wRd,spd),[-1,3])**2,1)**0.5
+        else:
+            r, k, e, n = lsqHprm_RN([mq1,mq2],[md1,md2],dRq,wRd) # directly solve to get initial conditions
+            pd = np.mean([dot(n,mw1),dot(n,mw2)])
+            mp = np.append(dot(wRd,k*r),[e,pd]) # initial conditions for reprojection error minimization
+            verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            if (abs(verr[:,:2])>stoperr).any():
+                mp[:3] = dot(wRd,-k*r)
+                verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+            if (abs(verr[:,:2])>stoperr).any():
+                continue
+#            mp = opt.leastsq(homerrf_RNP,mp,args=([mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),warning=False)[0]
+#            verr = np.reshape(homerrf_RNP(mp,[mq1,mq2],[md1,md2],[mw1,mw2],dRq,wRd,spd),[-1,3])
+#            if (abs(verr[:,:2]>stoperr)).any() or (abs(verr[:,2])>spd).any(): # verify homography solution and 3d world points
+#                continue
+            if (abs(verr[0,2]-verr[1,2])>spd).any():
+                continue
+            if geom.vecnorm(mp[:3]) > 3:
+                continue
+            errs = np.sum(np.reshape(homerrf_RNP(mp,matches['qray'],matches['dray'],matches['w3d'],dRq,wRd,spd),[-1,3])**2,1)**0.5
+        emask = errs < maxerr
+        imask = np.bool_(np.zeros(matches['nmat']))
+        for i in xrange(numq):
+            dmask = emask[qidx[i]:qidx[i+1]]
+            if np.sum(dmask) == 0:
+                continue
+            derrs = errs[qidx[i]:qidx[i+1]]
+            imask[qidx[i]+np.argmin(derrs)] = True
+#        imask = emask
+        numi = np.sum(imask)
+        if numi > bnumi:
+            bp = mp
+            bmask = imask
+            bnumi = numi
+    # Guided matching
+    numi, imask, mp = bnumi, bmask, bp
+    last_numi, gm_iter = 0, 0
+    while last_numi != numi and numi >= minfit:
+        if gm_iter >= 10 and last_numi >= numi:
+            break
+        last_numi = numi
+        gm_iter += 1
+        iq = qray[imask,:]
+        id = dray[imask,:]
+        iw = w3d[imask,:]
+        try:
+            mp = opt.leastsq(homerrf_RNP,mp,args=(iq,id,iw,dRq,wRd,spd),warning=False)[0]
+        except TypeError:
+            print numi
+            print last_numi
+            print gm_iter
+            print iq
+            print mp
+            raise TypeError
+        errs = np.sum(np.reshape(homerrf_RNP(mp,matches['qray'],matches['dray'],matches['w3d'],dRq,wRd,spd),[-1,3])**2,1)**0.5
+        emask = errs < maxerr
+        imask = np.bool_(np.zeros(matches['nmat']))
+        for i in xrange(numq):
+            dmask = emask[qidx[i]:qidx[i+1]]
+            if np.sum(dmask) == 0:
+                continue
+            derrs = errs[qidx[i]:qidx[i+1]]
+            imask[qidx[i]+np.argmin(derrs)] = True
+        numi = np.sum(imask)
+#    if numi >= minfit and alg.norm(homerrf_RNP(mp,iq,id,iw,dRq,wRd,spd)) * numq / numi < berr:
+    iq = qray[imask,:]
+    id = dray[imask,:]
+    iw = w3d[imask,:]
+    berr = alg.norm(homerrf_RNP(mp,iq,id,iw,dRq,wRd,spd)) * numq / numi
+    bmask = imask
+    bnumi = numi
+    bp = mp
+    T = mp[:3] # mp[4]*mp[:3]
+    nbear = bp[3]
+    matches['Hprm'] = bp
+    matches['Hmat'] = dot(tp(dRq),np.eye(3,3)-dot(r,tp(n)))
+    matches['Tvec'] = T
+    matches['Pnorm'] = arr([np.sin(bp[3]),0,np.cos(bp[3])])
+    matches['hmask'] = bmask
+    matches['herr'] = berr
+    matches['hvrf'] = sum(bmask)
+    if matches['hvrf'] == 0:
+        print 'Constrained homography failed.'
+    else:
+        print 'Result from error metric choosing best inlier set: %f' % matches['herr']
+        print 'Number of inliers / total correspondences: ' + str(matches['hvrf']) + ' / ' + str(matches['nmat'])
+    print 'Constrained homography took %.1f seconds.' % (time.time()-start)
+
+    return matches, T, nbear
 
 
-def solveGeom(matches, parameters):
-    Rq, Rd, qyaw, nyaw, runflag, inlerr, iter = parameters
-    if runflag < 4: # homography
-        matches, pose = solveHomography.constrainedHomography( matches , \
-            Rd , Rq , qyaw , nyaw , runflag , maxerr=inlerr , maxiter=iter)
-        if matches['nvrf']==0:
-            matches, pose = solveHomography.constrainedHomography( matches , \
-                Rd , Rq , qyaw , nyaw , runflag , maxerr=2*inlerr , maxiter=iter)
-        if matches['nvrf']==0:
-            matches, pose = solveHomography.constrainedHomography( matches , \
-                Rd , Rq , qyaw , nyaw , runflag , maxerr=5*inlerr , maxiter=iter)
-    else: # essential matrix
-        matches, pose = solveEssMatrix.constrainedEssMatrix( matches , \
-            Rd , Rq , qyaw , runflag , maxerr=inlerr , maxiter=iter)
-        if matches['nvrf']==0:
-            matches, pose = solveEssMatrix.constrainedEssMatrix( matches , \
-                Rd , Rq , qyaw , runflag , maxerr=2*inlerr , maxiter=iter)
-        if matches['nvrf']==0:
-            matches, pose = solveEssMatrix.constrainedEssMatrix( matches , \
-                Rd , Rq , qyaw , runflag , maxerr=5*inlerr , maxiter=iter)
-    return matches, pose
+def homerrf_RP(prm,nbear,q,d,w,dRq,wRd,spd):
+
+    # Construct homography matrix from parameters
+    r = dot(tp(wRd),prm[:3])
+    wn = arr([np.sin(nbear),0,np.cos(nbear)])
+    n = dot(tp(wRd),wn)
+    H = dot(tp(dRq),np.eye(3,3)-np.outer(r,n))
+    # Compute homography error
+    q = np.reshape(arr(q),[-1,3])
+    d = np.reshape(arr(d),[-1,3])
+    w = np.reshape(arr(w),[-1,3])
+    Hd = tp(dot(H,tp(d)))
+    err = arr( [ [ q[i,0]/q[i,2]-Hd[i,0]/Hd[i,2] , q[i,1]/q[i,2]-Hd[i,1]/Hd[i,2] , spd*(prm[3]-dot(wn,w[0,:])) ] for i in range(len(q)) ] )
+    return np.reshape(err,3*len(q))
 
 
-def scalefrom3d(matches, tray, wRq):
+def homerrf_RNP(prm,q,d,w,dRq,wRd,spd):
 
-    # extract inliers
-    imask = matches['imask']
-    qray = matches['qray'][imask,:]
-    w3d = matches['w3d'][imask,:]
+    # Construct homography matrix from parameters
+    r = dot(tp(wRd),prm[:3])
+    wn = arr([np.sin(prm[3]),0,np.cos(prm[3])])
+    n = dot(tp(wRd),wn)
+    H = dot(tp(dRq),np.eye(3,3)-np.outer(r,n))
+    # Compute homography error
+    q = np.reshape(arr(q),[-1,3])
+    d = np.reshape(arr(d),[-1,3])
+    w = np.reshape(arr(w),[-1,3])
+    Hd = tp(dot(H,tp(d)))
+    err = arr( [ [ q[i,0]/q[i,2]-Hd[i,0]/Hd[i,2] , q[i,1]/q[i,2]-Hd[i,1]/Hd[i,2] , spd*(prm[4]-dot(wn,w[0,:])) ] for i in range(len(q)) ] )
+    return np.reshape(err,3*len(q))
 
-    # compute direction of 3d point from query image
-    wray = tp(np.dot(wRq,tp(qray)))
 
-    # set up Aq=k equation representing intersection of 2 lines
-    range_numi = range(np.sum(imask))
-    A = [ np.array([[ wray[i,2], -wray[i,0] ], [ tray[2], -tray[0] ]]) for i in range_numi ]
-    k = [ np.array( [ wray[i,2]*w3d[i,0]-wray[i,0]*w3d[i,2] , 0 ] ) for i in range_numi ]
+def lsqHprm_RN(q,d,dRq,wRd):
 
-    # solve for intersection of 2 lines to get query location
-    t_int = [ alg.solve(A[i],k[i]) for i in range_numi ]
-    
-    # compute the corresponding scale factors attached to y
-    idx = int(tray[2]>tray[0])
-    scales = [ t_int[i][idx]/tray[2*idx] for i in range_numi ]
+    # Set variables
+    npts = len(q)
+    rng_npts = range(npts)
+    x = [d[i]/alg.norm(d[i]) for i in rng_npts]
+    y = [q[i]/alg.norm(q[i]) for i in rng_npts]
+    a = [dot(dRq,y[i]) for i in rng_npts]
+    b = [dot(wRd,x[i]) for i in rng_npts]
+    c = [np.cross(a[i],x[i]) for i in rng_npts]
 
-    # compute scale factor norm and stdev, resulting translation
-    smean = np.mean(scales)
-    s_std = np.std(scales)
-    t = smean*tray
+    # Compute homography parameters
+    r = np.cross(c[0],c[1])
+    r = r / alg.norm(r) # direction of translation
+    m = [alg.norm(c[i])/(alg.norm(np.cross(a[i],r))*alg.norm(b[i][[0,2]])) for i in rng_npts]
+    f = [np.arctan2(b[i][0],b[i][2]) for i in rng_npts]
+#    zerof = lambda e: (1/m[0])*np.cos(e-f[0]) - (1/m[1])*np.cos(e-f[1])
+#    e = opt.fsolve(zerof,(f[0]+f[1])/2)
+#    e = np.mod(e,2*np.pi)
+#    k = m[0] / np.cos(e-f[0])
+    errf = lambda prm,argm,argf: prm[0]-argm/np.cos(prm[1]-argf)
+    ke_init = arr([1.2*np.mean(m),np.mean(f)])
+    k, e = tuple( opt.leastsq(errf,ke_init,args=(m,f))[0] )
+    fe = np.mod(e-np.mean(f),2*np.pi)
+    if fe > np.pi/2 and fe < 3*np.pi/2:
+        e = np.mod(e+np.pi,2*np.pi)
+    if np.mean(arr([dot(r,a[i]-x[i]) for i in rng_npts])) < 0:
+        r = -r
+    n = arr([np.sin(e), 0, np.cos(e)])
 
-    return t, smean, s_std
+    return r, k, e, n
+
+
+def lsqHprm_R(q,d,dRq,wRd,nbear):
+
+    # Set variables
+    npts = len(q)
+    rng_npts = range(npts)
+    x = [d[i]/alg.norm(d[i]) for i in rng_npts]
+    y = [q[i]/alg.norm(q[i]) for i in rng_npts]
+    a = [dot(dRq,y[i]) for i in rng_npts]
+    b = [dot(wRd,x[i]) for i in rng_npts]
+    c = [np.cross(a[i],x[i]) for i in rng_npts]
+
+    # Compute homography parameters
+    r = np.cross(c[0],c[1])
+    r = r / alg.norm(r) # direction of translation
+    m = np.array([alg.norm(c[i])/(alg.norm(np.cross(a[i],r))*alg.norm(b[i][[0,2]])) for i in rng_npts])
+    f = np.array([np.arctan2(b[i][0],b[i][2]) for i in rng_npts])
+    k = np.mean( m / np.cos(nbear-f) )
+    if np.mean(arr([dot(r,a[i]-x[i]) for i in rng_npts])) < 0:
+        r = -r
+    n = arr([np.sin(nbear), 0, np.cos(nbear)])
+
+    return r, k, n

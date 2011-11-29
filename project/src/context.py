@@ -184,7 +184,7 @@ class _Context(object):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
     elif self.QUERY == 'oakland1':
-      return os.path.join(self.maindir, 'Research/collected_images/earthmine-oakland/oakland-rect')
+      return '/media/DATAPART1/oakland/earthmine/rect' #os.path.join(self.maindir, 'Research/collected_images/earthmine-oakland/oakland-rect')
     elif self.QUERY == 'cory-4':
       return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
     elif self.QUERY == 'cory-25':
@@ -202,7 +202,7 @@ class _Context(object):
     elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
-      return '/media/DATAPART1/oakland-cells'
+      return '/media/DATAPART1/oakland/cells'
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -223,10 +223,14 @@ class _Context(object):
 
   @property
   def infodir(self):
+    if self.QUERY == 'oakland1':
+      return self.dbdump
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
 
   @property
   def querydir(self):
+    if self.QUERY == 'oakland1':
+      return '/media/DATAPART1/oakland/query/set1'
     return os.path.join(self.maindir, '%s/' % self.QUERY)
 
   @property
@@ -245,6 +249,10 @@ class _Context(object):
         if os.path.exists(self.resultsdir):
             shutil.rmtree(self.resultsdir)
         os.makedirs(self.resultsdir)
+    if self.solve_pose:
+        if os.path.exists(self.pose_param['resultsdir']):
+            shutil.rmtree(self.pose_param['resultsdir'])
+        os.makedirs(self.pose_param['resultsdir'])
 
   def iter_queries(self):
     for Q in self.iter_queries_unfiltered():
@@ -260,7 +268,9 @@ class _Context(object):
     """Returns iter over _Query for files in query"""
 
     #if query taken from a cell phone
-    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
+    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or \
+        self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or \
+        self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()

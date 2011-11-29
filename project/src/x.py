@@ -39,21 +39,20 @@ C.ambiguity = 75
 # Pose estimation parameters
 
 C.hiresdir='/media/DATAPART1/oakland/earthmine/rect_hires'
-C.solve_bad = 0
-C.solve_pose = 1
+C.solve_pose = 0
+C.solve_bad = 1
 C.pose_param = {
-    'resultsdir'    : '/media/DATAPART2/ah/pose_runs/oakland',
-    'pose_file'     : '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt',
-    'mode'          : 'comb',
-    'runflag'       : 7,
-    'use_planes'    : True,
-    'remove_ground' : True,
-    'min_domsize'   : 0.3,
+    'resultsdir'    : '/home/ericl/lastrun',
+    'pose_file'     : '/home/ericl/lastrun/pose_results.txt',
+    'mode'          : 'hom',
+    'use_planes'    : False,
+    'remove_ground' : False,
+    'min_domsize'   : 0.5,
     'maxratio'      : 0.5,
     'maxdist'       : 50000,
     'ransac_iter'   : 1000,
     'ransac_depth'  : True,
-    'inlier_error'  : 0.03 }
+    'inlier_error'  : 0.05 }
 
 
 # SUBSELECTIONS
@@ -63,8 +62,6 @@ C.pose_param = {
 #C.selection = ['2011-10-28_12-46-56_127'] # 0 inliers, good pose?
 #C.selection = ['2011-10-28_12-04-57_265'] # 0 inliers with result?
 #C.selection = ['2011-10-28_11-57-59_152']
-#C.selection = ['2011-10-28_13-00-12_019'] # doesn't work for some reason
-#C.selection = ['2011-10-28_11-55-43_140']
 
 if 'DEBUG' in os.environ:
   system.characterize(C)
