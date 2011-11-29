@@ -89,11 +89,15 @@ class _Context(object):
     self.weight_by_coverage = False
     self._dbdir = False
     self.cellradius = 236.6
+    self.shuffle_cells = False
     self.ranking_min_consistent = 10
+    self.overlap_method = None
     self.ranking_max_considered = 100
     self.spatial_comb = 0
     self.match_callback = None
     self.dump_hom = 0
+    self.solve_pose = 0
+    self.solve_bad = 0
     self.ambiguity = 75
     self.datasource = None
     self.matchdistance = 25
@@ -203,6 +207,8 @@ class _Context(object):
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
       return '/media/DATAPART1/oakland-cells'
+    elif self.QUERY == 'q5-test':
+      return '/media/DATAPART1/earthmine-fa10.1-culled,r=d=236.6'
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -260,7 +266,7 @@ class _Context(object):
     """Returns iter over _Query for files in query"""
 
     #if query taken from a cell phone
-    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
+    if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or self.QUERY == 'query5vertical' or self.QUERY == 'oakland1' or self.QUERY == 'q5-test':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()

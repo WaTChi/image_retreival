@@ -8,9 +8,11 @@
 #    'formats': ['128uint8', '4float32', 'uint16'],
 #  }
 
+import random
 from config import *
 import query
 import numpy as np
+import shutil
 import raster_tools
 import time
 from info import distance
@@ -117,6 +119,59 @@ class FeatureReader(object):
       num_features += self.count_features_in_file(f)
     return num_features
 
+  def save_shuffled(self, dbdir, dirs, supercell, overlap_method):
+    """Shuffles files in cells and places them in supercell"""
+    files = []
+    closed = set()
+    for dir in [os.path.join(dbdir, d) for d in dirs]:
+      for file in os.listdir(dir):
+        if self.is_feature_file(file):
+          if overlap_method is None or file not in closed:
+            closed.add(file)
+            files.append(os.path.join(dir, file))
+    random.shuffle(files)
+
+    # list<set<name>, set<path>> indexed by cell
+    sets = []
+    for i in range(len(dirs)):
+      sets.append((set(), set()))
+
+    # divide them up into cells
+    while files:
+      f = files.pop()
+      name = os.path.basename(f)
+      while True:
+        names, paths = random.choice(sets)
+        if name not in names:
+          names.add(name)
+          paths.add(f)
+          break
+      # supersample an average of `overlap` times
+      if overlap_method:
+        extra_samples = max(0, random.gauss(overlap_method, 0.2))
+        for i in range(int(round(extra_samples))):
+          iter = 0
+          while True:
+            if iter > 50:
+              INFO("W: ITER EXCEEDED BOUNDS")
+              break
+            iter += 1
+            names, paths = random.choice(sets)
+            if name not in names:
+              names.add(name)
+              paths.add(f)
+              break
+
+    for i, old_name in enumerate(map(os.path.basename, dirs)):
+      new_cell = os.path.join(supercell, old_name)
+      if os.path.exists(new_cell):
+        shutil.rmtree(new_cell)
+      os.mkdir(new_cell)
+      print "Building new cell of size %d" % len(sets[i][0])
+      for file in sets[i][1]:
+        os.symlink(file,
+          os.path.join(new_cell, os.path.basename(file)))
+
   def save_multi(self, dirs, cellid):
     """Generalization of the old save_directory.
        Writes all features found in dirs to a file.
@@ -125,10 +180,11 @@ class FeatureReader(object):
 
     files = set()
     closed = set()
+    import config
     for dir in dirs:
       for file in os.listdir(dir):
         if self.is_feature_file(file):
-          if file not in closed:
+          if config.using_weighted_union() or file not in closed:
             files.add(os.path.join(dir, file))
             closed.add(file)
 
@@ -151,6 +207,7 @@ class FeatureReader(object):
       image_index += 1
     INFO('saving features... [%s]' % cellid)
     for dest in getdests(dirs[0], cellid + ('-%s.npy' % self.name)):
+      print dest
       save_atomic(lambda d: np.save(d, dataset), dest)
     for dest in getdests(dirs[0], cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)
@@ -299,6 +356,21 @@ class FeatureReader(object):
     dataset = np.ndarray(num_features, self.dtype)
     self.write_features_to_array(file, 0, dataset, 0)
     return dataset
+
+  def get_supercelldir(self, dbdir, directories, overlap_method):
+    """return directory of shuffled cells"""
+    if overlap_method is not None:
+      suffix = '_overlap_%f' % overlap_method
+    else:
+      suffix = ''
+    supercell = '/media/DATAPART1/supercells/' + getcellid(directories) + suffix
+    stamp = os.path.join(supercell, 'stamp')
+    if not os.path.exists(stamp):
+      if not os.path.exists(supercell):
+        os.mkdir(supercell)
+      self.save_shuffled(dbdir, directories, supercell, overlap_method)
+      open(stamp, 'w')
+    return supercell
 
   def load_cell(self, directory):
     """Efficiently loads a matrix of features and reverse lookup table

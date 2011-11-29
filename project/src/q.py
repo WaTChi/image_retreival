@@ -11,7 +11,7 @@ import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'query5horizontal'
+C.QUERY = 'q5-test'
 C.params.update({
   'algorithm': 'kdtree',
   'checks': 1024,
@@ -29,7 +29,6 @@ C.show_feature_pairs = True
 C.do_posit = 0
 C.solve_pnp = 0
 C.solve_pose = 0
-C.solve_bad = 1
 C.compute2dpose = 0 # [experimental, not recommended]
 C.dump_hom = 0
 
@@ -45,9 +44,9 @@ C.weight_by_coverage = False
 #C.params['confstring'] = 'shuffle_cells_0.0_overlap'
 #C.params['confstring'] = 'shuffle_cells2'
 #C.params['confstring'] = 'shuffle_cells_2.0_overlap'
-C.params['confstring'] = 'shuffle_cells_1.0_overlap'
-C.overlap_method = 1.0
-C.shuffle_cells = True
+#C.params['confstring'] = 'shuffle_cells_1.0_overlap'
+#C.overlap_method = 1.0
+#C.shuffle_cells = True
 C.ncells = 9
 C.ambiguity = 75
 ## shuffle cells experiment

@@ -206,6 +206,8 @@ def distance_sort(C, Q, matches):
 
 cache = {}
 def match(C, Q):
+    if C.shuffle_cells:
+      C._dbdir = None
     if C.override_cells:
       INFO('override cells')
       cells_in_range = [(c,0) for c in C.override_cells]
@@ -218,6 +220,14 @@ def match(C, Q):
         for cell, dist in closest_cells[0:C.ncells]
           if dist < C.cellradius + C.ambiguity + C.matchdistance]
     INFO('Using %d cells' % len(cells_in_range))
+    if C.shuffle_cells:
+      import reader
+      sr = reader.get_reader('sift')
+      supercell = sr.get_supercelldir(
+        C.dbdir,
+        [c for (c,d) in cells_in_range],
+        C.overlap_method)
+      C._dbdir = supercell
 
     if not cells_in_range:
         raise LocationOutOfRangeError
@@ -355,7 +365,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
 
         ### Query Pose Estimation ###
-        if C.solve_pose and match:
+        if (C.solve_pose and match) or (C.solve_bad and not match):
             #pnp.qsolve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
             ct, ch_err, ch_matches = computePose.pose_triangle(C, Q, matchimgpath, matchsiftpath, udir)
 
@@ -455,7 +465,7 @@ def check_img(C, Q, entry):
         g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
     elif C.QUERY == 'query4' or C.QUERY == 'query4-cropped' or C.QUERY == 'query4a':
         g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
-    elif C.QUERY == 'query5horizontal':
+    elif C.QUERY == 'query5horizontal' or C.QUERY == 'q5-test':
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
     elif C.QUERY == 'query5vertical':
         g += check_truth(Q.name, entry[0], query5vertGroundTruth.matches)

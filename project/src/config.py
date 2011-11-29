@@ -52,12 +52,15 @@ def getfile(directory, name):
       return local
   return default
 
+using_weighted_union = lambda: False
+
 def getcellid(cellpath):
   if type(cellpath) is list:
     cellpath.sort()
-    cellid = 'union:' + ':'.join([os.path.basename(d) for d in cellpath])
+    prefix = 'weighted' if using_weighted_union() else ''
+    cellid = prefix + 'union:' + ':'.join([os.path.basename(d) for d in cellpath])
     if len(cellid) > 200:
-      cellid = 'largeunion:%d:%x' % (len(cellpath), abs(sum(map(hash, cellpath))))
+      cellid = prefix + 'largeunion:%d:%x' % (len(cellpath), abs(sum(map(hash, cellpath))))
     return cellid
   return os.path.basename(cellpath)
 
