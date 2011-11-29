@@ -12,7 +12,7 @@ from context import DEFAULT_CONTEXT
 C = DEFAULT_CONTEXT.copy()
 C.QUERY = 'query5horizontal'
 C.resultsdir="/media/DATAPART2/ah/lastrun"
-C.reproj_file='/media/DATAPART2/ah/lastrun/reproj.txt'
+C.reproj_file='/media/DATAPART2/ah/lastrun/pose_results.txt'
 C.params.update({
   'checks': 1024,
   'trees': 1,

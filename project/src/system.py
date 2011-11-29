@@ -17,6 +17,7 @@ import subprocess
 import multiprocessing
 import homographyDecomposition
 import computePose
+import computePose2
 
 def get_free_mem_gb():
   txt = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).communicate()[0]
@@ -51,6 +52,7 @@ import query1GroundTruth
 import query2Groundtruth
 import query5horizGroundTruth
 import query5vertGroundTruth
+import oakland1GroundTruth
 import groundtruthB
 import groundtruthG
 import groundtruthO
@@ -280,13 +282,6 @@ def match(C, Q):
     # top 1
     stats = check_topn_img(C, Q, ranked, 1)
 
-    # compute homography and draw images maybe
-    if C.compute_hom:
-      if MultiprocessExecution.pool:
-        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
-      else:
-        compute_hom(C, Q, ranked, comb_matches)
-
     # return statistics and top result
     matchedimg = ranked[0][0]
     matches = comb_matches[matchedimg + 'sift.txt']
@@ -294,6 +289,14 @@ def match(C, Q):
         cache[key] = (stats, matchedimg, matches, ranked)
     if C.match_callback:
         C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
+
+    ### Query Pose Estimation ###
+    match = any(check_img(C, Q, ranked[0]))
+    if (C.solve_pose and match) or (C.solve_bad and not match):
+        if MultiprocessExecution.pool:
+            MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
+        else:
+            input = computePose.estimate_pose(C, Q, matchedimg)[-1]
 
     # done
     return stats, matchedimg, matches, ranked
@@ -331,8 +334,8 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         db_matches = comb_matches[matchedimg + 'sift.txt']
         matchsiftpath = os.path.join(C.dbdump, matchedimg + 'sift.txt')
         matches = corr.rematch(C, Q, matchsiftpath)
-        matches1 = matches
-        rp_matches = corr.rematch(C, Q, matchsiftpath)
+#        matches1 = matches
+#        rp_matches = corr.rematch(C, Q, matchsiftpath)
 
         # concat db matches
         matches.extend(db_matches)
@@ -365,40 +368,10 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
 
         ### Query Pose Estimation ###
-        if (C.solve_pose and match) or (C.solve_bad and not match):
+        if C.solve_pose and match:
             #pnp.qsolve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
             ct, ch_err, ch_matches = computePose.pose_triangle(C, Q, matchimgpath, matchsiftpath, udir)
 
-#        # draw homography matches
-#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';hom_matches;' + matchedimg + ';feature_pairs.jpg')
-#        corr.draw_pairs(C, Q, rsc_inliers, matchimgpath, matchoutpath)
-
-            
-#        fm_close = fm_err < 10
-#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Fgps' + str(fm_close) + ';fm_err=' + str(fm_err) + ';' + matchedimg + ';feature_pairs.jpg')
-#        corr.draw_pairs(C, Q, fm_matches, matchimgpath, matchoutpath)
-#        hm_close = hm_err < 10
-#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Hgps' + str(hm_close) + ';hm_err=' + str(hm_err) + ';' + matchedimg + ';feature_pairs.jpg')
-#        corr.draw_pairs(C, Q, hm_matches, matchimgpath, matchoutpath)
-#        tr_close = tr_err < 10
-#        matchoutpath = os.path.join(udir, Q.name + ';tri' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';Tgps' + str(hm_close) + ';tr_err=' + str(tr_err) + ';' + matchedimg + ';feature_pairs.jpg')
-#        corr.draw_pairs(C, Q, tr_matches, matchimgpath, matchoutpath)
-        
-        ### Minimize reprojection error ###
-        #if C.min_reproj and match:
-        #    (view,pos,map2d) = computePose.min_reproj(C, Q, rsc_inliers, matchimgpath, matchsiftpath)
-
-        #if C.draw_reproj and match:
-        #  matchoutpath = os.path.join(udir, Q.name + ';reproj' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + ';reproj_error.jpg')
-        #  corr.draw_reproj(C, Q, map2d, matchimgpath, matchoutpath)
-        #  matchoutpath = os.path.join(udir, Q.name + ';reproj' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + ';feature_pairs.jpg')
-        #  corr.draw_pairs(C, Q, rsc_inliers, matchimgpath, matchoutpath)
-
-        #if C.bundler:
-        #    print '1'
-        #    qbpath = os.path.join(C.bundlerdir, Q.name + '.jpg')
-        #    print '2'
-        #    corr.dbq_bundler(C, Q, matchimgpath, qbpath)
           
 def condense2(list):
     return map(lambda x: (x[0][:-8], len(x[1]), x[1]), list)
@@ -455,6 +428,8 @@ def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
     if C.QUERY == 'query1' or C.QUERY == 'query1-m' or C.QUERY == 'query1-a':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
+    elif C.QUERY == 'oakland1':
+        g += check_truth(Q.name, entry[0], oakland1GroundTruth.matches)
     elif C.QUERY == 'query3' or C.QUERY == 'query3a':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
         y += check_truth(Q.name, entry[0], groundtruthY.matches)
@@ -521,7 +496,7 @@ def characterize(C):
     r_count = 0
     b_count = 0
     o_count = 0
-    open(C.reproj_file,'w').close()
+    open(C.pose_param['pose_file'],'w').close()
     for Q in C.iter_queries():
         if C.verbosity>0:
             print '-- query', Q.name, '--'

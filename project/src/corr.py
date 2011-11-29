@@ -120,7 +120,10 @@ def combine_spatial(outputFilePaths):
 ngreen = 0
 ntotal = 0
 def filter_admits(match):
-  return True
+    return True
+#    plane = match['point'][3]
+#    return plane != 0 and plane != 255
+
 #  global ngreen, ntotal
 #  hue3 = match['point'][0]
 ##  INFO(match['point'])

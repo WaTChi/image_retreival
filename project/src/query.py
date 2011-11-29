@@ -271,7 +271,7 @@ class Query(threading.Thread):
   def _vote_filter(self, queryset, dataset, mapping, results, dists):
     """Votes must beat false votes in another cell."""
     assert self.params['num_neighbors'] == 1
-    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
+    #map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir)
     counts = {} # map from img to counts
     closed = set()
@@ -297,12 +297,12 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
-        pt3d = map3d[results[i]]
+        #pt3d = map3d[results[i]]
         pt = hsv[results[i]]
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
                             'query': queryset[i]['geom'].copy(),
                             'feature_dist': dist,
-                            'pt_3d': tuple(pt3d),
+#                            'pt_3d': tuple(pt3d),
                             'point': tuple(pt)
                             })
     INFO('accepted %d/%d votes' % (accept, accept + reject))
@@ -318,7 +318,7 @@ class Query(threading.Thread):
   def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
     """Like vote highest, but each db feature is matchonceed to 1 match"""
     assert self.params['num_neighbors'] == 1
-    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
+#    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir)
     counts = {} # map from img to counts
     closed = set()
@@ -335,13 +335,13 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
-        pt3d = map3d[results[i]]
+#        pt3d = map3d[results[i]]
         pt = hsv[results[i]]
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
                             'query': queryset[i]['geom'].copy(),
                             'feature_dist': dist,
                             'point': tuple(pt),
-                            'pt_3d': (pt3d['lat'], pt3d['lon'], pt3d['alt'])})
+                            'pt_3d': (0,0,0)})
     INFO('accepted %d/%d votes' % (accept, accept + reject))
     if matchonce:
       INFO('discarded %d vote collisions' % matchonce)

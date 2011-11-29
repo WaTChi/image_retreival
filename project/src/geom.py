@@ -240,4 +240,11 @@ def decomposeH(H):
 #    else:
 #        return R1,t1,n1
 
+
+def vecnorm(x):
+    return np.sqrt(np.sum(x**2)) if x.ndim==1 else np.sqrt(np.sum(x**2,1))
+
+def normalrows(x):
+    return x / np.sqrt(np.sum(x**2)) if x.ndim==1 else x / np.transpose(np.tile(np.sqrt(np.sum(x**2,1)),[x.shape[1],1]))
+
 # vim: et sw=2

@@ -1,5 +1,6 @@
 from PIL import Image
 import colorsys
+import numpy as np
 
 class RasterImage(object):
     def __init__(self, img):
@@ -32,10 +33,12 @@ class RasterImage(object):
 
     def getDepth(self, x, y):
         """returns float32 (meters)"""
-        print "depth: %s" % self.im[x,y]
+        x, y = int(round(y)), int(round(x))
+        #print "depth: %s" % self.im[x,y]
         return self.im[x,y]/10.0
 
     def getPlane(self, x, y):
         """returns uint32"""
-        print "plane: %s" % self.im[x,y]
+        x, y = int(round(y)), int(round(x))
+        #print "plane: %s" % self.im[x,y]
         return np.uint32(self.im[x,y])

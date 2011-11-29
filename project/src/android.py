@@ -89,7 +89,7 @@ class QueryImage(object):
 
     # yaw, pitch, roll for landscape images
     x,y,z = [float(self.data[exp]) for exp in ('orientation_x','orientation_y','orientation_z')]
-    self.yaw = int((90+x)%360)
+    self.yaw = (90+x)%360
     if abs(y) < 90:
         self.pitch = -(90+z)
         self.roll = -y
