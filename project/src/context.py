@@ -207,8 +207,8 @@ class _Context(object):
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
       return '/media/DATAPART1/oakland-cells'
-    elif self.QUERY == 'q5-test':
-      return '/media/DATAPART1/earthmine-fa10.1-culled,r=d=236.6'
+    elif self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
+      return '/media/DATAPART1/earthmine-fa10.1-culled,r=236.6,d=167.3'
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -225,6 +225,9 @@ class _Context(object):
 
   @property
   def matchdir(self):
+    if self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
+      celldesc = [y for y in self.dbdir.split('/') if y][-1]
+      return os.path.join(self.maindir, 'Research/results/%s/matchescells(%s),%s,%s' % (self.QUERY, celldesc, self.QUERY, query.searchtype(self.params)))
     return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
 
   @property
@@ -276,7 +279,7 @@ class _Context(object):
     #if query taken from a cell phone
     if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or \
         self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or \
-        self.QUERY == 'query5-test' or \
+        self.QUERY == 'q5-test' or self.QUERY == 'q4-test' or \
         self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
       def iter0():
         for a in AndroidReader(self.querydir):

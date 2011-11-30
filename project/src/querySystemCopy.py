@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 print 'import modules...',
+import config
 import sys
 sys.stdout.flush()
 print
@@ -29,7 +30,7 @@ C.show_feature_pairs = True
 C.do_posit = 0
 C.solve_pnp = 0
 C.solve_pose = 0
-C.solve_bad = 1
+C.solve_bad = 0
 C.compute2dpose = 0 # [experimental, not recommended]
 C.dump_hom = 0
 
@@ -45,11 +46,12 @@ C.weight_by_coverage = False
 #C.params['confstring'] = 'shuffle_cells_0.0_overlap'
 #C.params['confstring'] = 'shuffle_cells2'
 #C.params['confstring'] = 'shuffle_cells_2.0_overlap'
-C.params['confstring'] = 'shuffle_cells_1.0_overlap'
-C.overlap_method = 1.0
+C.params['confstring'] = 'shuffle_cells_0.5_overlap'
+C.overlap_method = 0.5
 C.shuffle_cells = True
 C.ncells = 9
 C.ambiguity = 75
+config.hsv_enabled = False
 ## shuffle cells experiment
 
 ## weighted union experiment
@@ -59,34 +61,6 @@ C.ambiguity = 75
 #C.ncells = 9
 #C.ambiguity = 75
 ## weighted union experiment
-
-#reader.config_mem_pin(True)
-#overlap = 0.0
-#C._dbdir = '/media/DATAPART2/Research/cells/test_artificial_overlap_%f' % overlap
-#C.params['confstring'] = 'art_overlap_%f' % overlap
-#C.override_cells = [
-#  'sample_0',
-#  'sample_1',
-#  'sample_2',
-#  'sample_3',
-#  'sample_4',
-#  'sample_5',
-#  'sample_6',
-#  'sample_7',
-#  'sample_8',
-#  'sample_9',
-#  'sample_10',
-#  'sample_11',
-#  'sample_12',
-#  'sample_13',
-#  'sample_14'
-#]
-
-## Query3 tagging issues
-#C.selection = ['8842', '8846', '8853', '8860', '8889', '8926']
-
-# Query2 tagging issues
-#C.selection = ['7727', '7735', '7744', '7746', '7751', '7753', '7755', '7756', '7763', '7764', '7765', '7776', '7710', '7712', '7716', '7717', '7739', '7747', '7764']
 
 if 'DEBUG' in os.environ:
   system.characterize(C)

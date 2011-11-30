@@ -472,7 +472,9 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
     proj_points = img.map_tags_hybrid(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C, elat, elon)
   else:
     proj_points = []
-    [points, badpoints] = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
+    points = []
+    badpoints = []
+#    [points, badpoints] = img.map_tags_hybrid3(C.pixelmap.open(db_img[:-4] + 'sift.txt'), C)
   H = np.matrix(np.asarray(H))
   tagmatches = []
 

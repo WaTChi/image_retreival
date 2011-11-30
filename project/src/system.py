@@ -290,6 +290,14 @@ def match(C, Q):
     if C.match_callback:
         C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
 
+    # compute homography and draw images maybe
+    if C.compute_hom:
+      if MultiprocessExecution.pool:
+        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+      else:
+        compute_hom(C, Q, ranked, comb_matches)
+
+
     ### Query Pose Estimation ###
     match = any(check_img(C, Q, ranked[0]))
     if (C.solve_pose and match) or (C.solve_bad and not match):
@@ -438,7 +446,7 @@ def check_img(C, Q, entry):
         o += check_truth(Q.name, entry[0], groundtruthO.matches)
     elif C.QUERY == 'query2':
         g += check_truth(Q.name, entry[0], query2Groundtruth.matches)
-    elif C.QUERY == 'query4' or C.QUERY == 'query4-cropped' or C.QUERY == 'query4a':
+    elif C.QUERY == 'query4' or C.QUERY == 'query4-cropped' or C.QUERY == 'query4a' or C.QUERY == 'q4-test':
         g += check_truth(Q.name, entry[0], query4GroundTruth.matches)
     elif C.QUERY == 'query5horizontal' or C.QUERY == 'q5-test':
         g += check_truth(Q.name, entry[0], query5horizGroundTruth.matches)
@@ -496,7 +504,7 @@ def characterize(C):
     r_count = 0
     b_count = 0
     o_count = 0
-    open(C.pose_param['pose_file'],'w').close()
+#    open(C.pose_param['pose_file'],'w').close()
     for Q in C.iter_queries():
         if C.verbosity>0:
             print '-- query', Q.name, '--'
