@@ -61,6 +61,7 @@ class QueryImageInfo(ImageInfo):
     self.yaw = self.yaw # * math.pi / 180 # self.yaw = (self.yaw - 60) * math.pi / 180
     self.roll = self.roll # * math.pi / 180 # self.roll = (self.roll) * math.pi / 180
     self.view_angle = [x*math.pi/180 for x in self.view_angle]
+    self.fov = self.view_angle[0]
 
   def get_pixel_locations(self, pixels):
     return None

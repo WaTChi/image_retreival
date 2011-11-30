@@ -45,7 +45,7 @@ C.pose_param = {
     'resultsdir'    : '/media/DATAPART2/ah/pose_runs/oakland',
     'pose_file'     : '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt',
     'mode'          : 'comb',
-    'runflag'       : 7,
+    'runflag'       : 6,
     'use_planes'    : True,
     'remove_ground' : True,
     'min_domsize'   : 0.3,
@@ -64,7 +64,7 @@ C.pose_param = {
 #C.selection = ['2011-10-28_12-04-57_265'] # 0 inliers with result?
 #C.selection = ['2011-10-28_11-57-59_152']
 #C.selection = ['2011-10-28_13-00-12_019'] # doesn't work for some reason
-#C.selection = ['2011-10-28_11-55-43_140']
+C.selection = ['2011-10-28_11-55-43_140']
 
 if 'DEBUG' in os.environ:
   system.characterize(C)
