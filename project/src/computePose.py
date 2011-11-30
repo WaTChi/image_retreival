@@ -10,21 +10,15 @@ import Image
 import ImageDraw
 import pyflann
 import render_tags
-import scipy.optimize.minpack as opt
-import numpy.random as rand
 import reader
 import numpy as np
 import numpy.linalg as alg
-from numpy import array as arr
 from numpy import transpose as tp
-from numpy import dot
 import geom
 import os
-import pnp
-import pickle
 import solveHomography
 import solveEssMatrix
-#import vanPts
+import vp_analysis
 
 MAX_PIXEL_DEVIATION = 1
 FALLBACK_PIXEL_DEVIATIONS = [2,1]
@@ -341,10 +335,11 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 
     # Set Kq, Rq
     wx,wy = qsource.image.size
-    fov = qsource.view_angle[0]
+    fov = qsource.fov
     Kq = geom.cameramat(wx, wy, fov)
     Kqinv = alg.inv(Kq)
     cyaw,p,r = qsource.yaw, qsource.pitch, qsource.roll # cyaw - cell phone yaw
+    #cyaw=tyaw
     Rq = geom.RfromYPR(cyaw,p,r) # camera orientation (camera to world)
 
     # Set Kd, Rd, and db position
@@ -407,13 +402,13 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 
     # Solve for query pose using constrained homography or essential matrix
     runflag = param['runflag']
-    if method == 'hom' and runflag != 7:
+    if method == 'hom' and runflag != 6:
         runflag = 0
-        parameters = ( Rq, Rd, cyaw, np.nan, 2, param['inlier_error'], param['ransac_iter'] )
+        parameters = ( Rq, Rd, cyaw, np.nan, runflag, param['inlier_error'], param['ransac_iter'] )
         matches, pose = solveGeom(matches,parameters)
     elif method == 'ess':
         runflag = 5
-        parameters = ( Rq, Rd, cyaw, np.nan, 5, param['inlier_error'], param['ransac_iter'] )
+        parameters = ( Rq, Rd, cyaw, np.nan, runflag, param['inlier_error'], param['ransac_iter'] )
         matches, pose = solveGeom(matches,parameters)
     elif method == 'hom':
         pr = geom.YPRfromR(Rq)[1:]
@@ -524,9 +519,14 @@ def scalefrom3d(matches, tray, wRq):
     idx = int(tray[2]>tray[0])
     scales = [ t_int[i][idx]/tray[2*idx] for i in range_numi ]
 
-    # compute scale factor norm and stdev, resulting translation
-    smean = np.mean(scales)
-    s_std = np.std(scales)
-    t = smean*tray
+    # find best collection of scale factors
+    affprm = [ 1 , 0.1 ] # ransac loop chooses all scale factors within affprm[0]+s*affprm[1] meters of chose scale factor s
+    bnum, bmask = 0, np.bool_(np.zeros(len(scales)))
+    for i in range(len(scales)):
+        s = scales[i]
+        mask = np.abs(s-scales) < affprm[0] + affprm[1] * np.abs(s)
+        if np.sum(mask) > bnum : bnum, bmask = np.sum(mask), mask
+    tdist = np.mean(scales[bmask])
+    t = tdist*tray
 
-    return t, smean, s_std
+    return t, tdist

@@ -45,7 +45,7 @@ C.pose_param = {
     'resultsdir'    : '/media/DATAPART2/ah/pose_runs/berkeley',
     'pose_file'     : '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt',
     'mode'          : 'hom',
-    'runflag'       : 0,
+    'runflag'       : 6,
     'use_planes'    : False,
     'remove_ground' : False,
     'min_domsize'   : 0.5,
@@ -58,11 +58,12 @@ C.pose_param = {
 
 # SUBSELECTIONS
 #C.selection = ['2011-04-04_15-42-43_581']
+#C.selection = ['2011-04-04_15-32-55_864']
 
 # Run in debug mode or parallel
 debug = True
-try: C.selection
-except NameError: debug=False
+try: print 'Number of query images selected = %d' % len(C.selection)
+except TypeError: debug=False
 if 'DEBUG' in os.environ or debug:
   system.characterize(C)
 else:

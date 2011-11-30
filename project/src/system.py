@@ -289,11 +289,12 @@ def match(C, Q):
 
     ### Query Pose Estimation ###
     match = any(check_img(C, Q, ranked[0]))
+    print match
     if (C.solve_pose and match) or (C.solve_bad and not match):
         if MultiprocessExecution.pool:
             MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
         else:
-            input = computePose.estimate_pose(C, Q, matchedimg)[-1]
+            computePose.estimate_pose(C, Q, matchedimg)
 
     # done
     return stats, matchedimg, matches, ranked
