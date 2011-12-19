@@ -1,4 +1,7 @@
 import sys
+import time
+import numpy as np
+import collections
 import os
 import random
 import threading
@@ -71,5 +74,19 @@ def INFO(x):
 def INFO_TIMING(x):
 #  INFO(x)
   pass
+
+logs = collections.defaultdict(list)
+def report(key):
+  data = logs[key]
+#  print "KEY=%s, mean=%s, std=%f, len=%d" \
+#    % (key, np.mean(data), np.std(data), len(data))
+
+tlocal = threading.local()
+def timer_start(key):
+  tlocal.start = time.time()
+
+def timer_end(key):
+  logs[key].append(time.time() - tlocal.start)
+  report(key)
 
 # vim: et sw=2

@@ -142,10 +142,16 @@ class Query(threading.Thread):
     dataset, mapping = self._build_index()
     queryset = self.reader.load_file(self.qpath)
     qtime = time.time()
+    timer_start('vote+query')
+    timer_start('query')
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
+    timer_end('query')
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
     vtime = time.time()
+    timer_start('voting')
     sorted_counts = self.vote(queryset, dataset, mapping, results, dists)
+    timer_end('voting')
+    timer_end('vote+query')
     INFO_TIMING("voting took %f seconds" % (time.time() - vtime))
     save_atomic(lambda d: np.save(d, sorted_counts), self.dump)
     votes = [(len(matches), img) for img, matches in sorted_counts]
@@ -165,11 +171,12 @@ class Query(threading.Thread):
     counts = {
       'matchonce': self._vote_matchonce,
       'filter': self._vote_filter,
-# DEPRECATED, need to fix up detailed results
-#      'highest': self._vote_highest,
-#      'ratio': self._vote_spatial_ratio,
-#      'top_n': self._vote_top_n,
-#      'ransac': self._vote_ransac,
+      'top_n': self._vote_top_n\
+        if self.params['num_neighbors'] > 1\
+        else self._vote_matchonce,
+      'top_n2': self._vote_top_n2,
+      'ratio': self._vote_spatial_ratio,
+      'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
     return counts
 
@@ -218,6 +225,44 @@ class Query(threading.Thread):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     return sorted_counts
 
+  def _vote_top_n2(self, queryset, dataset, mapping, results, dists):
+    """
+    Like vote_top_n, but with 2 refinements:
+       1. reject matches with large distance ratio from top1 match
+       2. filter
+    """
+    assert self.params['num_neighbors'] > 1
+    results2, contest = self.false_search(queryset)
+    accept, reject, matchonce = 0, 0, 0
+    counts = {} # map from img to counts
+    closed = set()
+    for i, dist_array in enumerate(dists):
+      marked = set()
+      for j, dist in enumerate(dist_array):
+        if results[i][j] in closed:
+          matchonce += 1
+          reject += 1
+        elif dist > contest[i][j]:
+          reject += 1
+        elif dist < self.params['dist_threshold']:
+          closed.add(results[i][j])
+          image = mapping[dataset[results[i][j]]['index']]
+          if image not in marked:
+            if image not in counts:
+              counts[image] = []
+            counts[image].append({'db': dataset[results[i][j]]['geom'].copy(),
+                                'query': queryset[i]['geom'].copy()})
+            marked.add(image)
+          accept += 1
+        else:
+          reject += 1
+    INFO('accepted %d/%d votes' % (accept, accept + reject))
+    if matchonce:
+      INFO('discarded %d vote collisions' % matchonce)
+    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+    return sorted_counts
+
+
   def _vote_top_n(self, queryset, dataset, mapping, results, dists):
     """Like vote_matchonce, but up to nn db images per query feature.
        requires more than 1 nearest neighbor for results.
@@ -258,7 +303,12 @@ class Query(threading.Thread):
     falseflann = pyflann.FLANN()
     iname = '%s-%s.%s.index' % (getcellid(falsecellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
     index = getfile(falsecellpath, iname)
-    dataset, mapping = self.reader.load_cell(falsecellpath)
+    global _false_data
+    if _false_data is not None:
+      dataset, mapping = _false_data
+    else:
+      dataset, mapping = self.reader.load_cell(falsecellpath)
+      _false_data = dataset, mapping
     if os.path.exists(index):
       falseflann.load_index(index, dataset['vec'])
     else:
@@ -418,4 +468,5 @@ class Query(threading.Thread):
       save_atomic(lambda d: self.flann.save_index(d), out)
     return dataset, mapping
 
+_false_data = None
 # vim: et sw=2

@@ -199,11 +199,22 @@ def weight_by_distance(C, Q, matches):
   print "AFTER", distance_sort(C, Q, newmatches)[0]
   return distance_sort(C, Q, newmatches)
 
+def amb_cutoff(C, Q, matches):
+  buffer = 50
+  def admit(match):
+    line = match[0][:-8]
+    lat, lon = getlatlonfromdbimagename(C, line)
+    dist = info.distance(lat, lon, Q.query_lat, Q.query_lon)
+    if dist < C.amb_cutoff + buffer:
+      return True
+    return False
+  return filter(admit, matches)
+
 def distance_sort(C, Q, matches):
   def extract_key(match):
     line = match[0]
     lat, lon = getlatlonfromdbimagename(C, line)
-    return (match[1], -info.distance(lat, lon, Q.query_lon, Q.query_lat))
+    return (match[1], -info.distance(lat, lon, Q.query_lat, Q.query_lon))
   return sorted(matches, key=extract_key, reverse=True)
 
 cache = {}
@@ -270,8 +281,8 @@ def match(C, Q):
       comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C)#, 90)
-#    imm, rsc_ok = combine_vote(comb_matches)
+    imm, rsc_ok = rerank_ransac(comb_matches, C, Q)
+
     if C.weight_by_coverage:
       ranked = weight_by_coverage(C, Q, imm)
     elif C.weight_by_distance:
@@ -300,7 +311,6 @@ def match(C, Q):
 
     ### Query Pose Estimation ###
     match = any(check_img(C, Q, ranked[0]))
-    print match
     if (C.solve_pose and match) or (C.solve_bad and not match):
         if MultiprocessExecution.pool:
             MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
@@ -388,26 +398,22 @@ def condense2(list):
 def condense3(list):
     return map(lambda x: (x[1][:-8], x[0], x[2]), list)
 
-def rerank_ransac(counts, C):
+def rerank_ransac(counts, C, Q):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+
+    if C.amb_cutoff:
+      assert C.amb_cutoff > 1
+      old = sorted_counts
+      sorted_counts = amb_cutoff(C, Q, sorted_counts)
+      print "amb cutoff: %d -> %d" % (len(old), len(sorted_counts))
+      if not sorted_counts:
+        sorted_counts = old
+
     # tuples of (len, siftfile, matches) ordered [(1..), (2..), (3..)]
     reranked = []
     num_filt = 0
 
     for siftfile, matches in sorted_counts:
-#      if yaw_filter_deg and Q.datasource:
-#        matchedimg = siftfile[:-8]
-#        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-#        if not os.path.exists(matchimgpath):
-#          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-#          assert os.path.exists(matchimgpath)
-#        source = render_tags.get_image_info(matchimgpath)
-#        dyaw = source.yaw * np.pi/180
-#        qyaw = Q.datasource.yaw * np.pi/180
-#        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
-#        if diff > yaw_filter_deg:
-#          continue
-
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
       if g >= C.ranking_min_consistent or num_filt >= C.ranking_max_considered:
@@ -563,6 +569,8 @@ def characterize(C):
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
     print "amb: {0}, ncells: {1}".format(C.ambiguity, C.ncells)
+    print C.added_error
+    print C.params
     return results, count
 
 # vim: et sw=2

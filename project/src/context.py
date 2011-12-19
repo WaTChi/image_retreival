@@ -78,7 +78,9 @@ class _Context(object):
     self.do_posit = 0
     self.solve_pnp = 0
     self.print_per = 1
+    self.amb_cutoff = None
     self.one_big_cell = 0
+    self.added_error = 0
     self.restrict_cells = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
@@ -206,9 +208,9 @@ class _Context(object):
     elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
-      return '/media/DATAPART1/oakland-cells'
+      return '/media/DATAPART1/oakland/cells'
     elif self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
-      return '/media/DATAPART1/earthmine-fa10.1-culled,r=236.6,d=167.3'
+      return '/media/DATAPART1/earthmine-fa10.1-culled,r=236.6,d=334.6'
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -286,8 +288,10 @@ class _Context(object):
           image = _Query()
           image.siftpath = os.path.join(a.basedir, a.sift)
           image.jpgpath = os.path.join(a.basedir, a.jpg)
-          image.setSensorCoord(a.lat, a.lon)
-          if self.QUERY == 'query5horizontal':
+          image.setSensorCoord(
+            *info.add_error((a.lat, a.lon), self.added_error)
+          )
+          if self.QUERY == 'query5horizontal' or self.QUERY == 'oakland1':
             image.pgm_scale = 512/1952.0
           image.check()
           image.datasource = a
@@ -315,7 +319,7 @@ class _Context(object):
           image.pgm_scale = 512/2592.0
         image.siftpath = os.path.join(self.querydir, file)
         image.jpgpath = os.path.join(self.querydir, image.siftname[:-8] + '.JPG')
-        image.setSensorCoord(*info.getQuerySIFTCoord(file))
+        image.setSensorCoord(*info.add_error(info.getQuerySIFTCoord(file), self.added_error))
         if self.QUERY != 'query4-matlab':
           image.check()
         yield image

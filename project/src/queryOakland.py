@@ -16,8 +16,8 @@ C.params.update({
   'algorithm': 'kdtree',
   'checks': 1024,
   'trees': 1,
-  'vote_method': 'filter',
-  'num_neighbors': 1,
+  'vote_method': 'top_n',
+  'num_neighbors': 8,
   'dist_threshold': 70000,
   'confstring': '',
 })
@@ -33,14 +33,15 @@ C.dump_hom = 0
 C.ranking_min_consistent = 1
 C.ranking_max_considered = 30
 
-C.ncells = 9
+C.ncells = 1
 C.ambiguity = 75
+C.amb_cutoff = C.ambiguity
 
 # Pose estimation parameters
 
 C.hiresdir='/media/DATAPART1/oakland/earthmine/rect_hires'
 C.solve_bad = 0
-C.solve_pose = 1
+C.solve_pose = 0
 C.pose_param = {
     'resultsdir'    : '/media/DATAPART2/ah/pose_runs/oakland',
     'pose_file'     : '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt',
@@ -64,7 +65,7 @@ C.pose_param = {
 #C.selection = ['2011-10-28_12-04-57_265'] # 0 inliers with result?
 #C.selection = ['2011-10-28_11-57-59_152']
 #C.selection = ['2011-10-28_13-00-12_019'] # doesn't work for some reason
-C.selection = ['2011-10-28_11-55-43_140']
+#C.selection = ['2011-10-28_11-55-43_140']
 
 if 'DEBUG' in os.environ:
   system.characterize(C)

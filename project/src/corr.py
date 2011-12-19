@@ -327,6 +327,12 @@ def rot_delta(m, correction=0):
 # data - dictionary of information to be filled
 # undefined behavior in ransac case
 def find_corr(matches, hom=False, ransac_pass=True, data={}):
+    timer_start('ransac')
+    x = real_find_corr(matches, hom, ransac_pass, data)
+    timer_end('ransac')
+    return x
+
+def real_find_corr(matches, hom=False, ransac_pass=True, data={}):
   if hom:
     if ransac_pass:
       F, inliers = _find_corr(matches, MAX_PIXEL_DEVIATION=50, rotation_filter_only=True, ROT_THRESHOLD_RADIANS=30*np.pi/180)
