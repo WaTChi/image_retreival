@@ -79,11 +79,13 @@ class _Context(object):
     self.solve_pnp = 0
     self.print_per = 1
     self.amb_cutoff = None
+    self.amb_padding = 50
     self.one_big_cell = 0
     self.added_error = 0
     self.restrict_cells = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
+    self.disable_filter_step = False
     self.stop_on_homTrue = 0
     self.put_into_dirs = 0
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
@@ -99,8 +101,11 @@ class _Context(object):
     self.match_callback = None
     self.dump_hom = 0
     self.solve_pose = 0
+    self.log_failures = True
     self.solve_bad = 0
     self.ambiguity = 75
+    self._test_r = None
+    self._test_d = None
     self.datasource = None
     self.matchdistance = 25
     self.selection = None
@@ -189,7 +194,7 @@ class _Context(object):
   def dbdump(self):
     if self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/link_to_single_cell')
-    elif self.QUERY == 'oakland1':
+    elif self.QUERY == 'oakland1' or self.QUERY == 'oak-test':
       return '/media/DATAPART1/oakland/earthmine/rect' #os.path.join(self.maindir, 'Research/collected_images/earthmine-oakland/oakland-rect')
     elif self.QUERY == 'cory-4':
       return os.path.join(self.maindir, 'Research/collected_images/cory/db-4')
@@ -209,8 +214,16 @@ class _Context(object):
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
       return '/media/DATAPART1/oakland/cells'
+    elif self.QUERY == 'oak-test':
+      if self._test_r == self._test_d == 236.6:
+        return '/media/DATAPART1/oakland/cells'
+      else:
+        return '/media/DATAPART1/oak,r=%s,d=%s' % (self._test_r, self._test_d)
     elif self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
-      return '/media/DATAPART1/earthmine-fa10.1-culled,r=236.6,d=334.6'
+      if self._test_r == self._test_d == 236.6:
+        return '/media/DATAPART1/earthmine-fa10.1-culled,r=d=236.6'
+      else:
+        return '/media/DATAPART1/earthmine-fa10.1-culled,r=%s,d=%s' % (self._test_r, self._test_d)
     elif self.QUERY == 'cory-4':
       return    os.path.join(self.maindir, 'Research/cells/cory-4')
     elif self.QUERY == 'cory-25':
@@ -227,20 +240,20 @@ class _Context(object):
 
   @property
   def matchdir(self):
-    if self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
+    if self.QUERY == 'q5-test' or self.QUERY == 'q4-test' or self.QUERY == 'oak-test':
       celldesc = [y for y in self.dbdir.split('/') if y][-1]
       return os.path.join(self.maindir, 'Research/results/%s/matchescells(%s),%s,%s' % (self.QUERY, celldesc, self.QUERY, query.searchtype(self.params)))
     return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
 
   @property
   def infodir(self):
-    if self.QUERY == 'oakland1':
+    if self.QUERY == 'oakland1' or self.QUERY == 'oak-test':
       return self.dbdump
     return os.path.join(self.maindir, 'Research/collected_images/earthmine-fa10.1/37.871955,-122.270829')
 
   @property
   def querydir(self):
-    if self.QUERY == 'oakland1':
+    if self.QUERY == 'oakland1' or self.QUERY == 'oak-test':
       return '/media/DATAPART1/oakland/query/set1'
     return os.path.join(self.maindir, '%s/' % self.QUERY)
 
@@ -282,7 +295,8 @@ class _Context(object):
     if self.QUERY == 'query4' or self.QUERY == 'query4-cropped' or \
         self.QUERY == 'query4a' or self.QUERY == 'query5horizontal' or \
         self.QUERY == 'q5-test' or self.QUERY == 'q4-test' or \
-        self.QUERY == 'query5vertical' or self.QUERY == 'oakland1':
+        self.QUERY == 'query5vertical' or self.QUERY == 'oakland1' \
+        or self.QUERY == 'oak-test':
       def iter0():
         for a in AndroidReader(self.querydir):
           image = _Query()
@@ -291,7 +305,7 @@ class _Context(object):
           image.setSensorCoord(
             *info.add_error((a.lat, a.lon), self.added_error)
           )
-          if self.QUERY == 'query5horizontal' or self.QUERY == 'oakland1':
+          if self.QUERY == 'query5horizontal' or self.QUERY == 'oakland1' or self.QUERY == 'oak-test':
             image.pgm_scale = 512/1952.0
           image.check()
           image.datasource = a

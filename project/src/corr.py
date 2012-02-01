@@ -4,6 +4,7 @@
 # that don't really work that well (the 2d one might work ok)
 
 from config import *
+from gtfail import matches as fail
 import time
 import info
 import Image, ImageDraw
@@ -435,7 +436,13 @@ def scaledown(image, max_height):
   return image, scale
 
 def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchsiftpath, showLine=True, showtag=False, showHom=False):
-  # compute pose [experimental]
+  k = Q.name
+  v = os.path.basename(db_img)[:-4]
+  known_bad = k in fail and v in fail[k]
+#  print k,v
+  fail_img = os.path.join(os.path.expanduser('~/fail'), Q.name + ';' + os.path.basename(db_img))
+  if (known_bad or os.path.exists(fail_img)) and not C.drawtopcorr:
+      return
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
   b = Image.open(db_img)
@@ -519,7 +526,7 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
       dest = (dest[1]*scale, dest[0]*scale)
       dest2 = (dest2[1]*scale, dest2[0]*scale)
       proj_points.append((tag, (dist, dest), correction))
-  print Q.jpgpath
+#  print Q.jpgpath
   target.paste(a, (0,0))
   target.paste(b, (a.size[0],0))
 
@@ -588,7 +595,10 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
     draw.text((0,0), detstr)
     draw.text((0,10), guess)
 
-  target.save(out_img, 'jpeg', quality=90)
+  if C.drawtopcorr:
+      target.save(out_img, 'jpeg', quality=90)
+  if C.log_failures and 'gtFalse' in out_img:
+      target.save(fail_img, 'jpeg', quality=90)
   return H, inliers
 
 def draw_reproj(C, Q, map2d, db_img, out_img):
@@ -629,8 +639,8 @@ def draw_reproj(C, Q, map2d, db_img, out_img):
 
 def draw_pairs(C, Q, matches, db_img, out_img):
   # compute pose [experimental]
-  print Q.jpgpath
-  print db_img
+#  print Q.jpgpath
+#  print db_img
   assert os.path.exists(db_img)
   a = Image.open(Q.jpgpath)
   b = Image.open(db_img)

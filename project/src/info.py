@@ -15,7 +15,7 @@ def add_error((lat, lon), error):
     if type(error) is dict:
         random.seed(lat + lon + error['seed'])
         bearingDegrees = random.uniform(0, 360)
-        error = getattr(random, error['dist'])(*error['args'])
+        error = abs(getattr(random, error['dist'])(*error['args']))**error['exponent']
     else:
         random.seed(lat + lon + 1)
         bearingDegrees = random.uniform(0, 360)

@@ -350,7 +350,7 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
-        pt = hsv[results[i]] if hsv else ()
+        pt = hsv[results[i]] if hsv is not None else ()
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
                             'query': queryset[i]['geom'].copy(),
                             'feature_dist': dist,
@@ -372,7 +372,7 @@ class Query(threading.Thread):
     assert self.params['num_neighbors'] == 1
 #    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir) if config.hsv_enabled else None
-    if not hsv:
+    if hsv is None:
       print "*** WARN *** HSV disabled, not reading data"
     counts = {} # map from img to counts
     closed = set()
@@ -389,7 +389,7 @@ class Query(threading.Thread):
         img = mapping[dataset[results[i]]['index']]
         if img not in counts:
           counts[img] = []
-        pt = hsv[results[i]] if hsv else ()
+        pt = hsv[results[i]] if hsv is not None else ()
         counts[img].append({'db': dataset[results[i]]['geom'].copy(),
                             'query': queryset[i]['geom'].copy(),
                             'feature_dist': dist,
