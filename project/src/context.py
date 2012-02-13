@@ -79,6 +79,7 @@ class _Context(object):
     self.solve_pnp = 0
     self.print_per = 1
     self.amb_cutoff = None
+    self.criteria = None
     self.amb_padding = 50
     self.one_big_cell = 0
     self.added_error = 0
@@ -240,10 +241,11 @@ class _Context(object):
 
   @property
   def matchdir(self):
+    crt = '' if self.criteria is None else ',' + self.criteria
     if self.QUERY == 'q5-test' or self.QUERY == 'q4-test' or self.QUERY == 'oak-test':
       celldesc = [y for y in self.dbdir.split('/') if y][-1]
-      return os.path.join(self.maindir, 'Research/results/%s/matchescells(%s),%s,%s' % (self.QUERY, celldesc, self.QUERY, query.searchtype(self.params)))
-    return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s' % (self.QUERY, self.QUERY, query.searchtype(self.params)))
+      return os.path.join(self.maindir, 'Research/results/%s/matchescells(%s),%s,%s%s' % (self.QUERY, celldesc, self.QUERY, query.searchtype(self.params), crt))
+    return os.path.join(self.maindir, 'Research/results/%s/matchescells(g=100,r=d=236.6),%s,%s%s' % (self.QUERY, self.QUERY, query.searchtype(self.params), crt))
 
   @property
   def infodir(self):

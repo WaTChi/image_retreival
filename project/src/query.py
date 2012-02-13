@@ -35,6 +35,7 @@ PARAMS_DEFAULT = {
   'confstring': '',
 }
 
+
 class Tree3D:
   def __init__(self, map3d, C, cellid):
     self.map3d = map3d
@@ -127,6 +128,7 @@ class Query(threading.Thread):
     self.celldir = C.dbdir
     self.outfile = outfile
     self.params = C.params
+    self.criteria = C.criteria
     self.barrier = barrier
     self.dump = self.outfile + ('-detailed%s.npy' % DETAIL_VERSION)
     pyflann.set_distance_type(C.params['distance_type'])
@@ -307,7 +309,7 @@ class Query(threading.Thread):
     if _false_data is not None:
       dataset, mapping = _false_data
     else:
-      dataset, mapping = self.reader.load_cell(falsecellpath)
+      dataset, mapping = self.reader.load_cell(falsecellpath, self)
       _false_data = dataset, mapping
     if os.path.exists(index):
       falseflann.load_index(index, dataset['vec'])
@@ -450,22 +452,25 @@ class Query(threading.Thread):
     return rsorted_counts
 
   def _build_index(self):
+    dataset, mapping = self.reader.load_cell(self.cellpath, self, self.criteria)
+    return self.flann_setup_index(self.flann, dataset, mapping, self.criteria)
+
+  def flann_setup_index(self, flann, dataset, mapping, criteria):
     start = time.time()
-    iname = '%s-%s.%s.index' % (getcellid(self.cellpath), indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
+    iname = '%s%s-%s.%s.index' % (getcellid(self.cellpath), '-' + criteria if criteria is not None else '', indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
     index = getfile(self.cellpath, iname)
-    dataset, mapping = self.reader.load_cell(self.cellpath)
     INFO_TIMING("dataset load took %f seconds" % (time.time() - start))
     if os.path.exists(index):
       s = time.time()
-      self.flann.load_index(index, dataset['vec'])
+      flann.load_index(index, dataset['vec'])
       INFO_TIMING("index load took %f seconds" % (time.time() - s))
       return dataset, mapping
     INFO('creating %s' % iname)
     start = time.time()
-    INFO(self.flann.build_index(dataset['vec'], **self.params))
+    INFO(flann.build_index(dataset['vec'], **self.params))
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
     for out in getdests(self.cellpath, iname):
-      save_atomic(lambda d: self.flann.save_index(d), out)
+      save_atomic(lambda d: flann.save_index(d), out)
     return dataset, mapping
 
 _false_data = None

@@ -9,10 +9,12 @@
 #  }
 
 import random
+import itertools
 from config import *
 import query
 import numpy as np
 import shutil
+import pyflann
 import raster_tools
 import time
 from info import distance
@@ -24,6 +26,15 @@ import os
 # memory hungry! beware.
 memoize = False
 ans = {}
+
+def ichunks(iterable, size):
+    it = iter(iterable)
+    i = 0
+    chunk = list(itertools.islice(it,size))
+    while chunk:
+        yield (i, chunk)
+        i += size
+        chunk = list(itertools.islice(it,size))
 
 def config_mem_pin(val):
   global memoize
@@ -95,6 +106,68 @@ class FeatureReader(object):
   def __init__(self, name, dtype):
     self.name = name
     self.dtype = dtype
+    self.filters = {
+      'locally_significant': self.filter_locally_significant,
+      'locally_insignificant': self.filter_locally_insignificant,
+      'random_half': self.filter_random_half,
+      'random_quarter': self.filter_random_quarter,
+    }
+
+  def filter_locally_insignificant(self, fgen, d0, m0, q):
+    return self.filter_locally_significant(fgen, d0, m0, q, True)
+
+  def filter_locally_significant(self, fgen, d0, m0, q, rev=False):
+    T = 70000 # pts ABOVE threshold allowed
+    R = 25.0 # max visibility distance
+    NN = 10 # neighbors to consider
+
+    flann = pyflann.FLANN()
+    INFO("building flann index")
+    q.flann_setup_index(flann, d0, m0, None)
+    INFO("building 3d map")
+    map3d = self.load_3dmap_for_cell(q.cellpath, d0, m0, q.infodir)
+    INFO("begin filtering features")
+    params = q.params.copy()
+    params['num_neighbors'] = NN
+    for offset, fchunk in fgen:
+      fchunk_filtered = []
+      arr = np.ndarray(len(fchunk), self.dtype)
+      arr[:] = fchunk
+      results, dists = flann.nn_index(arr['vec'], **params)
+      # for each feature
+      for _, (index_arr, dist_arr) in enumerate(zip(results, dists)):
+        refpt = map3d[offset + _]
+        # for each match of feature
+        has_r = False
+        ok = False
+        for i, d in zip(index_arr, dist_arr):
+          pt = map3d[i]
+          r = distance(pt['lat'], pt['lon'], refpt['lat'], refpt['lon'])
+          if r > R:
+            has_r = True
+            if (not rev and d > T) or (rev and d < T):
+              ok = True
+              break
+        if ok or not has_r:
+          fchunk_filtered.append(fchunk[_])
+      print 'filter chunk %d/%d' % (len(fchunk_filtered), len(fchunk))
+      yield fchunk_filtered
+
+  def filter_random_quarter(self, fgen, d0, m0, q):
+    for offset, fchunk in fgen:
+      arr = []
+      for i, x in enumerate(fchunk):
+        if i % 4 == 0:
+          arr.append(x)
+      yield arr
+
+  def filter_random_half(self, fgen, d0, m0, q):
+    for offset, fchunk in fgen:
+      arr = []
+      for i, x in enumerate(fchunk):
+        if i % 2 == 0:
+          arr.append(x)
+      yield arr
 
   def is_feature_file(self, filename):
     raise NotImplementedError
@@ -372,7 +445,39 @@ class FeatureReader(object):
       open(stamp, 'w')
     return supercell
 
-  def load_cell(self, directory):
+  def load_cell(self, directory, q, criteria=None):
+    if criteria is None:
+      return self._load_cell(directory)
+    elif criteria in self.filters:
+      d, m = self._load_cell(directory)
+      d2, m2 = self.make_compressed_cell(d, m, criteria, directory, q)
+      return d2, m2
+    else:
+      assert False, criteria
+
+  def make_compressed_cell(self, d0, m0, criteria, directory, q):
+    cellid = getcellid(directory)
+    data_out = getfile(directory, cellid + ('-%s-%s-test2.npy' % (self.name, criteria)))
+    if not os.path.exists(data_out):
+      INFO("building compressed cell of locally significant features")
+      tmp = np.ndarray(len(d0), self.dtype)
+      offset = 0
+      for fchunk in self.filters[criteria](ichunks(d0, 10000), d0, m0, q):
+        tmp[offset:offset+len(fchunk)] = fchunk
+        offset += len(fchunk)
+      print "retained %d/%d features" % (offset, len(d0))
+      # truncate tmp
+      tmp = tmp[:offset]
+      print "writing to", data_out
+      save_atomic(lambda d: np.save(d, tmp), data_out)
+      print "write done"
+
+    # index mapping does not change
+    d2 = np.load(data_out)
+    assert len(d2) > 0, data_out
+    return d2, m0
+
+  def _load_cell(self, directory):
     """Efficiently loads a matrix of features and reverse lookup table
        for a directory of files."""
     global ans

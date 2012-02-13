@@ -22,6 +22,12 @@ C.params.update({
   'dist_threshold': 70000,
   'confstring': '',
 })
+
+# cell compression criteria
+C.criteria = 'random_quarter'
+#C.criteria = 'locally_significant'
+#C.criteria = 'locally_insignificant'
+
 config.hsv_enabled = False
 #reader.config_mem_pin(True)
 C.resultsdir = os.path.expanduser('~/topmatches_big')
@@ -46,18 +52,18 @@ C.weight_by_distance = False
 C.weight_by_coverage = False
 
 for dist, e, a, co in [
-    ('gauss', 1, (0,0), 75),
+#    ('gauss', 1, (0,0), 75),
     ('uniform', 0.5, (0, 50**2), 75),
-    ('uniform', 0.5, (0, 125**2), 150),
-    ('uniform', 0.5, (0, 225**2), 250),
-    ('uniform', 0.5, (0, 325**2), 350),
+#    ('uniform', 0.5, (0, 125**2), 150),
+#    ('uniform', 0.5, (0, 225**2), 250),
+#    ('uniform', 0.5, (0, 325**2), 350),
   ]:
-  for seed in [0,1,2]:
+  for seed in [0]:
     for r,d in [
-        (500, 500),
-        (350, 350),
+#        (500, 500),
+#        (350, 350),
         (236.6, 236.6),
-        (150, 150),
+#        (150, 150),
         ]:
       C._test_r = r
       C._test_d = d
