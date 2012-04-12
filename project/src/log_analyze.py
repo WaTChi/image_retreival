@@ -116,8 +116,8 @@ select.update(UNIFORM)
 
 TEMPLATE = '/media/DATAPART2/Research/results/q5-test/matchescells(earthmine-fa10.1-culled,r=%s,d=%s),q5-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
 TEMPLATE236 = '/media/DATAPART2/Research/results/q5-test/matchescells(earthmine-fa10.1-culled,r=d=236.6),q5-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
-#TEMPLATE = '/media/DATAPART2/Research/results/oak-test/matchescells(oak,r=%s,d=%s),oak-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
-#TEMPLATE236 = '/media/DATAPART2/Research/results/oak-test/matchescells(cells),oak-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
+TEMPLATE = '/media/DATAPART2/Research/results/oak-test/matchescells(oak,r=%s,d=%s),oak-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
+TEMPLATE236 = '/media/DATAPART2/Research/results/oak-test/matchescells(cells),oak-test,kdtree1,threshold=70k,searchparam=1024,%stop_n'
 
 def foo(r, nns):
     if r == 236.6:

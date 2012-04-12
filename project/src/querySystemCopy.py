@@ -12,7 +12,7 @@ import os
 from context import DEFAULT_CONTEXT
 
 C = DEFAULT_CONTEXT.copy()
-C.QUERY = 'q5-test'
+C.QUERY = 'oakland1'
 C.params.update({
   'algorithm': 'kdtree',
   'checks': 1024,
@@ -24,7 +24,7 @@ C.params.update({
 })
 
 # cell compression criteria
-C.criteria = 'random_quarter'
+#C.criteria = 'random_quarter'
 #C.criteria = 'locally_significant'
 #C.criteria = 'locally_insignificant'
 
@@ -52,8 +52,8 @@ C.weight_by_distance = False
 C.weight_by_coverage = False
 
 for dist, e, a, co in [
-#    ('gauss', 1, (0,0), 75),
-    ('uniform', 0.5, (0, 50**2), 75),
+    ('gauss', 1, (0,0), 75),
+#    ('uniform', 0.5, (0, 50**2), 75),
 #    ('uniform', 0.5, (0, 125**2), 150),
 #    ('uniform', 0.5, (0, 225**2), 250),
 #    ('uniform', 0.5, (0, 325**2), 350),
