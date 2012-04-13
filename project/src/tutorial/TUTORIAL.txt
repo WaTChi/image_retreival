@@ -1,4 +1,4 @@
-In this tutorial we're going to build a example query pipeline. The end goal is a application that takes as input a query image with location data and returns a matching to a closest database image.
+In this tutorial we will build a example query pipeline. The end goal is a application that takes as input a query image with location data and returns a matching to a closest database image.
 
 == Step 1: Preprocess Database Images ==
 
@@ -62,7 +62,15 @@ Assuming we choose radius=distance=236.6m, build the cells. You want to tell uti
 
 == Step 3: Write code to drive the query ===
 
-Now the cell db is fully set up. There is an example query driver at tutorialTest.py. It is heavily commented, so you should read the code directly to understand how to create query pipeline suitable for your application.
+Now the cell db is fully set up, you can run queries using the framework provided. Key elements are present in the files listed below.
+
+    system.py
+    query.py
+    reader.py
+    corr.py
+    context.py
+
+To proceed, we use the example query driver in tutorialTest.py. It is heavily commented, so you should read the code directly to understand how to create query pipeline suitable for your application.
 
     $ python tutorialTest.py
     [7536]  7:05:29 - --> Image conversion: 0.0181901454926s
@@ -87,3 +95,4 @@ Now the cell db is fully set up. There is an example query driver at tutorialTes
     Matched db image  37.875507,-122.264883-0002
     Visualization in  /home/ericl/topmatches
 
+That's it - all the match information has been output. For an example of batch processing query images, see queryContext.py
