@@ -35,7 +35,6 @@ C.ranking_max_considered = 30
 
 C.ncells = 1
 C.ambiguity = 75
-C.amb_cutoff = C.ambiguity
 
 # Pose estimation parameters
 

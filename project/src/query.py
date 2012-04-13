@@ -171,8 +171,8 @@ class Query(threading.Thread):
 
   def vote(self, queryset, dataset, mapping, results, dists):
     INFO('voting with method %s' % self.params['vote_method'])
-    if not config.hsv_enabled:
-      INFO("W: HSV disabled, not reading extra depth and color data")
+    if config.hsv_enabled:
+      INFO("HSV enabled - reading extra depth and color data")
     counts = {
       'matchonce': self._vote_matchonce,
       'filter': self._vote_filter,
@@ -466,7 +466,7 @@ class Query(threading.Thread):
       return dataset, mapping
     INFO('creating %s' % iname)
     start = time.time()
-    INFO(flann.build_index(dataset['vec'], **self.params))
+    flann.build_index(dataset['vec'], **self.params)
     INFO_TIMING("index creation took %f seconds" % (time.time() - start))
     for out in getdests(self.cellpath, iname):
       save_atomic(lambda d: flann.save_index(d), out)

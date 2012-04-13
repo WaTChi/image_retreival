@@ -28,7 +28,6 @@ config.hsv_enabled = True
 
 C.ncells = 8
 C.ambiguity = 75
-C.amb_cutoff = C.ambiguity
 C.amb_padding = 25
 
 C.max_matches_to_analyze = 1

@@ -68,8 +68,11 @@ def getcellid(cellpath):
     return cellid
   return os.path.basename(cellpath)
 
+import threading
+lock = threading.RLock()
 def INFO(x):
-  print >> STDOUT, "[%d]" % os.getpid(), datetime.today().strftime("%l:%M:%S - ") + str(x)
+  with lock:
+    print >> STDOUT, "[%d]" % os.getpid(), datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
 #  INFO(x)

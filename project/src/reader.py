@@ -280,7 +280,6 @@ class FeatureReader(object):
       image_index += 1
     INFO('saving features... [%s]' % cellid)
     for dest in getdests(dirs[0], cellid + ('-%s.npy' % self.name)):
-      print dest
       save_atomic(lambda d: np.save(d, dataset), dest)
     for dest in getdests(dirs[0], cellid + ('-%s-pydata.npy' % self.name)):
       save_atomic(lambda d: np.save(d, lookup_table), dest)

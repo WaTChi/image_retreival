@@ -78,7 +78,6 @@ class _Context(object):
     self.do_posit = 0
     self.solve_pnp = 0
     self.print_per = 1
-    self.amb_cutoff = None
     self.criteria = None
     self.amb_padding = 50
     self.one_big_cell = 0
@@ -105,7 +104,7 @@ class _Context(object):
     self.log_failures = True
     self.solve_bad = 0
     self.ambiguity = 75
-    self._test_r = None
+    self._test_r = None # helper to choose between cell configs
     self._test_d = None
     self.datasource = None
     self.matchdistance = 25
@@ -156,6 +155,12 @@ class _Context(object):
 
   def check(self):
     assert self.QUERY is not None
+
+  @property
+  def amb_cutoff(self):
+    if self.ambiguity <= 75:
+      return 75
+    return self.ambiguity
 
   def loadkey(self, key):
     p = os.path.join(CACHE_PATH, key + '.npy')

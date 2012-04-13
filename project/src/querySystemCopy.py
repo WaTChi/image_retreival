@@ -23,18 +23,11 @@ C.params.update({
   'confstring': '',
 })
 
-# cell compression criteria
-#C.criteria = 'random_quarter'
-#C.criteria = 'locally_significant'
-#C.criteria = 'locally_insignificant'
-
 config.hsv_enabled = False
-#reader.config_mem_pin(True)
 C.resultsdir = os.path.expanduser('~/topmatches_big')
-C.one_big_cell = 0
 
-for dist, e, a, co in [
-    ('gauss', 1, (0,0), 75),
+for dist, e, a, amb in [
+    ('gauss', 1, (0,0), 25),
 #    ('uniform', 0.5, (0, 50**2), 75),
 #    ('uniform', 0.5, (0, 125**2), 150),
 #    ('uniform', 0.5, (0, 225**2), 250),
@@ -51,8 +44,7 @@ for dist, e, a, co in [
       C._test_d = d
       C.cellradius = r
       for nn, ncells in [(1,999)]:
-          C.amb_cutoff = co
-          C.ambiguity = co
+          C.ambiguity = amb
           C.added_error = {
             'seed': seed,
             'dist': dist,

@@ -63,7 +63,6 @@ for dist, e, a, co in [
       C._test_d = d
       C.cellradius = r
       for nn, ncells in [(1,999)]:
-          C.amb_cutoff = co
           C.ambiguity = co
           C.added_error = {
             'seed': seed,
