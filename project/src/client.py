@@ -28,7 +28,6 @@ def preprocess_image(inputfile, outputfile=None, width=768, height=512, fill=Fal
     specified. If so, cropping may occur. Default behavior is for the image to be resized
     just small enough that it fits in a width x height box.
     """
-    print "hello"
     timer = time.time()
     if outputfile == None:
         outputfile = inputfile.rsplit(".",1)[0] + ".pgm"

@@ -12,7 +12,7 @@ LOCAL_CACHING = False
 CACHE_PATH = os.path.expanduser('/var/tmp')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
 DETAIL_VERSION = str(15)
-hsv_enabled = True
+hsv_enabled = False
 
 if os.getenv('SERVER_PROTOCOL'):
   STDOUT = sys.stderr

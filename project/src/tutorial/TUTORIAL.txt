@@ -1,0 +1,89 @@
+In this tutorial we're going to build a example query pipeline. The end goal is a application that takes as input a query image with location data and returns a matching to a closest database image.
+
+== Step 1: Preprocess Database Images ==
+
+First, you need to create the image database. You'll first want to process the database images into a certain format described below.  All the resultant images should be put in a separate directory. If the source images are panoramas they should be sliced into overlapping images (example in desphericalize.py).
+
+    Format specification: given database image, lat, lon, create:
+
+        lat,lon-id.pgm
+        lat,lon-id.sift.txt
+        lat,lon-id.info
+
+    where lat, lon are formatted as floating point representations of latitude and longitude of the photo. The id field is a 4-digit decimal field to distinguish between images having the same latitude and longitude. It is commonly used to denote the view angle in a panorama slice.
+
+    Here's a step-by-step run-through using a few example images.
+
+    First copy the source images and the .info files into a folder.  The .info files aren't really needed except for pose estimation and image drawing, so we provide them in this tutorial. There's an example on how to create them in desphericalize.py
+
+        $ mkdir testdb
+        $ cp tutorial/example_db_images/* testdb
+        $ ls testdb
+            37.875507,-122.264883-0000.info  37.875507,-122.264883-0002.info
+            37.875507,-122.264883-0001.info  37.875507,-122.264883-0003.info
+            37.875507,-122.264883-0000.png  37.875507,-122.264883-0002.png
+            37.875507,-122.264883-0001.png  37.875507,-122.264883-0003.png
+
+    Convert the images to pgm using the client util library.
+
+        $ python
+        >>> import client, glob
+        >>> for path in glob.glob('testdb/*.png'):
+        ...   client.preprocess_image(path, path[:-4] + '.pgm', width=300, height=225)
+
+    Extract SIFT features.
+
+        >>> for path in glob.glob('testdb/*.pgm'):
+        ...   client.extract_features(path)
+
+    The necessary database files have now been created.
+
+== Step 2: Specify Cell Structure ==
+
+A query pipeline must have a db consisting of cells of a fixed radius and geometric configuration. Choose a suitable geometric configuration [see publications], then use the cell util library to configure the database cell structure.
+
+Assuming we choose radius=distance=236.6m, build the cells. You want to tell util.mkcells the top-left corner of a box and the box's side length. See util.py for exact details on cell generation.
+
+        $ mkdir testdb/cells-236.6
+        $ python
+        >>> import util
+        >>> util.makecells(
+        ...     lat=37.879,
+        ...     lon=-122.270,
+        ...     length=1000,
+        ...     inputDir='testdb',
+        ...     distance=236.6,
+        ...     radius=236.6,
+        ...     outputDir='testdb/cells-236.6/')
+        >>> exit()
+        $ ls testdb/cells-236.6
+        37.8753185464,-122.264614767  37.8771592272,-122.263268249
+        37.875318577,-122.2673074     37.8771592578,-122.265960949
+
+== Step 3: Write code to drive the query ===
+
+Now the cell db is fully set up. There is an example query driver at tutorialTest.py. It is heavily commented, so you should read the code directly to understand how to create query pipeline suitable for your application.
+
+    $ python tutorialTest.py
+    [7536]  7:05:29 - --> Image conversion: 0.0181901454926s
+    Finding keypoints...
+    256 keypoints found.
+    [7536]  7:05:30 - --> Feature extraction: 0.229883909225s
+    [7536]  7:05:30 - Using 4 cells
+    [7536]  7:05:30 - I think we have enough memory for 7 threads
+    [7536]  7:05:30 - voting with method matchonce
+    [7536]  7:05:30 - voting with method matchonce
+    [7536]  7:05:30 - voting with method matchonce
+    [7536]  7:05:30 - voting with method matchonce
+    [7536]  7:05:30 - accepted 150/256 votes
+    [7536]  7:05:30 - discarded 46 vote collisions
+    [7536]  7:05:30 - accepted 150/256 votes
+    [7536]  7:05:30 - discarded 46 vote collisions
+    [7536]  7:05:30 - accepted 150/256 votes
+    [7536]  7:05:30 - discarded 46 vote collisions
+    [7536]  7:05:30 - accepted 150/256 votes
+    [7536]  7:05:30 - discarded 46 vote collisions
+    [7536]  7:05:30 - stopped after filtering 1
+    Matched db image  37.875507,-122.264883-0002
+    Visualization in  /home/ericl/topmatches
+

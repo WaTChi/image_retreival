@@ -97,21 +97,21 @@ def gen_info_file(data, out, detail, rot_degrees):
     dict = {
         'is-known-occluded': False,
         'url': {'href': ''},
-        'field-of-view': 90.0 if detail else 60.0,
+        'field-of-view': 30.0,
         'image-size': {
-            'width': 2500 if detail else 768,
-            'height': 1200 if detail else 512,
+            'width': 300,
+            'height': 225,
         },
         'view-direction': {
-            'yaw': (data['yaw'][0] + rot_degrees) % 360,
+            'yaw': 0.0,
             'pitch': 0.0,
         },
         'view-location': {
-            'lat': data['lat'][0],
-            'lon': data['lon'][0],
-            'alt': data['alt'][0],
+            'lat': 37.875507,
+            'lon': -122.264883,
+            'alt': 0,
         },
-        'id': data['pano'][0],
+        'id': 'tutorial_example_image',
     }
     with open(out, 'w') as f:
         f.write(str(dict))

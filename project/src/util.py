@@ -140,7 +140,7 @@ def copyJPGInRange(lat, lon, inputDir, outputDir, radius, files):
         lat2, lon2 = info.getImgCoord(str(file))
         dist = info.distance(lat, lon, lat2, lon2)
         if(dist < radius):
-            os.symlink(os.path.join(inputDir, file), os.path.join(outputDir, file))
+            os.symlink(os.path.join(os.path.abspath(inputDir + '/'), file), os.path.join(outputDir + '/', file))
 
 def copyclosest(querydir="E:/Research/collected_images/query/query1/",
                 inputDir="E:/Research/collected_images/earthmine-new,culled/37.871955,-122.270829/",
@@ -170,7 +170,7 @@ def copySIFTInRange(lat, lon, inputDir, outputDir, radius, files):
         lat2, lon2 = info.getSIFTCoord(str(file))
         dist = info.distance(lat, lon, lat2, lon2)
         if(dist < radius):
-            os.symlink(os.path.join(inputDir, file), os.path.join(outputDir, file))
+            os.symlink(os.path.join(os.path.abspath(inputDir + '/'), file), os.path.join(outputDir + '/', file))
     
 def writeCellCoordsIfInRange(path, fname, lat, lon, radius):
     if not os.path.exists(path):

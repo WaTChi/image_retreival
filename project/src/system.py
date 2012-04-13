@@ -356,10 +356,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         if C.stop_on_homTrue and data.get('success'):
             break # we are done (found good homography)
         clat, clon = getlatlonfromdbimagename(C, matchedimg)
-        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-        if not os.path.exists(matchimgpath):
-            matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-            assert os.path.exists(matchimgpath)
+        matchimgpath = None
+        # XXX this sucks, since we don't have a db image abstraction
+        for ext in ['.jpg', '.JPG', '.png', '.PNG']:
+          p = os.path.join(C.dbdump, '%s%s' % (matchedimg, ext))
+          if os.path.exists(p):
+            matchimgpath = p
+        assert matchimgpath
         match = any(check_img(C, Q, ranked_matches[i-1]))
 
 #        matches = db_matches
@@ -478,7 +481,6 @@ def check_img(C, Q, entry):
     elif C.QUERY == 'emeryville':
         g += check_truth(Q.name, entry[0], emeryvilleGroundTruth.matches)
     else:
-        INFO("NO GT FILE!!")
         return [0,0,0,0,0]
     return [g > 0, y > 0, r > 0, b > 0, o > 0]
 

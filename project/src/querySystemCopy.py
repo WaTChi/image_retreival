@@ -33,24 +33,6 @@ config.hsv_enabled = False
 C.resultsdir = os.path.expanduser('~/topmatches_big')
 C.one_big_cell = 0
 
-C.max_matches_to_analyze = 1
-C.stop_on_homTrue = 0
-C.put_into_dirs = 0
-C.show_feature_pairs = True
-C.do_posit = 0
-C.solve_pnp = 0
-C.solve_pose = 0
-C.solve_bad = 0
-C.compute2dpose = 0 # [experimental, not recommended]
-C.dump_hom = 0
-
-C.spatial_comb = 0 # doesn't work very well
-
-C.ranking_min_consistent = 1
-C.ranking_max_considered = 30
-C.weight_by_distance = False
-C.weight_by_coverage = False
-
 for dist, e, a, co in [
     ('gauss', 1, (0,0), 75),
 #    ('uniform', 0.5, (0, 50**2), 75),

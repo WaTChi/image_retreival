@@ -83,6 +83,7 @@ class _Context(object):
     self.amb_padding = 50
     self.one_big_cell = 0
     self.added_error = 0
+    self.dump_hom = 0
     self.restrict_cells = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
@@ -95,12 +96,11 @@ class _Context(object):
     self._dbdir = False
     self.cellradius = 236.6
     self.shuffle_cells = False
-    self.ranking_min_consistent = 10
+    self.ranking_min_consistent = 1
     self.overlap_method = None
-    self.ranking_max_considered = 100
+    self.ranking_max_considered = 30
     self.spatial_comb = 0
     self.match_callback = None
-    self.dump_hom = 0
     self.solve_pose = 0
     self.log_failures = True
     self.solve_bad = 0
@@ -111,7 +111,7 @@ class _Context(object):
     self.matchdistance = 25
     self.selection = None
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
-    self.show_feature_pairs = False
+    self.show_feature_pairs = True
     self.compute2dpose = False
     self.min_reproj = False
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
@@ -153,6 +153,9 @@ class _Context(object):
 
   def copy(self):
     return _Context(self)
+
+  def check(self):
+    assert self.QUERY is not None
 
   def loadkey(self, key):
     p = os.path.join(CACHE_PATH, key + '.npy')

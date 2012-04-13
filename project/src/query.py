@@ -30,7 +30,7 @@ PARAMS_DEFAULT = {
 # use >1 for weighted
   'num_neighbors': 1,
 # highest, ransac, ratio, matchonce, filter
-  'vote_method': 'filter',
+  'vote_method': 'matchonce',
 # custom configuration notation
   'confstring': '',
 }
@@ -136,6 +136,7 @@ class Query(threading.Thread):
 
   def run(self):
     if os.path.exists(self.outfile) and os.path.exists(self.dump):
+      INFO("using cached SIFT matches in " + self.dump)
       return
     if self.barrier:
       self.barrier.acquire()
@@ -170,6 +171,8 @@ class Query(threading.Thread):
 
   def vote(self, queryset, dataset, mapping, results, dists):
     INFO('voting with method %s' % self.params['vote_method'])
+    if not config.hsv_enabled:
+      INFO("W: HSV disabled, not reading extra depth and color data")
     counts = {
       'matchonce': self._vote_matchonce,
       'filter': self._vote_filter,
@@ -326,8 +329,6 @@ class Query(threading.Thread):
     assert self.params['num_neighbors'] == 1
     #map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir) if config.hsv_enabled else None
-    if hsv is None:
-      print "*** WARN *** HSV disabled, not reading data"
     counts = {} # map from img to counts
     closed = set()
     closed2 = set()
@@ -374,8 +375,6 @@ class Query(threading.Thread):
     assert self.params['num_neighbors'] == 1
 #    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir) if config.hsv_enabled else None
-    if hsv is None:
-      print "*** WARN *** HSV disabled, not reading data"
     counts = {} # map from img to counts
     closed = set()
     accept, reject, matchonce = 0, 0, 0
