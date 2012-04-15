@@ -20,13 +20,20 @@ from tags import TagCollection
 
 class _Query:
   def __init__(self, instance=None):
+    # path to original image file (in full, color, etc)
+    # doesn't really need to be a jpg
     self.jpgpath = None
+    # path to sift features as extracted by Lowe's tool
     self.siftpath = None
+    # put raw sensor readings here
     self.sensor_lat = None
     self.sensor_lon = None
+    # use this to override the sensor readings (e.g. for testing ambiguity)
     self._query_lat = None
     self._query_lon = None
+    # ratio of original image size to the pgm size, used for drawing matches
     self.pgm_scale = 1.0
+    # misc extra info ?
     self.data = {}
     self.datafile = None
     if instance:
@@ -73,55 +80,66 @@ class _Context(object):
     # set frozen attr
     self.unfreeze()
 
-    # default parameters
+    # Required: name the type of query you are doing.
+    # Can be used internally to compute a few other properties
     self.QUERY = None # set before calling characterize()
+
+    # FLANN params
     self.params = query.PARAMS_DEFAULT.copy()
-    self.cacheEnable = 0 # instance-local caching of results
+
+    # estimated ambiguity of query (kinda ill defined, assume 99th percentile)
+    self.ambiguity = 75
+    # amount of distance to add to ambiguity radius to pick cells
+    self.matchdistance = 25 
+    # amount of distance outside which image matches are flat out rejected
+    self.amb_padding = 50
+
+    self.maindir = os.path.expanduser('/media/DATAPART2')
+    self.resultsdir = os.path.expanduser('~/topmatches')
+    self.reproj_file = os.path.expanduser('~/topmatches/reproj')
+
+
+    self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
+    self.selection = None # limits image in query set
+    self._test_r = None # helper to choose between cell configs
+    self._test_d = None
+    self.solve_pose = 0 # aaron's code?
+    self._dbdir = False # override dbdir if one for self.QUERY not hardcoded here
+    self.cellradius = 236.6 # cell radius
+    self.ranking_max_considered = 30 # max number number to rerank by ransac
+    self.tagcompute = True # false is like NO_HOM, NO_DRAW
+    self.show_feature_pairs = True # draw them or not
+    self.put_into_dirs = 0 # put each image match into its own dir
+    self.dump_hom = 0 # dump computed homography with image matches
+
+    # UNKNOWN / DEPRECATED (used for an experiment at some time, not general)
+    self.one_big_cell = 0
+    r
+    self.log_failures = True
     self.do_posit = 0
-    self.solve_pnp = 0
+    self.overlap_method = None
     self.print_per = 1
     self.criteria = None
-    self.amb_padding = 50
-    self.one_big_cell = 0
     self.added_error = 0
-    self.dump_hom = 0
     self.pose_param = collections.defaultdict(bool)
     self.restrict_cells = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
     self.disable_filter_step = False
     self.stop_on_homTrue = 0
-    self.put_into_dirs = 0
     self.locator_function = lambda C, Q: [(Q.sensor_lat, Q.sensor_lon)]
     self.weight_by_distance = False
     self.weight_by_coverage = False
-    self._dbdir = False
-    self.cellradius = 236.6
     self.shuffle_cells = False
     self.ranking_min_consistent = 1
-    self.overlap_method = None
-    self.ranking_max_considered = 30
     self.spatial_comb = 0
     self.match_callback = None
-    self.solve_pose = 0
-    self.log_failures = True
     self.solve_bad = 0
-    self.ambiguity = 75
-    self._test_r = None # helper to choose between cell configs
-    self._test_d = None
     self.datasource = None
-    self.matchdistance = 25
-    self.selection = None
-    self.tagcompute = True # false is like NO_HOM, NO_DRAW
-    self.show_feature_pairs = True
     self.compute2dpose = False
     self.min_reproj = False
-    self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry
     self.verbosity = 1
-    self.resultsdir = os.path.expanduser('~/topmatches')
-    self.reproj_file = os.path.expanduser('~/topmatches/reproj')
     self.topnresults = []
-    self.maindir = os.path.expanduser('/media/DATAPART2')
     self.aarondir='fuzz2'
     self.bundler = False
     self.bundlerdir = '/media/DATAPART2/ah/bundler'
