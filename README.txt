@@ -11,7 +11,7 @@ Dependencies:
 
 On a Ubuntu machine, most of the dependencies can be installed using this command:
 
-	$ sudo apt-get install python-numpy python-opencv python-imaging python-scipy python-httplib2
+	$ sudo apt-get install python-numpy python-opencv python-imaging python-scipy python-httplib2 build-essential git-core
 
 To install pyFLANN, download and follow the instructions here:
 
