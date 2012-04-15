@@ -7,6 +7,8 @@ import numpy as np
 import scipy.optimize as sio
 import math
 from numpy import matrix, sin, cos, sqrt, pi
+from numpy import transpose as tp
+import numpy.linalg as alg
 
 def euclideandist(x,y,x2,y2):
   return ((x-x2)**2 + (y-y2)**2)**.5
@@ -145,6 +147,15 @@ def YPRfromR(R):
     roll  = 180 / np.pi * np.arctan2(R[1,0],R[1,1])
     return yaw, pitch, roll
 
+def YfromR(R):
+    yaw = np.arctan2(R[0,2],R[2,2])
+    Ry = np.array([[np.cos(yaw),0,np.sin(yaw)],
+                   [0,1,0],
+                   [-np.sin(yaw),0,np.cos(yaw)]])
+    Rpr = np.dot(tp(Ry),R)
+    yaw = 180 / np.pi * yaw
+    return yaw, Rpr
+
 def xprodmat(x):
     return np.array([[0,-x[2],x[1]],
                      [x[2],0,-x[0]],
@@ -246,5 +257,33 @@ def vecnorm(x):
 
 def normalrows(x):
     return x / np.sqrt(np.sum(x**2)) if x.ndim==1 else x / np.transpose(np.tile(np.sqrt(np.sum(x**2,1)),[x.shape[1],1]))
+
+def vecdiv(x,vec,dim=0):
+    if x.ndim == 1: return x / vec
+    elif dim == 0: return x / tp(np.tile(vec,[x.shape[1],1]))
+    else: return x / np.tile(vec,[x.shape[0],1]) # dim == 1
+
+def vecmul(x,vec,dim=0):
+    if x.ndim == 1: return x * vec
+    elif dim == 0: return x * tp(np.tile(vec,[x.shape[1],1]))
+    else: return x * np.tile(vec,[x.shape[0],1]) # dim == 1
+
+def vecadd(x,vec,dim=0):
+    if x.ndim == 1: return x + vec
+    elif dim == 0: return x + tp(np.tile(vec,[x.shape[1],1]))
+    else: return x + np.tile(vec,[x.shape[0],1]) # dim == 1
+
+def vecsub(x,vec,dim=0):
+    if x.ndim == 1: return x - vec
+    elif dim == 0: return x - tp(np.tile(vec,[x.shape[1],1]))
+    else: return x - np.tile(vec,[x.shape[0],1]) # dim == 1
+
+def largestSingVector(Mat):
+    eigMat = alg.eig( np.dot(tp(Mat),Mat) )
+    return np.real( eigMat[1][ : , np.argmax(eigMat[0]) ] )
+
+def smallestSingVector(Mat):
+    eigMat = alg.eig( np.dot(tp(Mat),Mat) )
+    return np.real( eigMat[1][ : , np.argmin(eigMat[0]) ] )
 
 # vim: et sw=2

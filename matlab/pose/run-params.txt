@@ -1,0 +1,7 @@
+Berkeley
+using cell phone yaw
+using homography only
+query yaw unknown - optimized by varying it over +/- 30 degrees from cell yaw in 5 deg increments, choosing best error
+normal yaw unknown - optimized
+removes ground features
+removes non-dominant plane features if there is a dominant plane

@@ -297,15 +297,15 @@ def match(C, Q):
       else:
         compute_hom(C, Q, ranked, comb_matches)
 
-
     ### Query Pose Estimation ###
     match = any(check_img(C, Q, ranked[0]))
-    print match
-    if (C.solve_pose and match) or (C.solve_bad and not match):
+    print matchedimg
+    if (C.solve_pose and match and Q.name not in C.pose_remove) or C.pose_param['solve_bad']:
+        #computePose.draw_dbimage(C, Q, matchedimg, match)
         if MultiprocessExecution.pool:
             MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
         else:
-            computePose.estimate_pose(C, Q, matchedimg)
+            computePose.estimate_pose(C, Q, matchedimg, match)
 
     # done
     return stats, matchedimg, matches, ranked
@@ -375,11 +375,6 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         ### POSIT ###
         if C.do_posit:
             posit.do_posit(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
-
-        ### Query Pose Estimation ###
-        if C.solve_pose and match:
-            #pnp.qsolve(C, Q, rsc_inliers, matchsiftpath, matchimgpath)
-            ct, ch_err, ch_matches = computePose.pose_triangle(C, Q, matchimgpath, matchsiftpath, udir)
 
           
 def condense2(list):
@@ -505,8 +500,11 @@ def characterize(C):
     r_count = 0
     b_count = 0
     o_count = 0
-#    open(C.pose_param['pose_file'],'w').close()
+    open(C.pose_param['pose_file'],'w').close()
+    open(C.pose_param['extras_file'],'w').close()
     for Q in C.iter_queries():
+        Q.datafile = os.path.join(C.pose_param['resultsdir'],'data_'+Q.name+'.txt')
+        open(Q.datafile,'w').close()
         if C.verbosity>0:
             print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):

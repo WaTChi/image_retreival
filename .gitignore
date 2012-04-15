@@ -9,3 +9,8 @@ a.out
 nohup.out
 gt*
 Thumbs.db
+old
+gcc
+*#
+*.jpg
+*.pgm

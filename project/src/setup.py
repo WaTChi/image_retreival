@@ -1,19 +1,22 @@
-__author__="aaronh"
-__date__ ="$Jul 25, 2011 12:46:02 PM$"
+__author__="Aaron"
+__date__ ="$Dec 8, 2011 8:35:46 AM$"
 
-from distutils.core import setup, Extension
+from setuptools import setup,find_packages
 
 setup (
-  name = 'fib',
-  version = '1.0',
+  name = 'project',
+  version = '0.1',
+  packages = find_packages(),
 
-  ext_modules=[Extension('fib', ['lsd.c'])],
+  # Declare your packages' dependencies here, for eg:
+  install_requires=['foo>=3'],
 
   # Fill in these to make your Egg ready for upload to
   # PyPI
-  author = 'aaronh',
+  author = 'Aaron',
   author_email = '',
 
+  summary = 'Just another Python package for the cheese shop',
   url = '',
   license = '',
   long_description= 'Long description of the package',

@@ -27,6 +27,7 @@ class _Query:
     self._query_lon = None
     self.pgm_scale = 1.0
     self.data = {}
+    self.datafile = None
     if instance:
       self.__dict__.update(instance.__dict__)
 
@@ -206,7 +207,7 @@ class _Context(object):
     elif self.QUERY == 'emeryville':
       return os.path.join(self.maindir, 'Research/cells/emeryville/single/')
     elif self.QUERY == 'oakland1':
-      return '/media/DATAPART1/oakland-cells'
+      return '/media/DATAPART1/oakland/cells'
     elif self.QUERY == 'q5-test' or self.QUERY == 'q4-test':
       return '/media/DATAPART1/earthmine-fa10.1-culled,r=236.6,d=167.3'
     elif self.QUERY == 'cory-4':
