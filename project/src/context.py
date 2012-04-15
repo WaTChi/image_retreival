@@ -114,7 +114,6 @@ class _Context(object):
 
     # UNKNOWN / DEPRECATED (used for an experiment at some time, not general)
     self.one_big_cell = 0
-    r
     self.log_failures = True
     self.do_posit = 0
     self.overlap_method = None
@@ -123,6 +122,7 @@ class _Context(object):
     self.added_error = 0
     self.pose_param = collections.defaultdict(bool)
     self.restrict_cells = False
+    self.cacheEnable = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
     self.disable_filter_step = False
