@@ -5,6 +5,7 @@ import os
 import geom
 import math
 import bisect
+import sys
 import time
 import os.path
 import query
@@ -30,7 +31,7 @@ def get_free_mem_gb():
 t_avg = multiprocessing.cpu_count()
 tmax = multiprocessing.cpu_count()
 last_sampled = 0
-thread_mem_gb = 1.3
+thread_mem_gb = 2.0
 def estimate_threads_avail():
   if os.getenv('NUM_THREADS'):
     return int(os.getenv('NUM_THREADS'))
@@ -42,6 +43,8 @@ def estimate_threads_avail():
     t_avg = t*.3 + t_avg*.7
     INFO("I think we have enough memory for %d threads" % t_avg)
   t = max(1, min(tmax, int(t_avg)))
+  if os.getenv('MAX_THREADS'):
+    return min(t, int(os.getenv('MAX_THREADS')))
   return t
 
 from config import *
@@ -108,8 +111,8 @@ def load_location(C, Q):
         points.append((lat,lon))
     return points
 
-def derive_key(closest_cells, name):
-    return (name,) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
+def derive_key(C, closest_cells, name):
+    return (name,C.params['num_neighbors'],C.params['trees']) + tuple(sorted(map(lambda (cell, dist): cell, closest_cells)))
 
 class DiscreteCell(object):
   def __init__(self):
@@ -199,11 +202,21 @@ def weight_by_distance(C, Q, matches):
   print "AFTER", distance_sort(C, Q, newmatches)[0]
   return distance_sort(C, Q, newmatches)
 
+def amb_cutoff(C, Q, matches):
+  def admit(match):
+    line = match[0][:-8]
+    lat, lon = getlatlonfromdbimagename(C, line)
+    dist = info.distance(lat, lon, Q.query_lat, Q.query_lon)
+    if dist < C.amb_cutoff + C.amb_padding:
+      return True
+    return False
+  return filter(admit, matches)
+
 def distance_sort(C, Q, matches):
   def extract_key(match):
     line = match[0]
     lat, lon = getlatlonfromdbimagename(C, line)
-    return (match[1], -info.distance(lat, lon, Q.query_lon, Q.query_lat))
+    return (match[1], -info.distance(lat, lon, Q.query_lat, Q.query_lon))
   return sorted(matches, key=extract_key, reverse=True)
 
 cache = {}
@@ -236,9 +249,12 @@ def match(C, Q):
 
     # cache for fuzz runs
     if C.cacheEnable:
-        key = derive_key(cells_in_range, Q.siftname)
+        key = derive_key(C, cells_in_range, Q.siftname)
         if key in cache:
+            print 'cache hit'
             return cache[key]
+        else:
+            print 'cache miss'
 
     # compute output file paths for the cells
 
@@ -270,8 +286,12 @@ def match(C, Q):
       comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
-    imm, rsc_ok = rerank_ransac(comb_matches, C)#, 90)
-#    imm, rsc_ok = combine_vote(comb_matches)
+    if C.disable_filter_step:
+      imm = condense2(sorted(comb_matches.iteritems(), key=lambda x: len(x[1]), reverse=True))
+      rsc_ok = True
+    else:
+      imm, rsc_ok = rerank_ransac(comb_matches, C, Q)
+
     if C.weight_by_coverage:
       ranked = weight_by_coverage(C, Q, imm)
     elif C.weight_by_distance:
@@ -291,15 +311,13 @@ def match(C, Q):
         C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
 
     # compute homography and draw images maybe
-    if C.compute_hom:
-      if MultiprocessExecution.pool:
-        MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
-      else:
-        compute_hom(C, Q, ranked, comb_matches)
+    if MultiprocessExecution.pool:
+      MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+    else:
+      compute_hom(C, Q, ranked, comb_matches)
 
     ### Query Pose Estimation ###
     match = any(check_img(C, Q, ranked[0]))
-    print matchedimg
     if (C.solve_pose and match and Q.name not in C.pose_remove) or C.pose_param['solve_bad']:
         #computePose.draw_dbimage(C, Q, matchedimg, match)
         if MultiprocessExecution.pool:
@@ -319,6 +337,12 @@ def getlatlonfromdbimagename(C, dbimg):
     
 # top entry is ranked_matches[0], etc
 def compute_hom(C, Q, ranked_matches, comb_matches):
+    match1 = any(check_img(C, Q, ranked_matches[0]))
+    if not C.compute_hom:
+      if match1:
+        return
+      if not C.log_failures:
+        return
     if C.put_into_dirs:
         udir = os.path.join(C.resultsdir, Q.name)
     else:
@@ -332,10 +356,13 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         if C.stop_on_homTrue and data.get('success'):
             break # we are done (found good homography)
         clat, clon = getlatlonfromdbimagename(C, matchedimg)
-        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-        if not os.path.exists(matchimgpath):
-            matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-            assert os.path.exists(matchimgpath)
+        matchimgpath = None
+        # XXX this sucks, since we don't have a db image abstraction
+        for ext in ['.jpg', '.JPG', '.png', '.PNG']:
+          p = os.path.join(C.dbdump, '%s%s' % (matchedimg, ext))
+          if os.path.exists(p):
+            matchimgpath = p
+        assert matchimgpath
         match = any(check_img(C, Q, ranked_matches[i-1]))
 
 #        matches = db_matches
@@ -354,7 +381,7 @@ def compute_hom(C, Q, ranked_matches, comb_matches):
         rsc_inliers = np.compress(inliers, rsc_matches).tolist()
         u = corr.count_unique_matches(rsc_inliers)
 
-        if C.drawtopcorr:
+        if C.drawtopcorr or (not match and C.log_failures):
           # draw picture
           matchoutpath = os.path.join(udir, Q.name + ';match' + str(i) + ';gt' + str(match)  + ';hom' + str(data.get('success')) + ';uniq=' + str(u) + ';inliers=' + str(float(sum(inliers))/len(matches)) + ';' + matchedimg + '.jpg')
 #          try:
@@ -383,26 +410,22 @@ def condense2(list):
 def condense3(list):
     return map(lambda x: (x[1][:-8], x[0], x[2]), list)
 
-def rerank_ransac(counts, C):
+def rerank_ransac(counts, C, Q):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
+
+    if C.amb_cutoff:
+      assert C.amb_cutoff > 1
+      old = sorted_counts
+      sorted_counts = amb_cutoff(C, Q, sorted_counts)
+      print "amb cutoff: %d -> %d" % (len(old), len(sorted_counts))
+      if not sorted_counts:
+        sorted_counts = old
+
     # tuples of (len, siftfile, matches) ordered [(1..), (2..), (3..)]
     reranked = []
     num_filt = 0
 
     for siftfile, matches in sorted_counts:
-#      if yaw_filter_deg and Q.datasource:
-#        matchedimg = siftfile[:-8]
-#        matchimgpath = os.path.join(C.dbdump, '%s.jpg' % matchedimg)
-#        if not os.path.exists(matchimgpath):
-#          matchimgpath = os.path.join(C.dbdump, '%s.JPG' % matchedimg)
-#          assert os.path.exists(matchimgpath)
-#        source = render_tags.get_image_info(matchimgpath)
-#        dyaw = source.yaw * np.pi/180
-#        qyaw = Q.datasource.yaw * np.pi/180
-#        diff = geom.anglediff(dyaw, qyaw)*180.0/np.pi
-#        if diff > yaw_filter_deg:
-#          continue
-
       # the bottom g items in 'reranked' are in their final order
       g = len(reranked) - bisect.bisect(reranked, (len(matches), None, None))
       if g >= C.ranking_min_consistent or num_filt >= C.ranking_max_considered:
@@ -432,7 +455,7 @@ def check_img(C, Q, entry):
     g,y,r,b,o = 0,0,0,0,0
     if C.QUERY == 'query1' or C.QUERY == 'query1-m' or C.QUERY == 'query1-a':
         g += check_truth(Q.name, entry[0], query1GroundTruth.matches)
-    elif C.QUERY == 'oakland1':
+    elif C.QUERY == 'oakland1' or C.QUERY == 'oak-test':
         g += check_truth(Q.name, entry[0], oakland1GroundTruth.matches)
     elif C.QUERY == 'query3' or C.QUERY == 'query3a':
         g += check_truth(Q.name, entry[0], groundtruthG.matches)
@@ -490,6 +513,7 @@ def dump_combined_matches(C, Q, stats, matchedimg, matches, cells_in_range, rsc_
     save_atomic(save, outputFilePath)
 
 def characterize(C):
+    print >>sys.stderr,"start"
     INFO("matchdir=%s" % C.matchdir)
     start = time.time()
     results = util_cs188.Counter()
@@ -561,6 +585,8 @@ def characterize(C):
     print "g:{0} y:{1} r:{2} b:{3} o:{4} = {5}, out of {6}={7}".format(g_count, y_count, r_count, b_count, o_count, total_count, count, match_rate)
 
     print "amb: {0}, ncells: {1}".format(C.ambiguity, C.ncells)
+    print C.added_error
+    print C.params
     return results, count
 
 # vim: et sw=2

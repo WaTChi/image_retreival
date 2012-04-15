@@ -16,8 +16,8 @@ C.params.update({
   'algorithm': 'kdtree',
   'checks': 1024,
   'trees': 1,
-  'vote_method': 'filter',
-  'num_neighbors': 1,
+  'vote_method': 'top_n',
+  'num_neighbors': 8,
   'dist_threshold': 70000,
   'confstring': '',
 })
@@ -33,7 +33,7 @@ C.dump_hom = 0
 C.ranking_min_consistent = 1
 C.ranking_max_considered = 30
 
-C.ncells = 9
+C.ncells = 1
 C.ambiguity = 75
 
 # Pose estimation parameters

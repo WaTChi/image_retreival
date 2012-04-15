@@ -1,4 +1,7 @@
 import sys
+import time
+import numpy as np
+import collections
 import os
 import random
 import threading
@@ -9,7 +12,7 @@ LOCAL_CACHING = False
 CACHE_PATH = os.path.expanduser('/var/tmp')
 IS_REMOTE = lambda d: LOCAL_CACHING and '.gvfs' in d or '/shiraz/' in d
 DETAIL_VERSION = str(15)
-hsv_enabled = True
+hsv_enabled = False
 
 if os.getenv('SERVER_PROTOCOL'):
   STDOUT = sys.stderr
@@ -65,11 +68,28 @@ def getcellid(cellpath):
     return cellid
   return os.path.basename(cellpath)
 
+import threading
+lock = threading.RLock()
 def INFO(x):
-  print >> STDOUT, "[%d]" % os.getpid(), datetime.today().strftime("%l:%M:%S - ") + str(x)
+  with lock:
+    print >> STDOUT, "[%d]" % os.getpid(), datetime.today().strftime("%l:%M:%S - ") + str(x)
 
 def INFO_TIMING(x):
 #  INFO(x)
   pass
+
+logs = collections.defaultdict(list)
+def report(key):
+  data = logs[key]
+#  print "KEY=%s, mean=%s, std=%f, len=%d" \
+#    % (key, np.mean(data), np.std(data), len(data))
+
+tlocal = threading.local()
+def timer_start(key):
+  tlocal.start = time.time()
+
+def timer_end(key):
+  logs[key].append(time.time() - tlocal.start)
+  report(key)
 
 # vim: et sw=2

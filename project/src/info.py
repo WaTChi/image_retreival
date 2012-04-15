@@ -3,10 +3,26 @@
 import os
 import shutil
 import math
+import random
 SIFTREGEXSTR = r'.*sift.txt$'
 CHOGREGEXSTR = r'.*chog.txt$'
 SURFREGEXSTR = r'.*surf.npy$'
 IMGREGEXSTR = r'.*.jpg$'
+
+def add_error((lat, lon), error):
+    if error is 0:
+        return (lat, lon)
+    if type(error) is dict:
+        random.seed(lat + lon + error['seed'])
+        bearingDegrees = random.uniform(0, 360)
+        error = abs(getattr(random, error['dist'])(*error['args']))**error['exponent']
+    else:
+        random.seed(lat + lon + 1)
+        bearingDegrees = random.uniform(0, 360)
+    print ">>> RANDOM BEARING >>> %d" % bearingDegrees
+    dest = moveLocation(lat, lon, error, bearingDegrees)
+    print (lat, lon), dest
+    return dest
 
 def moveLocation(lat1, lon1, d, bearingDegrees):
     """Returns a ddLocation that is d meters from view1
