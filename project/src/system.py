@@ -524,11 +524,17 @@ def characterize(C):
     r_count = 0
     b_count = 0
     o_count = 0
-    open(C.pose_param['pose_file'],'w').close()
-    open(C.pose_param['extras_file'],'w').close()
+    try:
+      open(C.pose_param['pose_file'],'w').close()
+      open(C.pose_param['extras_file'],'w').close()
+    except Exception, e:
+      INFO(e)
     for Q in C.iter_queries():
-        Q.datafile = os.path.join(C.pose_param['resultsdir'],'data_'+Q.name+'.txt')
-        open(Q.datafile,'w').close()
+        try:
+          Q.datafile = os.path.join(C.pose_param['resultsdir'],'data_'+Q.name+'.txt')
+          open(Q.datafile,'w').close()
+        except Exception, e:
+          INFO(e)
         if C.verbosity>0:
             print '-- query', Q.name, '--'
         for loc in C.locator_function(C, Q):

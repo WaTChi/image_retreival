@@ -5,6 +5,7 @@
 # holds configuration information needed to run the query
 
 import os
+import collections
 import info
 import Image
 import pixels
@@ -84,6 +85,7 @@ class _Context(object):
     self.one_big_cell = 0
     self.added_error = 0
     self.dump_hom = 0
+    self.pose_param = collections.defaultdict(bool)
     self.restrict_cells = False
     self.override_cells = False
     self.max_matches_to_analyze = 1
