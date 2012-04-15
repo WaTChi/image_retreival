@@ -1,4 +1,4 @@
-This readme outlines how to create and query against cells.
+This readme outlines how to install dependencies and run basic code. See the tutorial in project/src/tutorial for full documentation.
 
 Dependencies:
   Numpy
@@ -7,14 +7,19 @@ Dependencies:
   pyFLANN
   SciPy
   httplib
+  SIFTDemo
 
 On a Ubuntu machine, most of the dependencies can be installed using this command:
 
 	$ sudo apt-get install python-numpy python-opencv python-imaging python-scipy python-httplib2
 
-You will also have to install pyFLANN, which can be found here:
+To install pyFLANN, download and follow the instructions here:
 
 	http://www.cs.ubc.ca/~mariusm/index.php/FLANN/FLANN
+
+You also need a SIFT extractor, which can be downloaded from Lowe's web page. Once downloaded, hard code the path to the sift demo executable in project/src/client.py as the SIFT_EXEC variable.
+
+	http://www.cs.ubc.ca/~lowe/keypoints/
 
 How to run python code:
 NOTE: the python portion of this project is intended to be run from a linux machine
