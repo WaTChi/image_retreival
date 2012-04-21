@@ -1,4 +1,4 @@
-This readme outlines how to install dependencies and run basic code. See the tutorial in project/src/tutorial for full documentation.
+This readme outlines how to install dependencies and run basic code.
 
 Dependencies:
   Numpy
@@ -29,8 +29,4 @@ NOTE: the python portion of this project is intended to be run from a linux mach
           [filename].[methodname]([args])
           [ctrl-d to exit python interpreter when done]
     
-To get started, see the mini-tutorial in:
-
-	project/src/tutorial
-
-for information on how to setup a basic image query pipeline from scratch.
+See the mini-tutorial in QueryTutorial.pdf for information on how to setup a basic image query pipeline from scratch.
