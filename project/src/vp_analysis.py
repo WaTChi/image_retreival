@@ -41,7 +41,7 @@ def getQNyaws(C, Q, qimg, dimg, qsource, tyaw):
         print 'Computed normal bearings: ' + str([int(round(vn)) for vn in vnorms])
 
 
-    return vyaw, yawconf, vps, vpcenters, vnorms, vpconfs, nqvps
+    return vyaw, vnorms
 
 
 def VPNfromDatabase(C, Q, dimg, vp_threshold):
@@ -380,6 +380,7 @@ def LfromVP(vp,midpts,lineqs,lengths,maxangle):
 def LfromLSD(path, img, Kcal):
 
     # load lines; if not already generated, run LSD
+    if not os.path.isdir(os.path.dirname(path)): os.path.mkdir(os.path.dirname(path))
     if not os.path.isfile(path):
         callLSD(path, img)
     lines = loadLines(path)

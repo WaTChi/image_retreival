@@ -68,24 +68,21 @@ C.pose_remove = [ '2011-04-04_15-50-21_519' , '2011-04-04_15-22-31_544' ,
 #                  # STRICT ELIMINATION #
 C.pose_param = {
     'resultsdir'    : '/media/DATAPART2/ah/pose_runs/berkeley',
-    'run_info'      : '/media/DATAPART2/ah/pose_runs/berkeley/run_info.txt',
-    'pose_file'     : '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt',
-    'extras_file'   : '/media/DATAPART2/ah/pose_runs/berkeley/extras.txt',
+    'run_info'      : 'run_info.txt',
+    'pose_file'     : 'pose_results.txt',
+    'extras_file'   : 'extras.txt',
     'cheat'         : False,
     'runflag'       : 11,
     'remove_ground' : False,
     'use_weight'    : True,
     'solve_bad'     : True,
-    'maxmatch'      : 1,
     'maxratio'      : 0.8,
-    'maxdist'       : 10**7,
-    'ransac_iter'   : 10**7,
+    'ransac_iter'   : 10**5,
     'inlier_error'  : 0.01 }
 
 
 # SUBSELECTIONS
-#C.selection = ['2011-04-04_15-32-28_500']
-#C.selection = ['2011-04-04_15-20-49_89']
+#C.selection = ['2011-04-04_15-32-28_500','2011-04-04_15-20-49_89']
 
 # Run in debug mode or parallel
 debug = True
