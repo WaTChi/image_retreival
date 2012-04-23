@@ -56,27 +56,20 @@ C.pose_remove = [ '2011-10-28_12-45-09_775' , '2011-10-28_12-23-24_368' ,
 #                  # STRICT ELIMINATION #
 C.pose_param = {
     'resultsdir'    : '/media/DATAPART2/ah/pose_runs/oakland',
-    'run_info'      : '/media/DATAPART2/ah/pose_runs/oakland/run_info.txt',
-    'pose_file'     : '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt',
-    'extras_file'   : '/media/DATAPART2/ah/pose_runs/oakland/extras.txt',
+    'run_info'      : 'run_info.txt',
+    'pose_file'     : 'pose_results.txt',
+    'extras_file'   : 'extras.txt',
     'cheat'         : False,
     'runflag'       : 11,
     'remove_ground' : True,
     'use_weight'    : True,
     'solve_bad'     : False,
-    'maxmatch'      : 1,
     'maxratio'      : 0.8,
-    'maxdist'       : 10**7,
-    'ransac_iter'   : 10**7,
+    'ransac_iter'   : 10**5,
     'inlier_error'  : 0.01 }
 
-
 # SUBSELECTIONS
-#C.selection = ['2011-10-28_13-00-41_047']
-#C.selection = ['2011-10-28_11-59-08_593']
-#C.selection = ['2011-10-28_11-59-08_593']
-### For checking dyaw weighting ###
-#C.selection = ['2011-10-28_12-56-32_511','2011-10-28_12-39-00_773','2011-10-28_12-02-44_400','2011-10-28_12-02-23_300']
+C.selection = ['2011-10-28_13-00-41_047','2011-10-28_11-59-08_593']
 
 debug = True
 try: print 'Query selection size: %d' % len(C.selection)

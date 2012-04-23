@@ -40,8 +40,8 @@ def highresSift(C, Q, dbmatch):
     qsift = os.path.join(C.querydir,'hires',qname+'sift.txt')
 
     # high res rematch parameters
-    maxangle = np.pi/3
-    maxmatch, maxratio, maxdist = C.pose_param['maxmatch'], C.pose_param['maxratio'], C.pose_param['maxdist']
+    maxmatch, maxangle, maxdist = 1, np.pi/3, 10**7
+    maxratio = C.pose_param['maxratio']
 
     # rematch file
     filename = qname + ';' + dbmatch + ';maxratio=' + str(maxratio) + \
@@ -52,6 +52,7 @@ def highresSift(C, Q, dbmatch):
 
     ### HIGH RES REMATCH ###
     matches = {}
+    if not os.path.isdir(os.path.dirname(hrRematchFile)): os.path.mkdir(os.path.dirname(hrRematchFile))
     if os.path.isfile(hrRematchFile): # load nearest neighbor data
         print 'Loading high-res sift matches...'
         match_data = np.load(hrRematchFile)
@@ -301,6 +302,7 @@ def find_dbplanes(C, Q, dbmatch, Kdinv, wRd):
     print 'Finding database planes...'
     if C.QUERY != 'oakland1': return ( np.zeros(0), np.zeros(0), np.zeros((0,5)) )
     planefile = os.path.join(C.hiresdir,'planes',dbmatch+'-planes.npz')
+    if not os.path.isdir(os.path.dirname(planefile)): os.path.mkdir(os.path.dirname(planefile))
     if os.path.isfile(planefile):
         pf_info = np.load(planefile);
         planes, sizes, params = pf_info['planes'], pf_info['sizes'], pf_info['params']
@@ -373,24 +375,14 @@ def planefrom3d(C, Q, dbmatch, domplane, Kdinv, wRd):
     return np.array([prm[0],0,prm[1],prm[2],err])
 
 
-def combine_planes(runflag,vnorms,vpconfs,dplanes,dsizes,dprms):
+def combine_planes(runflag,vnorms,dplanes,dsizes,dprms):
+    # make a list of vp planes and db planes
     pyaws, planes, pconfs = np.zeros(0), np.zeros(0,np.int), np.zeros(0)
-    rmidx = np.nonzero(vpconfs<0.51)[0]
-    vnorms, vpconfs = np.delete(vnorms,rmidx), np.delete(vpconfs,rmidx)
     while len(vnorms) > 0 and runflag > 6:
         vyaw = vnorms[0]
-        #dyaws = 180/np.pi*np.arctan2(dprms[:,0],dprms[:,2])
-        #diffs = np.mod(vyaw-dyaws,360)
-        #diffs[diffs>180] = 360-diffs[diffs>180]
-        #mask = diffs < 10
-        #plane, psize = dplanes[mask], dsizes[mask]
-        pyaws, pconfs = np.append(pyaws,vyaw), np.append(pconfs,vpconfs[0])
+        pyaws, pconfs = np.append(pyaws,vyaw), np.append(pconfs,0)
         planes = np.append(planes,-1)
-        #if len(plane)==0: planes = np.append(planes,-1)
-        #else: planes = np.append(planes,plane[np.argmax(psize)])
-        vnorms, vpconfs = np.delete(vnorms,0), np.delete(vpconfs,0)
-        #rmidx = np.nonzero(mask)[0]
-        #if len(rmidx)>0: dplanes, dsizes, dprms = np.delete(dplanes,rmidx), np.delete(dsizes,rmidx), np.delete(dprms,rmidx,0)
+        vnorms  = np.delete(vnorms,0)
     while len(dplanes) > 0:
         dyaw = np.mod(180/np.pi*np.arctan2(dprms[0,0],dprms[0,2]),360)
         if dprms[0,-1] < 3:
@@ -405,15 +397,18 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
     param = C.pose_param
     runflag = param['runflag']
     np.seterr(all='ignore')
+    Q.datafile = os.path.join(C.pose_param['resultsdir'],'data_'+Q.name+'.txt')
+    open(Q.datafile,'w').close()
 
     #####-----    PRINT RUN DETAILS    -----#####
-    open(param['run_info'],'w').close()
-    with open(param['run_info'],'a') as run_info:
-        if runflag == 11:   print >>run_info, 'Method: Yaw, planes from VPs. Scale computed with homography.'
-        elif runflag == 10: print >>run_info, 'Method: Yaw, planes from VPs. Scale computed after homography.'
-        if param['cheat']:  print >>run_info, 'Ground truth yaw and plane used (cheating).'
-        print >>run_info, 'Inlier base error threshold: %.3f' % param['inlier_error']
-        print >>run_info, 'Base iteration scale: %d' % param['ransac_iter']
+    run_info = os.path.join(param['resultsdir'],param['run_info'])
+    open(run_info,'w').close()
+    with open(run_info,'a') as ri:
+        if runflag == 11:   print >>ri, 'Method: Yaw, planes from VPs. Scale computed with homography.'
+        elif runflag == 10: print >>ri, 'Method: Yaw, planes from VPs. Scale computed after homography.'
+        if param['cheat']:  print >>ri, 'Ground truth yaw and plane used (cheating).'
+        print >>ri, 'Inlier base error threshold: %.3f' % param['inlier_error']
+        print >>ri, 'Base iteration scale: %d' % param['ransac_iter']
     #####-----    PRINT RUN DETAILS    -----#####
 
     # get high res db image and sift paths
@@ -440,7 +435,7 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
     gzx = geom.lltom(olat,olon,glat,glon)
     timename = qname[-12:-10]+qname[-9:-7]+qname[-6:-4]#+qname[-3:]
 
-    # Set Kq, wRq
+    # Set Kq
     wx,wy = qsource.image.size
     fov = qsource.fov
     Kq = geom.cameramat(wx, wy, fov)
@@ -459,13 +454,13 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 
     # get query yaw and plane yaw from vanishing point anaylsis
     yawforvp = tyaw if param['cheat'] else np.nan
-    vyaw, vyawconf, vps, vpcenters, vnorms, vpconfs, nqvps = vp_analysis.getQNyaws(C, Q, qimg, dbimg, qsource, yawforvp) 
+    vyaw, vnorms = vp_analysis.getQNyaws(C, Q, qimg, dbimg, qsource, yawforvp) 
 
     # get dominant planes
     dplanes, psizes, planeprms = find_dbplanes(C, Q, dbmatch, Kdinv, wRd)
     
     # match vanishing point planes to database planes
-    pyaws, planes, pconfs = combine_planes(runflag,vnorms,vpconfs,dplanes,psizes,planeprms)
+    pyaws, planes, pconfs = combine_planes(runflag,vnorms,dplanes,psizes,planeprms)
 
     print 'VP and DB Planes: ' + str(np.int_(pyaws)) + ', ' + str(planes)
 
@@ -477,7 +472,7 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
             print >>df, 'Plane Yaw | DB plane | Confidence | Error : %3.0f | %d | %.2f | %.0f' % (pyaws[i],0 if planes[i]<0 else planes[i],pconfs[i],perr)
         yerr = np.round(np.mod(vyaw-tyaw,360))
         yerr = yerr if yerr<180 else 360-yerr
-        print >>df, 'VP Yaw | Confidence | Error : %3.0f | %.2f | %.0f' % (vyaw,vyawconf,yerr)
+        print >>df, 'VP Yaw | Confidence | Error : %3.0f | %.2f | %.0f' % (vyaw,np.nan,yerr)
         print >>df, 'Cell yaw | True yaw | Plane : %3.0f | %3.0f  | %3.0f' % (cyaw,tyaw,tnorm)
         print >>df, ''
 
@@ -501,9 +496,9 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
     vyaw_err = vyaw_err if vyaw_err<180 else 360-vyaw_err
     dbears = np.mod( 180/np.pi*np.arctan2(planeprms[:,0],planeprms[:,2]) , 360 )
     print 'Computed / ground truth cell phone yaw: %.0f / %.0f' % (vyaw,tyaw)
-    with open(param['extras_file'],'a') as extras_file:
-        print >>extras_file, '\t'.join([timename, '%.0f' % tnorm, '%.0f' % np.round(tyaw), '%.0f' % cyaw, '%.0f' % vyaw, '%.4f'%vyawconf, str(vyaw_err)])
-        print >>extras_file, '\t'.join([ '%.4f' % vpconf for vpconf in vpconfs ])
+    with open(os.path.join(param['resultsdir'],param['extras_file']),'a') as extras_file:
+        print >>extras_file, '\t'.join([timename, '%.0f' % tnorm, '%.0f' % np.round(tyaw), '%.0f' % cyaw, '%.0f' % vyaw, '%.4f'%np.nan, str(vyaw_err)])
+        print >>extras_file, '\t'.join([ '%.4f' % 0 for vnorm in vnorms ])
         print >>extras_file, '\t'.join([ '%.0f'   % vnorm  for vnorm  in vnorms  ])
         print >>extras_file, '\t'.join([ '%.0f'   % plane  for plane  in planes  ])
         print >>extras_file, '\t'.join([ '%.0f'   % dplane for dplane in dplanes ])
@@ -547,24 +542,12 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
             viter[2] = matches['viter']
         if matches['numi'] == 0 or matches['hconf'] == 0:
             ntry, planechose = 4, 0
-    
+
+    # save matches to disk
     matches_file = os.path.join(param['resultsdir'],'matches_'+qname+'.pkl')
     matches_out = open(matches_file,'wb')
     pickle.dump(matches,matches_out)
     matches_out.close()
-    
-#    pose = np.zeros(6)
-#    pose[3:5] = np.nan
-#    matches['runflag'] = runflag
-#    matches['hconf'] = 0
-#    matches['numi'] = 0
-#    matches['rperr'] = np.inf
-#    matches['viter'] = 0
-#    matches['niter'] = 1
-#    planechose = 0
-    
-#    with open(Q.datafile,'a') as df:
-#        print >>df, '|'.join([str(v) for v in viter])
     
     # extract pose parameters
     comp_runflag = matches['runflag']
@@ -598,8 +581,9 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
 
     # write pose estimation results to file
     yaw_err = np.nan
-    with open(param['pose_file'],'a') as pose_file:
-        print >>pose_file, '\t'.join([qname, str(loc_err), str(gps_err), \
+    pose_file = os.path.join(param['resultsdir'],param['pose_file'])
+    with open(pose_file,'a') as pf:
+        print >>pf, '\t'.join([qname, str(loc_err), str(gps_err), \
             str(tyaw_error), str(qyaw_error), str(nyaw_error), str(matches['numi']), \
             str(matches['numq']), str(matches['nmat']), str(matches['hconf']), \
             str(qloc[0]), str(qloc[2]), str(yaw_err), str(runflag)])
