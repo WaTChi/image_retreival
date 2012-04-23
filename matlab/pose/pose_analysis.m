@@ -1,12 +1,12 @@
-function pose_analysis(lrnum,setnum,gps,yaw)
+function pose_analysis(runnum,setnum,gps)
 
-% function pose_analysis(lrnum,set,gps)
-% lrnum  - lastrun number (0 = last, >0 is number appended to folder)
+% function pose_analysis(runnum,setnum,gps)
+% runnum - run number (0 = last, >0 is number appended to folder)
 % setnum - set number (10+i for set i in Oakland, i for set i in Berkeley)
 % gps    - flag for displaying gps error
 
-if ~exist('lrnum','var')
-    lrnum = 0;
+if ~exist('runnum','var')
+    runnum = 0;
 end
 if ~exist('setnum','var')
     setnum = 11;
@@ -17,24 +17,24 @@ end
 if ~exist('yaw','var')
     yaw = false;
 end
-fig_offset = 100*(setnum<10) + 10*lrnum;
+fig_offset = 100*(setnum<10) + 10*runnum;
 if setnum < 10
-    if lrnum == 0
+    if runnum == 0
         file = 'Z:\ah\pose_runs\berkeley\pose_results.txt';
-%         file = '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt';
+        file = '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt';
 %         gps = true; yaw = true;
     else
-        file = ['Z:\ah\pose_runs\berkeley',num2str(lrnum),'\pose_results.txt'];
-%         file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(lrnum),'/pose_results.txt'];
+        file = ['Z:\ah\pose_runs\berkeley',num2str(runnum),'\pose_results.txt'];
+        file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/pose_results.txt'];
     end
 else
-    if lrnum == 0
+    if runnum == 0
         file = 'Z:\ah\pose_runs\oakland\pose_results.txt';
-%         file = '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt';
+        file = '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt';
 %         gps = true; yaw = true;
     else
-        file = ['Z:\ah\pose_runs\oakland',num2str(lrnum),'\pose_results.txt'];
-%         file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(lrnum),'/pose_results.txt'];
+        file = ['Z:\ah\pose_runs\oakland',num2str(runnum),'\pose_results.txt'];
+        file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/pose_results.txt'];
     end
 end
 % % Remove specified queries
@@ -92,7 +92,7 @@ xlim([0,xmax])
 ylim([0,100])
 set(gca,'XTick',[0:xtick:xmax])
 
-% Plot GPS error if lrnum = 0 or gps flag is set
+% Plot GPS error if runnum = 0 or gps flag is set
 if gps
     err = results(:,3);
     err(err>100) = 100;

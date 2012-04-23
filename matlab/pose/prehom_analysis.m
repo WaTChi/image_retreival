@@ -1,29 +1,33 @@
-function prehom_analysis(runflag,setnum)
+function prehom_analysis(runnum,setnum)
+
+% function prehom_analysis(runnum,setnum)
+% runnum - run number (0 = last, >0 is number appended to folder)
+% setnum - set number (10+i for set i in Oakland, i for set i in Berkeley)
 
 if nargin < 2
     setnum = 11;
 end
 if nargin < 1
-    runflag = 0;
+    runnum = 0;
 end
 oakland = setnum > 10;
 
 % import data
 if setnum < 10
-    if runflag == 0
+    if runnum == 0
         file = 'Z:\ah\pose_runs\berkeley\extras.txt';
-%         file = '/media/DATAPART2/ah/pose_runs/berkeley/extras.txt';
+        file = '/media/DATAPART2/ah/pose_runs/berkeley/extras.txt';
     else
-        file = ['Z:\ah\pose_runs\berkeley',num2str(runflag),'\extras.txt'];
-%         file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runflag),'/extras.txt'];
+        file = ['Z:\ah\pose_runs\berkeley',num2str(runnum),'\extras.txt'];
+        file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/extras.txt'];
     end
 else
-    if runflag == 0
+    if runnum == 0
         file = 'Z:\ah\pose_runs\oakland\extras.txt';
-%         file = '/media/DATAPART2/ah/pose_runs/oakland/extras.txt';
+        file = '/media/DATAPART2/ah/pose_runs/oakland/extras.txt';
     else
-        file = ['Z:\ah\pose_runs\oakland',num2str(runflag),'\extras.txt'];
-%         file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runflag),'/extras.txt'];
+        file = ['Z:\ah\pose_runs\oakland',num2str(runnum),'\extras.txt'];
+        file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/extras.txt'];
     end
 end
 prehom = importdata(file);
