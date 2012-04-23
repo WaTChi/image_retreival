@@ -87,6 +87,8 @@ class _Context(object):
     # FLANN params
     self.params = query.PARAMS_DEFAULT.copy()
 
+    # how big the cells are * IMPORTANT *
+    self.cellradius = 236.6
     # estimated ambiguity of query (kinda ill defined, assume 99th percentile)
     self.ambiguity = 75
     # amount of distance to add to ambiguity radius to pick cells
@@ -105,7 +107,6 @@ class _Context(object):
     self._test_d = None
     self.solve_pose = 0 # aaron's code?
     self._dbdir = False # override dbdir if one for self.QUERY not hardcoded here
-    self.cellradius = 236.6 # cell radius
     self.ranking_max_considered = 30 # max number number to rerank by ransac
     self.tagcompute = True # false is like NO_HOM, NO_DRAW
     self.show_feature_pairs = True # draw them or not

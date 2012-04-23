@@ -18,6 +18,10 @@ import threading
 import numpy as np
 import os
 
+# This is the recommended default setup, and has
+# been tuned for optimal operation. If you are not
+# combining many cells, setting num_neighbors > 1
+# may help with performance.
 PARAMS_DEFAULT = {
   'algorithm': 'kdtree',
   'trees': 1,
