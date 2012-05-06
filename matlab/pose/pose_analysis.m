@@ -21,20 +21,22 @@ fig_offset = 100*(setnum<10) + 10*runnum;
 if setnum < 10
     if runnum == 0
         file = 'Z:\ah\pose_runs\berkeley\pose_results.txt';
-        file = '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt';
+%         file = '/media/DATAPART2/ah/pose_runs/berkeley/pose_results.txt';
 %         gps = true; yaw = true;
     else
         file = ['Z:\ah\pose_runs\berkeley',num2str(runnum),'\pose_results.txt'];
-        file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/pose_results.txt'];
+%         file =
+%         ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/pose_results.txt'];
     end
 else
     if runnum == 0
         file = 'Z:\ah\pose_runs\oakland\pose_results.txt';
-        file = '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt';
+%         file = '/media/DATAPART2/ah/pose_runs/oakland/pose_results.txt';
 %         gps = true; yaw = true;
     else
         file = ['Z:\ah\pose_runs\oakland',num2str(runnum),'\pose_results.txt'];
-        file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/pose_results.txt'];
+%         file =
+%         ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/pose_results.txt'];
     end
 end
 % % Remove specified queries
@@ -62,6 +64,7 @@ end
 % fclose(fid);
 
 % Import pose results
+disp(file)
 results = importdata(file);
 % results(idx,:) = [];
 
@@ -76,7 +79,7 @@ end
 mincount = 0;
 
 % Plot location error
-err = results(:,2);
+err = results(:,2); expv = err(err<25);
 err(err>100) = 100;
 figure(fig_offset+1), clf, hold on
 count = cumsum(hist(err,bins));
@@ -91,6 +94,8 @@ end
 xlim([0,xmax])
 ylim([0,100])
 set(gca,'XTick',[0:xtick:xmax])
+
+expv = sqrt(mean(expv.^2))
 
 % Plot GPS error if runnum = 0 or gps flag is set
 if gps

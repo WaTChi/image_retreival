@@ -1,0 +1,35 @@
+function [qLat,qLon] = getQueryLocation(query,set)
+
+if set>3
+    
+    % read xml contents
+    qdir = ['Z:\query',num2str(set),'\'];
+    fn_base = query(1:end-8);
+    fn = [qdir,'imageotag_',fn_base,'.xml'];
+    try
+    fid = fopen(fn);
+    text = fscanf(fid,'%s');
+    catch e
+        fn
+        throw(e)
+    en
+    fclose(fid);
+    
+    % search for latitude
+    idx1 = strfind(text,'<gps_latitude>');
+    idx2 = strfind(text,'</gps_latitude>');
+    qLat = str2double(text(idx1+14:idx2-1));
+    
+    % search for longitude
+    idx1 = strfind(text,'<gps_longitude>');
+    idx2 = strfind(text,'</gps_longitude>');
+    qLon = str2double(text(idx1+15:idx2-1));
+    
+else % sets 1,2,3
+    
+    % parse file name format
+    idx = strfind(query,',');
+    qLat = str2double(query(idx(1)+1:idx(2)-1));
+    qLon = str2double(query(idx(2)+1:end-8));
+    
+end

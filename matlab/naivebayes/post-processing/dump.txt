@@ -1,0 +1,1456 @@
+gtTrue: DSC_5443,37.873770,-122.268420
+ file: 2011-01-12_12-54-43_843.jpg
+ time: 1294865683843
+ gps accuracy: 6.708204
+ lat: 37.87377
+ lon: -122.26842
+ alt: 24.3
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 250.0
+ roll: -3.0
+gtTrue: DSC_5458,37.873665,-122.268425
+ file: 2011-01-12_12-54-58_593.jpg
+ time: 1294865698593
+ gps accuracy: 3.6055512
+ lat: 37.873665
+ lon: -122.268425
+ alt: 24.5
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -94.0
+ yaw: 213.0
+ roll: -1.0
+gtTrue: DSC_5516,37.873505,-122.268410
+ file: 2011-01-12_12-55-16_544.jpg
+ time: 1294865716544
+ gps accuracy: 2.828427
+ lat: 37.873505
+ lon: -122.26841
+ alt: 24.0
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -102.0
+ yaw: 290.0
+ roll: -3.0
+gtTrue: DSC_5525,37.873444,-122.268410
+ file: 2011-01-12_12-55-25_079.jpg
+ time: 1294865725079
+ gps accuracy: 2.828427
+ lat: 37.873444
+ lon: -122.26841
+ alt: 25.5
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -95.0
+ yaw: 216.0
+ roll: -2.0
+gtTrue: DSC_5536,37.873356,-122.268390
+ file: 2011-01-12_12-55-36_316.jpg
+ time: 1294865736316
+ gps accuracy: 3.6055512
+ lat: 37.873356
+ lon: -122.26839
+ alt: 26.1
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -95.0
+ yaw: 257.0
+ roll: -2.0
+gtTrue: DSC_5543,37.873287,-122.268394
+ file: 2011-01-12_12-55-43_983.jpg
+ time: 1294865743983
+ gps accuracy: 3.6055512
+ lat: 37.873287
+ lon: -122.268394
+ alt: 28.0
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 220.0
+ roll: -3.0
+gtTrue: DSC_5554,37.873200,-122.268390
+ file: 2011-01-12_12-55-54_399.jpg
+ time: 1294865754399
+ gps accuracy: 3.6055512
+ lat: 37.8732
+ lon: -122.26839
+ alt: 29.8
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -97.0
+ yaw: 118.0
+ roll: -0.0
+gtFalse: DSC_5626,37.872960,-122.268410
+ file: 2011-01-12_12-56-26_671.jpg
+ time: 1294865786671
+ gps accuracy: 4.2426405
+ lat: 37.87296
+ lon: -122.26841
+ alt: 31.1
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -97.0
+ yaw: 234.0
+ roll: -1.0
+gtTrue: DSC_5701,37.872810,-122.268394
+ file: 2011-01-12_12-57-01_306.jpg
+ time: 1294865821306
+ gps accuracy: 2.828427
+ lat: 37.87281
+ lon: -122.268394
+ alt: 30.1
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -96.0
+ yaw: 222.0
+ roll: -2.0
+gtTrue: DSC_5720,37.872585,-122.268364
+ file: 2011-01-12_12-57-20_544.jpg
+ time: 1294865840544
+ gps accuracy: 4.2426405
+ lat: 37.872585
+ lon: -122.268364
+ alt: 30.0
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -97.0
+ yaw: 266.0
+ roll: -4.0
+gtTrue: DSC_5723,37.872597,-122.268380
+ file: 2011-01-12_12-57-23_515.jpg
+ time: 1294865843515
+ gps accuracy: 5.0
+ lat: 37.872597
+ lon: -122.26838
+ alt: 31.2
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -95.0
+ yaw: 250.0
+ roll: -2.0
+gtTrue: DSC_5728,37.872590,-122.268390
+ file: 2011-01-12_12-57-28_517.jpg
+ time: 1294865848517
+ gps accuracy: 8.485281
+ lat: 37.87259
+ lon: -122.26839
+ alt: 31.6
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -95.0
+ yaw: 216.0
+ roll: -2.0
+gtTrue: DSC_5851,37.871630,-122.267654
+ file: 2011-01-12_12-58-51_941.jpg
+ time: 1294865931941
+ gps accuracy: 26.832815
+ lat: 37.87163
+ lon: -122.267654
+ alt: -23.4
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -95.0
+ yaw: 353.0
+ roll: -1.0
+gtTrue: DSC_5902,37.872013,-122.268105
+ file: 2011-01-12_12-59-02_946.jpg
+ time: 1294865942946
+ gps accuracy: 14.422205
+ lat: 37.872013
+ lon: -122.268105
+ alt: 30.0
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -100.0
+ yaw: 15.0
+ roll: -1.0
+gtTrue: DSC_5932,37.872070,-122.267914
+ file: 2011-01-12_12-59-32_203.jpg
+ time: 1294865972203
+ gps accuracy: 13.416408
+ lat: 37.87207
+ lon: -122.267914
+ alt: 33.6
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -101.0
+ yaw: 12.0
+ roll: -1.0
+gtTrue: DSC_5938,37.872063,-122.267890
+ file: 2011-01-12_12-59-38_138.jpg
+ time: 1294865978138
+ gps accuracy: 16.970562
+ lat: 37.872063
+ lon: -122.26789
+ alt: 33.3
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -98.0
+ yaw: 106.0
+ roll: -1.0
+gtTrue: DSC_5953,37.871960,-122.267670
+ file: 2011-01-12_12-59-53_532.jpg
+ time: 1294865993532
+ gps accuracy: 10.0
+ lat: 37.87196
+ lon: -122.26767
+ alt: 35.6
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -97.0
+ yaw: 122.0
+ roll: -1.0
+gtTrue: DSC_0059,37.871840,-122.267620
+ file: 2011-01-12_13-00-59_287.jpg
+ time: 1294866059287
+ gps accuracy: 7.2111025
+ lat: 37.87184
+ lon: -122.26762
+ alt: 29.0
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 246.0
+ roll: -4.0
+gtTrue: DSC_0109,37.871727,-122.267586
+ file: 2011-01-12_13-01-09_772.jpg
+ time: 1294866069772
+ gps accuracy: 6.708204
+ lat: 37.871727
+ lon: -122.267586
+ alt: 26.5
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -100.0
+ yaw: 250.0
+ roll: -5.0
+gtTrue: DSC_0115,37.871677,-122.267560
+ file: 2011-01-12_13-01-15_494.jpg
+ time: 1294866075494
+ gps accuracy: 7.2111025
+ lat: 37.871677
+ lon: -122.26756
+ alt: 26.8
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -101.0
+ yaw: 236.0
+ roll: -1.0
+gtTrue: DSC_0139,37.871440,-122.267650
+ file: 2011-01-12_13-01-39_109.jpg
+ time: 1294866099109
+ gps accuracy: 6.708204
+ lat: 37.87144
+ lon: -122.26765
+ alt: 32.3
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 242.0
+ roll: -2.0
+gtTrue: DSC_0152,37.871365,-122.267555
+ file: 2011-01-12_13-01-52_108.jpg
+ time: 1294866112108
+ gps accuracy: 10.0
+ lat: 37.871365
+ lon: -122.267555
+ alt: 28.8
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 107.0
+ roll: 1.0
+gtTrue: DSC_0218,37.871426,-122.267350
+ file: 2011-01-12_13-02-18_406.jpg
+ time: 1294866138406
+ gps accuracy: 7.2111025
+ lat: 37.871426
+ lon: -122.26735
+ alt: 30.6
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -108.0
+ yaw: 129.0
+ roll: -1.0
+gtTrue: DSC_0406,37.871270,-122.268234
+ file: 2011-01-12_13-04-06_649.jpg
+ time: 1294866246649
+ gps accuracy: 3.6055512
+ lat: 37.87127
+ lon: -122.268234
+ alt: 29.8
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -100.0
+ yaw: 245.0
+ roll: -2.0
+gtTrue: DSC_0425,37.871500,-122.268280
+ file: 2011-01-12_13-04-25_068.jpg
+ time: 1294866265068
+ gps accuracy: 6.708204
+ lat: 37.8715
+ lon: -122.26828
+ alt: 29.5
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -99.0
+ yaw: 250.0
+ roll: -0.0
+gtTrue: DSC_0436,37.871610,-122.268270
+ file: 2011-01-12_13-04-36_065.jpg
+ time: 1294866276065
+ gps accuracy: 5.0
+ lat: 37.87161
+ lon: -122.26827
+ alt: 33.1
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -98.0
+ yaw: 269.0
+ roll: -1.0
+gtTrue: DSC_0455,37.871784,-122.268290
+ file: 2011-01-12_13-04-55_179.jpg
+ time: 1294866295179
+ gps accuracy: 4.2426405
+ lat: 37.871784
+ lon: -122.26829
+ alt: 35.6
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 259.0
+ roll: -2.0
+gtTrue: DSC_0512,37.871746,-122.268270
+ file: 2011-01-12_13-05-12_034.jpg
+ time: 1294866312034
+ gps accuracy: 4.2426405
+ lat: 37.871746
+ lon: -122.26827
+ alt: 34.5
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -104.0
+ yaw: 134.0
+ roll: -0.0
+gtTrue: DSC_0822,37.872013,-122.269690
+ file: 2011-01-12_13-08-22_014.jpg
+ time: 1294866502014
+ gps accuracy: 8.944272
+ lat: 37.872013
+ lon: -122.26969
+ alt: 45.9
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -100.0
+ yaw: 6.0
+ roll: -1.0
+gtTrue: DSC_0832,37.871983,-122.269714
+ file: 2011-01-12_13-08-32_246.jpg
+ time: 1294866512246
+ gps accuracy: 6.3245554
+ lat: 37.871983
+ lon: -122.269714
+ alt: 40.3
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -94.0
+ yaw: 279.0
+ roll: -2.0
+gtTrue: DSC_1002,37.871845,-122.270690
+ file: 2011-01-12_13-10-02_744.jpg
+ time: 1294866602744
+ gps accuracy: 3.6055512
+ lat: 37.871845
+ lon: -122.27069
+ alt: 40.3
+ net accuracy: 1447.0
+ net lat: 37.874096
+ net lon: -122.272934
+ pitch: -94.0
+ yaw: 222.0
+ roll: -2.0
+gtTrue: DSC_1111,37.870968,-122.270570
+ file: 2011-01-12_13-11-11_425.jpg
+ time: 1294866671425
+ gps accuracy: 8.944272
+ lat: 37.870968
+ lon: -122.27057
+ alt: 22.4
+ net accuracy: 1149.0
+ net lat: 37.869114
+ net lon: -122.26983
+ pitch: -98.0
+ yaw: 200.0
+ roll: -2.0
+gtTrue: DSC_1140,37.870968,-122.270424
+ file: 2011-01-12_13-11-40_771.jpg
+ time: 1294866700771
+ gps accuracy: 6.708204
+ lat: 37.870968
+ lon: -122.270424
+ alt: 26.2
+ net accuracy: 1149.0
+ net lat: 37.869114
+ net lon: -122.26983
+ pitch: -106.0
+ yaw: 168.0
+ roll: -1.0
+gtTrue: DSC_1327,37.870120,-122.270570
+ file: 2011-01-12_13-13-27_732.jpg
+ time: 1294866807732
+ gps accuracy: 8.485281
+ lat: 37.87012
+ lon: -122.27057
+ alt: 38.7
+ net accuracy: 1149.0
+ net lat: 37.865444
+ net lon: -122.26898
+ pitch: -102.0
+ yaw: 100.0
+ roll: -2.0
+gtTrue: DSC_1413,37.869892,-122.270490
+ file: 2011-01-12_13-14-13_742.jpg
+ time: 1294866853742
+ gps accuracy: 7.2111025
+ lat: 37.869892
+ lon: -122.27049
+ alt: 28.4
+ net accuracy: 1149.0
+ net lat: 37.865444
+ net lon: -122.26898
+ pitch: -104.0
+ yaw: 212.0
+ roll: -3.0
+gtTrue: DSC_1509,37.869137,-122.270560
+ file: 2011-01-12_13-15-09_579.jpg
+ time: 1294866909579
+ gps accuracy: 5.0
+ lat: 37.869137
+ lon: -122.27056
+ alt: 33.8
+ net accuracy: 1734.0
+ net lat: 37.869747
+ net lon: -122.27309
+ pitch: -105.0
+ yaw: 252.0
+ roll: -2.0
+gtTrue: DSC_1526,37.869083,-122.270370
+ file: 2011-01-12_13-15-26_075.jpg
+ time: 1294866926075
+ gps accuracy: 6.708204
+ lat: 37.869083
+ lon: -122.27037
+ alt: 42.3
+ net accuracy: 1734.0
+ net lat: 37.869747
+ net lon: -122.27309
+ pitch: -103.0
+ yaw: 138.0
+ roll: -1.0
+gtTrue: DSC_1709,37.868240,-122.270280
+ file: 2011-01-12_13-17-09_238.jpg
+ time: 1294867029238
+ gps accuracy: 3.6055512
+ lat: 37.86824
+ lon: -122.27028
+ alt: 30.4
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -93.0
+ yaw: 144.0
+ roll: 2.0
+gtTrue: DSC_1717,37.868220,-122.270270
+ file: 2011-01-12_13-17-17_085.jpg
+ time: 1294867037085
+ gps accuracy: 3.6055512
+ lat: 37.86822
+ lon: -122.27027
+ alt: 29.8
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -99.0
+ yaw: 87.0
+ roll: -0.0
+gtTrue: DSC_1836,37.867390,-122.270240
+ file: 2011-01-12_13-18-36_356.jpg
+ time: 1294867116356
+ gps accuracy: 8.5440035
+ lat: 37.86739
+ lon: -122.27024
+ alt: 21.6
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -104.0
+ yaw: 260.0
+ roll: -4.0
+gtTrue: DSC_1900,37.867287,-122.270164
+ file: 2011-01-12_13-19-00_435.jpg
+ time: 1294867140435
+ gps accuracy: 4.472136
+ lat: 37.867287
+ lon: -122.270164
+ alt: 26.3
+ net accuracy: 1734.0
+ net lat: 37.872437
+ net lon: -122.27263
+ pitch: -102.0
+ yaw: 9.0
+ roll: -3.0
+gtTrue: DSC_1904,37.867294,-122.270140
+ file: 2011-01-12_13-19-04_278.jpg
+ time: 1294867144278
+ gps accuracy: 4.472136
+ lat: 37.867294
+ lon: -122.27014
+ alt: 26.0
+ net accuracy: 1734.0
+ net lat: 37.872437
+ net lon: -122.27263
+ pitch: -102.0
+ yaw: 40.0
+ roll: -0.0
+gtTrue: DSC_1936,37.867043,-122.270164
+ file: 2011-01-12_13-19-36_909.jpg
+ time: 1294867176909
+ gps accuracy: 10.0
+ lat: 37.867043
+ lon: -122.270164
+ alt: 21.3
+ net accuracy: 1734.0
+ net lat: 37.872437
+ net lon: -122.27263
+ pitch: -99.0
+ yaw: 243.0
+ roll: -4.0
+gtTrue: DSC_2241,37.866665,-122.268940
+ file: 2011-01-12_13-22-41_414.jpg
+ time: 1294867361414
+ gps accuracy: 8.944272
+ lat: 37.866665
+ lon: -122.26894
+ alt: 32.9
+ net accuracy: 1149.0
+ net lat: 37.866913
+ net lon: -122.26932
+ pitch: -101.0
+ yaw: 56.0
+ roll: -0.0
+gtTrue: DSC_2400,37.866720,-122.267960
+ file: 2011-01-12_13-24-00_390.jpg
+ time: 1294867440390
+ gps accuracy: 2.828427
+ lat: 37.86672
+ lon: -122.26796
+ alt: 31.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -96.0
+ yaw: 31.0
+ roll: -3.0
+gtFalse: DSC_2415,37.866714,-122.267900
+ file: 2011-01-12_13-24-15_066.jpg
+ time: 1294867455066
+ gps accuracy: 4.2426405
+ lat: 37.866714
+ lon: -122.2679
+ alt: 31.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -94.0
+ yaw: 95.0
+ roll: -1.0
+gtTrue: DSC_2752,37.866043,-122.267840
+ file: 2011-01-12_13-27-52_863.jpg
+ time: 1294867672863
+ gps accuracy: 6.3245554
+ lat: 37.866043
+ lon: -122.26784
+ alt: 28.2
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -100.0
+ yaw: 119.0
+ roll: -1.0
+gtTrue: DSC_2759,37.866035,-122.267830
+ file: 2011-01-12_13-27-59_355.jpg
+ time: 1294867679355
+ gps accuracy: 4.472136
+ lat: 37.866035
+ lon: -122.26783
+ alt: 28.7
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -96.0
+ yaw: 84.0
+ roll: -1.0
+gtTrue: DSC_2847,37.865864,-122.267746
+ file: 2011-01-12_13-28-47_192.jpg
+ time: 1294867727192
+ gps accuracy: 5.0
+ lat: 37.865864
+ lon: -122.267746
+ alt: 29.8
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -97.0
+ yaw: 94.0
+ roll: -2.0
+gtFalse: DSC_2949,37.865880,-122.267480
+ file: 2011-01-12_13-29-49_510.jpg
+ time: 1294867789510
+ gps accuracy: 2.828427
+ lat: 37.86588
+ lon: -122.26748
+ alt: 26.3
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -94.0
+ yaw: 235.0
+ roll: -0.0
+gtFalse: DSC_2956,37.865910,-122.267494
+ file: 2011-01-12_13-29-56_535.jpg
+ time: 1294867796535
+ gps accuracy: 2.828427
+ lat: 37.86591
+ lon: -122.267494
+ alt: 26.1
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -94.0
+ yaw: 269.0
+ roll: -2.0
+gtFalse: DSC_3002,37.865936,-122.267490
+ file: 2011-01-12_13-30-02_325.jpg
+ time: 1294867802325
+ gps accuracy: 3.6055512
+ lat: 37.865936
+ lon: -122.26749
+ alt: 26.5
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -94.0
+ yaw: 279.0
+ roll: -2.0
+gtFalse: DSC_3039,37.866290,-122.267470
+ file: 2011-01-12_13-30-39_403.jpg
+ time: 1294867839403
+ gps accuracy: 5.0
+ lat: 37.86629
+ lon: -122.26747
+ alt: 30.5
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -95.0
+ yaw: 235.0
+ roll: -0.0
+gtTrue: DSC_3052,37.866430,-122.267456
+ file: 2011-01-12_13-30-52_354.jpg
+ time: 1294867852354
+ gps accuracy: 7.2111025
+ lat: 37.86643
+ lon: -122.267456
+ alt: 29.8
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -98.0
+ yaw: 244.0
+ roll: -1.0
+gtTrue: DSC_3108,37.866604,-122.267470
+ file: 2011-01-12_13-31-08_625.jpg
+ time: 1294867868625
+ gps accuracy: 3.6055512
+ lat: 37.866604
+ lon: -122.26747
+ alt: 28.3
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -99.0
+ yaw: 280.0
+ roll: -2.0
+gtTrue: DSC_3200,37.866795,-122.267560
+ file: 2011-01-12_13-32-00_311.jpg
+ time: 1294867920311
+ gps accuracy: 2.828427
+ lat: 37.866795
+ lon: -122.26756
+ alt: 27.8
+ net accuracy: 1214.0
+ net lat: 37.86038
+ net lon: -122.26892
+ pitch: -99.0
+ yaw: 258.0
+ roll: -4.0
+gtTrue: DSC_3210,37.866840,-122.267580
+ file: 2011-01-12_13-32-10_587.jpg
+ time: 1294867930587
+ gps accuracy: 4.2426405
+ lat: 37.86684
+ lon: -122.26758
+ alt: 26.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -96.0
+ yaw: 279.0
+ roll: -0.0
+gtFalse: DSC_3230,37.866980,-122.267560
+ file: 2011-01-12_13-32-30_027.jpg
+ time: 1294867950027
+ gps accuracy: 7.2111025
+ lat: 37.86698
+ lon: -122.26756
+ alt: 25.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -103.0
+ yaw: 27.0
+ roll: -2.0
+gtTrue: DSC_3249,37.867176,-122.267530
+ file: 2011-01-12_13-32-49_814.jpg
+ time: 1294867969814
+ gps accuracy: 8.485281
+ lat: 37.867176
+ lon: -122.26753
+ alt: 24.1
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -99.0
+ yaw: 296.0
+ roll: 3.0
+gtFalse: DSC_3256,37.867237,-122.267525
+ file: 2011-01-12_13-32-56_170.jpg
+ time: 1294867976170
+ gps accuracy: 5.0
+ lat: 37.867237
+ lon: -122.267525
+ alt: 25.1
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -104.0
+ yaw: 79.0
+ roll: -3.0
+gtFalse: DSC_3320,37.867360,-122.267570
+ file: 2011-01-12_13-33-20_277.jpg
+ time: 1294868000277
+ gps accuracy: 5.0
+ lat: 37.86736
+ lon: -122.26757
+ alt: 28.3
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -98.0
+ yaw: 359.0
+ roll: 1.0
+gtTrue: DSC_3337,37.867610,-122.267570
+ file: 2011-01-12_13-33-37_129.jpg
+ time: 1294868017129
+ gps accuracy: 6.3245554
+ lat: 37.86761
+ lon: -122.26757
+ alt: 33.4
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -96.0
+ yaw: 270.0
+ roll: -0.0
+gtTrue: DSC_3348,37.867626,-122.267560
+ file: 2011-01-12_13-33-48_625.jpg
+ time: 1294868028625
+ gps accuracy: 4.472136
+ lat: 37.867626
+ lon: -122.26756
+ alt: 27.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -121.0
+ yaw: 353.0
+ roll: -1.0
+gtTrue: DSC_3355,37.867615,-122.267555
+ file: 2011-01-12_13-33-55_448.jpg
+ time: 1294868035448
+ gps accuracy: 3.6055512
+ lat: 37.867615
+ lon: -122.267555
+ alt: 26.5
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -93.0
+ yaw: 36.0
+ roll: -1.0
+gtTrue: DSC_3413,37.867683,-122.267555
+ file: 2011-01-12_13-34-13_032.jpg
+ time: 1294868053032
+ gps accuracy: 3.6055512
+ lat: 37.867683
+ lon: -122.267555
+ alt: 28.2
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -103.0
+ yaw: 84.0
+ roll: -1.0
+gtFalse: DSC_3436,37.867863,-122.267680
+ file: 2011-01-12_13-34-36_537.jpg
+ time: 1294868076537
+ gps accuracy: 13.416408
+ lat: 37.867863
+ lon: -122.26768
+ alt: 26.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -100.0
+ yaw: 359.0
+ roll: -2.0
+gtTrue: DSC_3445,37.867878,-122.267680
+ file: 2011-01-12_13-34-45_396.jpg
+ time: 1294868085396
+ gps accuracy: 14.422205
+ lat: 37.867878
+ lon: -122.26768
+ alt: 28.2
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -97.0
+ yaw: 276.0
+ roll: 1.0
+gtTrue: DSC_3452,37.867930,-122.267654
+ file: 2011-01-12_13-34-52_086.jpg
+ time: 1294868092086
+ gps accuracy: 16.970562
+ lat: 37.86793
+ lon: -122.267654
+ alt: 29.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -92.0
+ yaw: 243.0
+ roll: -2.0
+gtFalse: DSC_3515,37.867943,-122.267690
+ file: 2011-01-12_13-35-15_243.jpg
+ time: 1294868115243
+ gps accuracy: 5.0
+ lat: 37.867943
+ lon: -122.26769
+ alt: 30.6
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -102.0
+ yaw: 7.0
+ roll: -3.0
+gtTrue: DSC_3543,37.868217,-122.267680
+ file: 2011-01-12_13-35-43_929.jpg
+ time: 1294868143929
+ gps accuracy: 8.485281
+ lat: 37.868217
+ lon: -122.26768
+ alt: 28.5
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -96.0
+ yaw: 240.0
+ roll: 1.0
+gtTrue: DSC_3554,37.868210,-122.267710
+ file: 2011-01-12_13-35-54_045.jpg
+ time: 1294868154045
+ gps accuracy: 7.2111025
+ lat: 37.86821
+ lon: -122.26771
+ alt: 26.1
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -101.0
+ yaw: 55.0
+ roll: -1.0
+gtTrue: DSC_3558,37.868206,-122.267680
+ file: 2011-01-12_13-35-58_108.jpg
+ time: 1294868158108
+ gps accuracy: 5.0
+ lat: 37.868206
+ lon: -122.26768
+ alt: 23.6
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -100.0
+ yaw: 30.0
+ roll: -2.0
+gtFalse: DSC_3602,37.868214,-122.267654
+ file: 2011-01-12_13-36-02_340.jpg
+ time: 1294868162340
+ gps accuracy: 5.656854
+ lat: 37.868214
+ lon: -122.267654
+ alt: 21.9
+ net accuracy: 1214.0
+ net lat: 37.858112
+ net lon: -122.26727
+ pitch: -100.0
+ yaw: 3.0
+ roll: -2.0
+gtTrue: DSC_3631,37.868465,-122.267685
+ file: 2011-01-12_13-36-31_822.jpg
+ time: 1294868191822
+ gps accuracy: 8.485281
+ lat: 37.868465
+ lon: -122.267685
+ alt: 25.1
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -98.0
+ yaw: 279.0
+ roll: 1.0
+gtTrue: DSC_3635,37.868458,-122.267685
+ file: 2011-01-12_13-36-35_417.jpg
+ time: 1294868195417
+ gps accuracy: 7.2111025
+ lat: 37.868458
+ lon: -122.267685
+ alt: 24.6
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -100.0
+ yaw: 298.0
+ roll: -1.0
+gtTrue: DSC_3639,37.868477,-122.267690
+ file: 2011-01-12_13-36-39_822.jpg
+ time: 1294868199822
+ gps accuracy: 7.2111025
+ lat: 37.868477
+ lon: -122.26769
+ alt: 25.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -103.0
+ yaw: 2.0
+ roll: -3.0
+gtTrue: DSC_3649,37.868490,-122.267715
+ file: 2011-01-12_13-36-49_378.jpg
+ time: 1294868209378
+ gps accuracy: 8.485281
+ lat: 37.86849
+ lon: -122.267715
+ alt: 29.7
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -101.0
+ yaw: 67.0
+ roll: -2.0
+gtTrue: DSC_3653,37.868480,-122.267720
+ file: 2011-01-12_13-36-53_680.jpg
+ time: 1294868213680
+ gps accuracy: 5.656854
+ lat: 37.86848
+ lon: -122.26772
+ alt: 29.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -98.0
+ yaw: 53.0
+ roll: -1.0
+gtFalse: DSC_3723,37.868713,-122.267740
+ file: 2011-01-12_13-37-23_283.jpg
+ time: 1294868243283
+ gps accuracy: 10.0
+ lat: 37.868713
+ lon: -122.26774
+ alt: 29.8
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -102.0
+ yaw: 21.0
+ roll: -1.0
+gtTrue: DSC_3726,37.868720,-122.267750
+ file: 2011-01-12_13-37-26_004.jpg
+ time: 1294868246004
+ gps accuracy: 10.0
+ lat: 37.86872
+ lon: -122.26775
+ alt: 30.5
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -102.0
+ yaw: 352.0
+ roll: -3.0
+gtTrue: DSC_3728,37.868725,-122.267760
+ file: 2011-01-12_13-37-28_701.jpg
+ time: 1294868248701
+ gps accuracy: 10.0
+ lat: 37.868725
+ lon: -122.26776
+ alt: 29.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -96.0
+ yaw: 294.0
+ roll: -1.0
+gtTrue: DSC_3809,37.869087,-122.267820
+ file: 2011-01-12_13-38-09_878.jpg
+ time: 1294868289878
+ gps accuracy: 14.422205
+ lat: 37.869087
+ lon: -122.26782
+ alt: 28.9
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -100.0
+ yaw: 274.0
+ roll: -1.0
+gtTrue: DSC_3814,37.869100,-122.267810
+ file: 2011-01-12_13-38-14_088.jpg
+ time: 1294868294088
+ gps accuracy: 20.0
+ lat: 37.8691
+ lon: -122.26781
+ alt: 29.7
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -101.0
+ yaw: 324.0
+ roll: -0.0
+gtTrue: DSC_3838,37.869293,-122.267800
+ file: 2011-01-12_13-38-38_503.jpg
+ time: 1294868318503
+ gps accuracy: 7.2111025
+ lat: 37.869293
+ lon: -122.2678
+ alt: 32.7
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -97.0
+ yaw: 277.0
+ roll: -1.0
+gtTrue: DSC_3848,37.869320,-122.267800
+ file: 2011-01-12_13-38-48_082.jpg
+ time: 1294868328082
+ gps accuracy: 6.708204
+ lat: 37.86932
+ lon: -122.2678
+ alt: 33.0
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -104.0
+ yaw: 18.0
+ roll: -2.0
+gtTrue: DSC_3922,37.869420,-122.267380
+ file: 2011-01-12_13-39-22_509.jpg
+ time: 1294868362509
+ gps accuracy: 6.708204
+ lat: 37.86942
+ lon: -122.26738
+ alt: 49.2
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -105.0
+ yaw: 109.0
+ roll: -3.0
+gtTrue: DSC_3952,37.869570,-122.267910
+ file: 2011-01-12_13-39-52_952.jpg
+ time: 1294868392952
+ gps accuracy: 14.422205
+ lat: 37.86957
+ lon: -122.26791
+ alt: 43.9
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -100.0
+ yaw: 282.0
+ roll: -2.0
+gtTrue: DSC_4006,37.869644,-122.267845
+ file: 2011-01-12_13-40-06_105.jpg
+ time: 1294868406105
+ gps accuracy: 11.313708
+ lat: 37.869644
+ lon: -122.267845
+ alt: 44.1
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -102.0
+ yaw: 18.0
+ roll: -3.0
+gtTrue: DSC_4020,37.869630,-122.267815
+ file: 2011-01-12_13-40-20_592.jpg
+ time: 1294868420592
+ gps accuracy: 10.0
+ lat: 37.86963
+ lon: -122.267815
+ alt: 42.7
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -104.0
+ yaw: 314.0
+ roll: -2.0
+gtTrue: DSC_4029,37.869617,-122.267800
+ file: 2011-01-12_13-40-29_260.jpg
+ time: 1294868429260
+ gps accuracy: 7.2111025
+ lat: 37.869617
+ lon: -122.2678
+ alt: 45.9
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -96.0
+ yaw: 330.0
+ roll: -0.0
+gtFalse: DSC_4041,37.869694,-122.267784
+ file: 2011-01-12_13-40-41_633.jpg
+ time: 1294868441633
+ gps accuracy: 10.0
+ lat: 37.869694
+ lon: -122.267784
+ alt: 46.2
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -104.0
+ yaw: 38.0
+ roll: -2.0
+gtFalse: DSC_4114,37.869934,-122.268166
+ file: 2011-01-12_13-41-14_171.jpg
+ time: 1294868474171
+ gps accuracy: 14.422205
+ lat: 37.869934
+ lon: -122.268166
+ alt: 58.0
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -98.0
+ yaw: 17.0
+ roll: -2.0
+gtFalse: DSC_4123,37.869938,-122.268166
+ file: 2011-01-12_13-41-23_126.jpg
+ time: 1294868483126
+ gps accuracy: 10.0
+ lat: 37.869938
+ lon: -122.268166
+ alt: 53.7
+ net accuracy: 1149.0
+ net lat: 37.86195
+ net lon: -122.26716
+ pitch: -100.0
+ yaw: 17.0
+ roll: -4.0
+gtTrue: DSC_4237,37.870464,-122.267470
+ file: 2011-01-12_13-42-37_682.jpg
+ time: 1294868557682
+ gps accuracy: 7.2111025
+ lat: 37.870464
+ lon: -122.26747
+ alt: 37.5
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -97.0
+ yaw: 144.0
+ roll: 1.0
+gtTrue: DSC_4243,37.870464,-122.267470
+ file: 2011-01-12_13-42-43_545.jpg
+ time: 1294868563545
+ gps accuracy: 5.656854
+ lat: 37.870464
+ lon: -122.26747
+ alt: 37.5
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -97.0
+ yaw: 119.0
+ roll: -1.0
+gtFalse: DSC_4254,37.870460,-122.267360
+ file: 2011-01-12_13-42-54_264.jpg
+ time: 1294868574264
+ gps accuracy: 4.2426405
+ lat: 37.87046
+ lon: -122.26736
+ alt: 36.0
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -99.0
+ yaw: 126.0
+ roll: -1.0
+gtTrue: DSC_4309,37.870480,-122.267260
+ file: 2011-01-12_13-43-09_076.jpg
+ time: 1294868589076
+ gps accuracy: 7.2111025
+ lat: 37.87048
+ lon: -122.26726
+ alt: 32.9
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -97.0
+ yaw: 122.0
+ roll: -1.0
+gtTrue: DSC_4325,37.870506,-122.267020
+ file: 2011-01-12_13-43-25_270.jpg
+ time: 1294868605270
+ gps accuracy: 8.485281
+ lat: 37.870506
+ lon: -122.26702
+ alt: 35.8
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -99.0
+ yaw: 124.0
+ roll: -5.0
+gtTrue: DSC_4349,37.870550,-122.266710
+ file: 2011-01-12_13-43-49_463.jpg
+ time: 1294868629463
+ gps accuracy: 8.485281
+ lat: 37.87055
+ lon: -122.26671
+ alt: 36.3
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -92.0
+ yaw: 134.0
+ roll: -1.0
+gtTrue: DSC_4430,37.870610,-122.266110
+ file: 2011-01-12_13-44-30_948.jpg
+ time: 1294868670948
+ gps accuracy: 10.0
+ lat: 37.87061
+ lon: -122.26611
+ alt: 35.2
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -95.0
+ yaw: 180.0
+ roll: 4.0
+gtTrue: DSC_4531,37.870483,-122.266350
+ file: 2011-01-12_13-45-31_643.jpg
+ time: 1294868731643
+ gps accuracy: 6.3245554
+ lat: 37.870483
+ lon: -122.26635
+ alt: 30.1
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -106.0
+ yaw: 7.0
+ roll: -2.0
+gtFalse: DSC_4537,37.870472,-122.266390
+ file: 2011-01-12_13-45-37_952.jpg
+ time: 1294868737952
+ gps accuracy: 6.3245554
+ lat: 37.870472
+ lon: -122.26639
+ alt: 29.7
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -98.0
+ yaw: 218.0
+ roll: -1.0
+gtFalse: DSC_5933,37.870450,-122.267240
+ file: 2011-01-12_13-59-33_067.jpg
+ time: 1294869573067
+ gps accuracy: 8.944272
+ lat: 37.87045
+ lon: -122.26724
+ alt: 35.3
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -104.0
+ yaw: 220.0
+ roll: -1.0
+gtTrue: DSC_0031,37.870440,-122.267690
+ file: 2011-01-12_14-00-31_234.jpg
+ time: 1294869631234
+ gps accuracy: 3.6055512
+ lat: 37.87044
+ lon: -122.26769
+ alt: 32.2
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -98.0
+ yaw: 311.0
+ roll: -2.0
+gtTrue: DSC_0050,37.870640,-122.267685
+ file: 2011-01-12_14-00-50_957.jpg
+ time: 1294869650957
+ gps accuracy: 5.656854
+ lat: 37.87064
+ lon: -122.267685
+ alt: 34.0
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -98.0
+ yaw: 299.0
+ roll: -0.0
+gtTrue: DSC_0113,37.870914,-122.267670
+ file: 2011-01-12_14-01-13_317.jpg
+ time: 1294869673317
+ gps accuracy: 5.0
+ lat: 37.870914
+ lon: -122.26767
+ alt: 32.1
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -100.0
+ yaw: 270.0
+ roll: -1.0
+gtFalse: DSC_0120,37.870937,-122.267680
+ file: 2011-01-12_14-01-20_560.jpg
+ time: 1294869680560
+ gps accuracy: 3.6055512
+ lat: 37.870937
+ lon: -122.26768
+ alt: 30.4
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -110.0
+ yaw: 10.0
+ roll: -6.0
+gtFalse: DSC_0131,37.871063,-122.267650
+ file: 2011-01-12_14-01-31_243.jpg
+ time: 1294869691243
+ gps accuracy: 4.2426405
+ lat: 37.871063
+ lon: -122.26765
+ alt: 30.4
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -97.0
+ yaw: 254.0
+ roll: -2.0
+gtTrue: DSC_0139,37.871150,-122.267660
+ file: 2011-01-12_14-01-39_600.jpg
+ time: 1294869699600
+ gps accuracy: 4.2426405
+ lat: 37.87115
+ lon: -122.26766
+ alt: 32.3
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -98.0
+ yaw: 3.0
+ roll: -3.0
+gtTrue: DSC_0145,37.871174,-122.267640
+ file: 2011-01-12_14-01-45_883.jpg
+ time: 1294869705883
+ gps accuracy: 4.2426405
+ lat: 37.871174
+ lon: -122.26764
+ alt: 34.0
+ net accuracy: 1149.0
+ net lat: 37.86579
+ net lon: -122.26704
+ pitch: -100.0
+ yaw: 50.0
+ roll: -2.0
+gtFalse: DSC_2323,37.871906,-122.269035
+ file: 2011-01-12_14-23-23_744.jpg
+ time: 1294871003744
+ gps accuracy: 6.708204
+ lat: 37.871906
+ lon: -122.269035
+ alt: 15.9
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -96.0
+ yaw: 338.0
+ roll: -2.0
+gtTrue: DSC_2332,37.871937,-122.269035
+ file: 2011-01-12_14-23-32_606.jpg
+ time: 1294871012606
+ gps accuracy: 4.472136
+ lat: 37.871937
+ lon: -122.269035
+ alt: 18.9
+ net accuracy: 1447.0
+ net lat: 37.87742
+ net lon: -122.273544
+ pitch: -99.0
+ yaw: 356.0
+ roll: -2.0

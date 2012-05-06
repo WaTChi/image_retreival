@@ -16,18 +16,20 @@ oakland = setnum > 10;
 if setnum < 10
     if runnum == 0
         file = 'Z:\ah\pose_runs\berkeley\extras.txt';
-        file = '/media/DATAPART2/ah/pose_runs/berkeley/extras.txt';
+%         file = '/media/DATAPART2/ah/pose_runs/berkeley/extras.txt';
     else
         file = ['Z:\ah\pose_runs\berkeley',num2str(runnum),'\extras.txt'];
-        file = ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/extras.txt'];
+%         file =
+%         ['/media/DATAPART2/ah/pose_runs/berkeley',num2str(runnum),'/extras.txt'];
     end
 else
     if runnum == 0
         file = 'Z:\ah\pose_runs\oakland\extras.txt';
-        file = '/media/DATAPART2/ah/pose_runs/oakland/extras.txt';
+%         file = '/media/DATAPART2/ah/pose_runs/oakland/extras.txt';
     else
         file = ['Z:\ah\pose_runs\oakland',num2str(runnum),'\extras.txt'];
-        file = ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/extras.txt'];
+%         file =
+%         ['/media/DATAPART2/ah/pose_runs/oakland',num2str(runnum),'/extras.txt'];
     end
 end
 prehom = importdata(file);
@@ -145,7 +147,7 @@ if oakland
     dn_diff = mod( dnorms - repmat(tnorms,[1,7]) , 360 );
     dn_diff = dn_diff + (360-2*dn_diff) .* (dn_diff>180);
     dnerr = min(dn_diff,[],2);
-    dnerr(isnan(dnerr)) = [];
+    dnerr(isnan(dnerr)) = []; 
     xmax  = 25;
     bins  = 0.5:1:xmax+0.5;
     dbins = hist(dnerr+0.1,bins);
@@ -186,6 +188,7 @@ vyerrs = vyerrs + (vyerrs>180) .* (360-2*vyerrs);
 xmax  = 25;
 bins  = 0.5:1:xmax+0.5;
 vbins = hist(vyerrs+0.1,bins);
+expv = vyerrs(vyerrs<=25); expv = sqrt(mean(expv.^2))
 cbins = hist(cyerrs+0.1,bins);
 vsum  = cumsum(vbins);
 csum  = cumsum(cbins);
