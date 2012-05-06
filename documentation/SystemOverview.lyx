@@ -1,0 +1,847 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize letterpaper
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1in
+\topmargin 1in
+\rightmargin 1in
+\bottommargin 1in
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Query System & Tag Transfer Details
+\end_layout
+
+\begin_layout Author
+Eric Liang
+\end_layout
+
+\begin_layout Standard
+This guide is intended to supplement the documentation in the source code
+ and the README.txt file.
+\end_layout
+
+\begin_layout Section
+Control Flow
+\end_layout
+
+\begin_layout Standard
+The entry point to running a query is [querySystem.py].
+ This imports the Context object, sets the parameters, and runs the query
+ using [system.py].
+\end_layout
+
+\begin_layout Itemize
+[system.py] can be thought of as collection of functions that operate on
+ individual queries (and the characterize() function calls these in the
+ right order).
+\end_layout
+
+\begin_layout Itemize
+characterize() calls match(C, Q) for each individual query image.
+\end_layout
+
+\begin_layout Itemize
+match() runs a query [query.py] and gets back a list of feature matches.
+\end_layout
+
+\begin_layout Itemize
+These feature matches are put through a series of strong filtering stages
+ to discard bad feature matches, and are reranked.
+\end_layout
+
+\begin_layout Itemize
+Then the top image is picked.
+ This would be the "topN" result.
+\end_layout
+
+\begin_layout Itemize
+Following that, homographies are computed between the query and database
+ matches.
+ This process continues down the topN list until a "good" homography match
+ is determined.
+ Then tags are transferred onto this image and returned to the client.
+\end_layout
+
+\begin_layout Section
+Configuration
+\end_layout
+
+\begin_layout Standard
+[config.py] contains some deprecated options, you need not worry about them.
+ However, the INFO(x) and INFO_TIMING(x) functions provide an easy way to
+ output debug messages.
+ They print time and thread information.
+\end_layout
+
+\begin_layout Standard
+When running the query system, the following environment variables may apply:
+\end_layout
+
+\begin_layout Itemize
+DEBUG: if DEBUG is set in the environment, only a single process will be
+ used to do homography calcuations/draw images (to avoid intermingling of
+ messages and lost exceptions).
+ Note that to enable multiprocessing wrapping the characterize statement
+ with a "with" statement:
+\end_layout
+
+\begin_deeper
+\begin_layout LyX-Code
+with system.Multiprocessing():
+\begin_inset Newline newline
+\end_inset
+
+  system.characterize(C) 
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Note that this is not related to the number of threads used when running
+ database queries, which is managed by estimate_threads_avail() in [system.py].
+\end_layout
+
+\begin_layout Itemize
+NO_HOM: if this is set the the query system will only compute the topN images
+ matches and will not proceed with further processing.
+\end_layout
+
+\begin_layout Itemize
+NO_DRAW: if this is set the query system will do homography/pose estimation
+ logic, but will not actually draw an output image.
+\end_layout
+
+\begin_layout Subsection
+The Context and Query classes [context.py]
+\end_layout
+
+\begin_layout Subsubsection
+Query
+\end_layout
+
+\begin_layout Standard
+In general, Query objects are named Q and contain gps location, sensor data,
+ image path, etc.
+ Context objects C contain configuration information about what database
+ we are using, the set of Q objects to iterate over, etc.
+\end_layout
+
+\begin_layout Standard
+The Query object contains the pgm_scale parameter, which is used by the
+ tag drawing code to determine how to scale the coordinate system to the
+ output image.
+ It should be the ratio of the size of .pgm file the sift features were extracted
+ from and the jpg image the tags are to be drawn onto.
+ This parameter is set by the Context object in a few of the query sets
+ already, so if you aren't sure what it should be look at those examples.
+\end_layout
+
+\begin_layout Itemize
+Note that individual database images have no representation besides their
+ sift feature-file name.
+ (This is probably unfortunate).
+ Most commonly we refer to them as "siftname" or "matchedimg".
+ These are usually of the form [lat],[lon],[view].sift.txt
+\end_layout
+
+\begin_layout Subsubsection
+Context
+\end_layout
+
+\begin_layout Standard
+The Context class 
+\begin_inset Quotes eld
+\end_inset
+
+holds
+\begin_inset Quotes erd
+\end_inset
+
+ run-specific configuration information that is passed to the query system.
+ To construct a context object, do
+\end_layout
+
+\begin_layout LyX-Code
+from context import DEFAULT_CONTEXT
+\end_layout
+
+\begin_layout LyX-Code
+C = DEFAULT_CONTEXT.copy()
+\end_layout
+
+\begin_layout LyX-Code
+C.query = 
+\begin_inset Quotes eld
+\end_inset
+
+query4
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout LyX-Code
+C.params = {
+\end_layout
+
+\begin_layout LyX-Code
+  'dist_threshold': 70000
+\begin_inset Newline newline
+\end_inset
+
+}
+\begin_inset Newline newline
+\end_inset
+
+# etc.
+\end_layout
+
+\begin_layout Standard
+See [querySystem.py] for an example of this, and [context.py] for exact details
+ and other run options.
+\end_layout
+
+\begin_layout Section
+Storage Formats
+\end_layout
+
+\begin_layout Standard
+The main data storage format used is the numpy record array, which packs
+ structured data on disk in an efficient format.
+ These arrays have types called dtypes, and can be queried by names inside
+ their dtype as well as indexed names.
+ For example, say you had the dtype of an array of 3d points in space:
+\end_layout
+
+\begin_layout LyX-Code
+map3d_dtype = {
+\begin_inset Newline newline
+\end_inset
+
+  'names': ['lat', 'lon', 'alt'],
+\begin_inset Newline newline
+\end_inset
+
+  'formats': ['float64', 'float64', 'float64'],
+\begin_inset Newline newline
+\end_inset
+
+}
+\end_layout
+
+\begin_layout Standard
+This means that each row of the record array will have three 64 bit floats.
+ If you wanted to access the latitude third item in the array you would
+ say:
+\end_layout
+
+\begin_layout LyX-Code
+array[3]['lat'] or array['lat'][3]
+\end_layout
+
+\begin_layout Standard
+(see numpy record array documentation for advanced operations).
+\end_layout
+
+\begin_layout Standard
+If general, you want to avoid operating on record arrays using python constructi
+ons like for loops.
+ This is very slow.
+ Instead, try to find a numpy operation that captures what you are trying
+ to do (select a subset, reshape the array, etc).
+\end_layout
+
+\begin_layout Subsection
+Numpy record array clients
+\end_layout
+
+\begin_layout Subsubsection
+Database cells
+\end_layout
+
+\begin_layout Standard
+Each database "cell" is a giant record array (on the order of a gigabyte
+ for several million features SIFT, each 1024 bits long).
+ Each "row" has the dtype
+\end_layout
+
+\begin_layout LyX-Code
+sift_dtype = {
+\begin_inset Newline newline
+\end_inset
+
+  'names': ['vec', 'geom', 'index'],
+\begin_inset Newline newline
+\end_inset
+
+  'formats': ['128uint8', '4float32', 'uint16'],
+\end_layout
+
+\begin_layout LyX-Code
+}
+\end_layout
+
+\begin_layout Standard
+The 'vec' segment is the 1024 bit SIFT feature, and the 'geom' segment is
+ the x, y, rotation, and hessian of feature.
+\end_layout
+
+\begin_layout Standard
+Notice that the file from which the vector was extracted is not present!
+ This is because storing filenames for each vector would be highly inefficient.
+ Instead, they have a 16-bit index value, which indexes into another vector
+ called the mapping.
+ This is a map from indices->filenames.
+\end_layout
+
+\begin_layout Subsubsection
+Pixel to 3dspace maps
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+The new way:
+\series default
+ The preferred way of associating features with 3d locations is extract
+ them from the image data directly.
+ This was not possible with the Berkeley dataset we were using before because
+ Earthmine did not give us the data.
+ However with the Oakland dataset we know the exact depth and hence 3d coordinat
+e of each pixel in the database.
+ See reader.load_hsv_for_cell() and the calls in query.py for how this is
+ supposed to work.
+ If you have 3d or other data associated with your database images it is
+ recommended that you implement in a similar way as load_hsv_for_cell(),
+ since this cleaner strategy allows the data to be present all the way through
+ the image pipeline.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+The old way:
+\series default
+ [pixels.py] proves a way to find the 3d location of a feature (as fetched
+ from earthmine).
+ While it caches lookups on disk, it does not provide high throughput when
+ accessing random features in a cell, since it has to load a file for each
+ different image the feature is from.
+\end_layout
+
+\begin_layout Standard
+To get faster access to this data (for example, if you want to use the ratio
+ test, but only test distance scores against feature scores spatially distant:
+ see spatial-ratio-test in query.py), use the load_3dmap_for_cell method
+ in the reader class.
+ This returns a packed vector where the index of the feature in the cell
+ vector corresponds directly to the index of the 3d point in this vector.
+\end_layout
+
+\begin_layout Standard
+See the file for more specific usage instructions.
+\end_layout
+
+\begin_layout Subsection
+The kdtree indices
+\end_layout
+
+\begin_layout Standard
+Another class of large files you will (maybe) encounter are the kdtree indexes
+ built by FLANN.
+ Be aware that if you want to conduct ANN searches outside of [query.py],
+ you will have to manually save these indexes for fast searches.
+\end_layout
+
+\begin_layout Section
+Working with features
+\end_layout
+
+\begin_layout Subsection
+[reader.py]
+\end_layout
+
+\begin_layout Standard
+The file: [reader.py] Provides fast read/write access to the SIFT features.
+ The sift features are extracted using some binary available on the Internet
+ with the default settings.
+ You must do this beforehand, which involves converting the image files
+ to the appropriate size and format.
+ Once you have extracted the SIFT features into the txt files, 
+\end_layout
+
+\begin_layout LyX-Code
+get_reader(typehint)
+\end_layout
+
+\begin_layout Standard
+returns the correct reader class for the descriptors you want to use.
+ These reader objects abstract away caching and packing of the extracted
+ individual sift files into a numpy array.
+ The first time you build a database cell using
+\end_layout
+
+\begin_layout LyX-Code
+reader.load_cell(dir)
+\end_layout
+
+\begin_layout Standard
+, you should get message from the reader "Reading features..." which will take
+ a while.
+\end_layout
+
+\begin_layout Subsubsection
+FeatureReader
+\end_layout
+
+\begin_layout Standard
+This class is returned by get_reader(), and has most of the methods for
+ accessing database files.
+ See [query.py] for how the reader is used.
+ There are reader files for other descriptors besides sift.
+ You can try these out by setting
+\end_layout
+
+\begin_layout LyX-Code
+C.params['descriptor']
+\end_layout
+
+\begin_layout Standard
+to 'chog' or 'surf', but these probably won't work out of the box.
+ The performance with other descriptors is typically much lower, so the
+ code paths are less maintained.
+\end_layout
+
+\begin_layout Subsubsection
+PointToViewsMap
+\end_layout
+
+\begin_layout Standard
+This class provides efficient lookups from lat/lon to earthmine views.
+ It is also used for tag occlusion detection, and is slightly more reliable
+ that OcclusionSummary, though not completely accurate either.
+ This might be because we only have 3d points for feature points, not all
+ the points in the images.
+\end_layout
+
+\begin_layout Subsection
+Intermediate result representations [query.py]
+\end_layout
+
+\begin_layout Subsubsection
+Basic Results
+\end_layout
+
+\begin_layout Standard
+When you run the query system, it can produce a variety of different files
+ as output.
+ he most common is the .res file, which are put into the C.matchdir directory.
+ The directory names are of the form "matchescells(g=100,r=d=236.6),queryX,{param
+s}", so that each unique query will produce a distinct directory.
+ This enables future runs with the same parameter to reuse the same cached
+ files, saving lots of time.
+\end_layout
+
+\begin_layout Subsubsection
+Detailed Results
+\end_layout
+
+\begin_layout Standard
+The query will also output a a .res-detailed.npy file in C.matchdir, which
+ contains the feature matches as well as the count of feature votes.
+ These are saved in a numpy packed file, which can be loaded like so:
+\end_layout
+
+\begin_layout LyX-Code
+import numpy
+\begin_inset Newline newline
+\end_inset
+
+numpy.load("filename.npy")
+\end_layout
+
+\begin_layout Standard
+The format of these files is, in python syntax:
+\end_layout
+
+\begin_layout LyX-Code
+[[imagename1, [{'db': (x,y), 'query': (x2,y2)}, {'db'...}, {'db'...}, ...]]
+\begin_inset Newline newline
+\end_inset
+
+ [imagename2, [{'db': (x,y), 'query': (x2,y2)}, {'db'...}, {'db'...}, ...]]
+\begin_inset Newline newline
+\end_inset
+
+ [imagename3, [{'db': (x,y), 'query': (x2,y2)}, {'db'...}, {'db'...}, ...]]
+\begin_inset Newline newline
+\end_inset
+
+ ...] 
+\end_layout
+
+\begin_layout Standard
+The x,y coordinates specify the points where the features were matched.
+ This file provides a lot more useful information that can be used in the
+ geometric correspondence and tag transfer stages.
+\end_layout
+
+\begin_layout Subsection
+Feature Correspondence Computation [corr.py]
+\end_layout
+
+\begin_layout Standard
+[corr.py] has a bunch of random functions related to computing features matches
+ and a first try at pose computation.
+ I would not recommend working with these directly.
+ Instead, use querySystem.py as an interface.
+ You can use the C.selection parameter to operate on a single image or subset
+ of images in a queryset.
+\end_layout
+
+\begin_layout Standard
+Important functions:
+\end_layout
+
+\begin_layout Itemize
+rematch(C, Q, dbsift) runs a linear NN search on Q and the db image.
+ You can depend on this to be fairly fast, though not fast enough for hundreds
+ of queries.
+\end_layout
+
+\begin_layout Itemize
+getSpatiallyOrdered(...) imposes a 1 dimensional spatial ordering constraint
+ on matches by finding the longest increasing subsequence via standard dynamic
+ programming techniques.
+ This hasn't given much performance improvement on top of other techniques
+ so it's not used.
+ I believe there is prior work about spatial constraints based on rotational
+ ordering might work better (but is significantly more complex).
+\end_layout
+
+\begin_layout Itemize
+find_corr(matches, hom=False, ....) handles all homography and fundamental matrix
+ calculations.
+ It can filter matches by rotation and attempts multiple parameters until
+ a good relation is found.
+\end_layout
+
+\begin_layout Itemize
+isHomographyGood(H) is a fairly reliable measure of if the computed homography
+ is sane (not upside down, scaled badly, etc).
+\end_layout
+
+\begin_layout Itemize
+draw_matches(C, Q, matches, rsc_matches, ...)
+\end_layout
+
+\begin_layout Itemize
+The CameraModel and compute_pose is a try at greedy search to minimize reproject
+ion error.
+ It currently works, but is not very good at optimizing and only minimizes
+ lat/lon error.
+\end_layout
+
+\begin_layout Section
+Tags [tags.py]
+\end_layout
+
+\begin_layout Standard
+[tags.py] contains several classes related to tags
+\end_layout
+
+\begin_layout Itemize
+Tag holds all data about a tag and many nice utilities.
+ For example, tag.isVisible(source) is one of the tag occlusion detection
+ methods.
+\end_layout
+
+\begin_layout Itemize
+TagCollection initializes a set of tags from a tags.csv and bearings.csv file.
+ It matches up data from both files so that bearings.csv (which contains
+ the normal vector of tags to their plane (tagged manually)) can be maintained
+ seperately from the earthmine-viewer compatible tags.csv or left out altogether.
+\end_layout
+
+\begin_layout Itemize
+OcclusionSummary holds earthmine information about a point.
+ It can be queried to check what views can see a point.
+ Unfortunately the occlusion data from earthmine is not reliable or available
+ in all cases.
+\end_layout
+
+\begin_layout Subsection
+Drawing Tags [render_tags.py]
+\end_layout
+
+\begin_layout Subsubsection
+ImageInfo
+\end_layout
+
+\begin_layout Standard
+ImageInfo is intended to be a class describing a database image.
+ There are some functions that required you to create this class.
+ It unifies various db image sources such as cell phones, earthmine truck,
+ etc.
+ Typically you would construct it in one of these ways:
+\end_layout
+
+\begin_layout LyX-Code
+source = render_tags.EarthmineImageInfo(dbimgpath, info)
+\begin_inset Newline newline
+\end_inset
+
+source = render_tags.ComputedImageInfo(Q.jpgpath, Q.query_lat, Q.query_lon)
+\begin_inset Newline newline
+\end_inset
+
+source = render_tags.AndroidImageInfo(android_image_name)
+\begin_inset Newline newline
+\end_inset
+
+source = render_tags.get_image_info(db_img) # chooses between EarthmineImageInfo
+ and NikonImageInfo
+\end_layout
+
+\begin_layout Subsubsection
+draw_matches()
+\end_layout
+
+\begin_layout Standard
+[corr.py] currently provides tag drawing in a really messy function (which
+ you probably want to look at for reference, but not modify directly):
+\end_layout
+
+\begin_layout LyX-Code
+def draw_matches(C, Q, matches, rsc_matches, H,
+\begin_inset Newline newline
+\end_inset
+
+  inliers, db_img, out_img, matchsiftpath,
+\begin_inset Newline newline
+\end_inset
+
+  showLine=False, showtag=True, showHom=True)
+\end_layout
+
+\begin_layout Subsubsection
+TaggedImage (WARNING: not same as TaggedImage in android.py, which is more
+ like an ImageInfo)e
+\end_layout
+
+\begin_layout Standard
+The TaggedImage class provides ways for tags to be projected onto images.
+ The basic tag drawing methods are contained here, as are all the occlusion
+ detection / tag culling algorithms.
+\end_layout
+
+\begin_layout Standard
+To transfer tags onto an image, do the following.
+ (NOTE that corr.py does these already!)
+\end_layout
+
+\begin_layout Enumerate
+Get the source of tags.
+ By default, context.tags will is a TagCollection of berkeley tags with normal
+ bearings.
+\end_layout
+
+\begin_layout Enumerate
+Call TaggedImage.map_tags_<method>, where tagged image is a database image.
+ This will return tags associated with their xy coords in the database image.
+ There are a few methods of transferring tags with different benefits/drawbacks
+ documented in [render_tags.py] file:
+\end_layout
+
+\begin_deeper
+\begin_layout LyX-Code
+map_tags_camera(self, elat=0, elon=0, ep=0, ey=0, er=0)
+\begin_inset Newline newline
+\end_inset
+
+map_tags_ocs(self, C)
+\begin_inset Newline newline
+\end_inset
+
+map_tags_lookup(self, C)
+\begin_inset Newline newline
+\end_inset
+
+map_tags_hybrid
+\begin_inset Newline newline
+\end_inset
+
+map_tags_hybrid2
+\begin_inset Newline newline
+\end_inset
+
+map_tags_hybrid3
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Use a method of projecting tags onto your image.
+ For example, multiply each point by a homography matrix, or send the points
+ to the mobile device to be draw, etc.
+ Again, see draw_matches() in [corr.py] for examples.
+\end_layout
+
+\begin_layout Section
+Summary of Source Files
+\end_layout
+
+\begin_layout Description
+[android.py] Provides a way to read metadata from the ImageoTag Android app,
+ which saves sensor data with each picture taken.
+\end_layout
+
+\begin_layout Description
+[config.py] Global configuration and IO utilities.
+\end_layout
+
+\begin_layout Description
+[corr.py] RANSAC, homography, and pose computation.
+\end_layout
+
+\begin_layout Description
+[earthMine.py] Earthmine API calls.
+\end_layout
+
+\begin_layout Description
+[geom.py] Geometric utilities dealing with camera projection, angle computation,
+ distance calcuation, and image coordinate systems.
+\end_layout
+
+\begin_layout Description
+[homographyDecomposition.py] Experimental homography decomposition methods.
+ May not work.
+\end_layout
+
+\begin_layout Description
+[info.py] Utilities for dealing with EarthMine views.
+\end_layout
+
+\begin_layout Description
+[query.py] Parallel FLANN search and voting.
+\end_layout
+
+\begin_layout Description
+[querySystem.py] The file to run.
+\end_layout
+
+\begin_layout Description
+[querySystemCopy.py] A copy of querySystem with different parameters.
+\end_layout
+
+\begin_layout Description
+[pixels.py] Gives the 3d points corresponding to 2d features in EarthMine
+ databases.
+\end_layout
+
+\begin_layout Description
+[pnp.py] Experimental solving of the Perspective-N-Point problem, enabled
+ by C.solve_pnp.
+ Partially implemented.
+\end_layout
+
+\begin_layout Description
+[posit.py] Experimental POSIT algorithm usage, enabled by C.do_posit.
+ Does not work very well.
+\end_layout
+
+\begin_layout Description
+[reader.py] Database IO methods.
+\end_layout
+
+\begin_layout Description
+[render_tags.py] Tag rendering/culling code.
+\end_layout
+
+\begin_layout Description
+[system.py] The 
+\begin_inset Quotes eld
+\end_inset
+
+black boxes
+\begin_inset Quotes erd
+\end_inset
+
+ of the system.
+\end_layout
+
+\begin_layout Description
+[tags.py] Tag data structures.
+\end_layout
+
+\begin_layout Description
+[tags.csv] The tags in EarthMine Viewer format.
+\end_layout
+
+\begin_layout Description
+[tags-canonical.csv] Tag data including normal vectors.
+ Intended to supplement tags.csv.
+\end_layout
+
+\begin_layout Description
+[util.py] Generic utility methods for cell computation and file access.
+\end_layout
+
+\end_body
+\end_document
