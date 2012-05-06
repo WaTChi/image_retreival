@@ -86,6 +86,7 @@ def highresSift(C, Q, dbmatch):
             idx = np.nonzero( np.logical_and( ratios<maxratio, \
                 np.logical_and( np.array(dists[i][:maxmatch])<maxdist , \
                 np.logical_or( grads<maxangle , grads-2*np.pi>-maxangle ) ) ) )[0]
+#            idx = np.nonzero( np.ones(len(ratios)) )[0]
             qadd = len(idx)
             if qadd == 0:
                 continue
@@ -175,6 +176,89 @@ def draw_dbimage(C, Q, matchedimg, match):
     target.save(outimg, 'jpeg', quality=90)
 
 
+def draw_hom(matches, pose, wRq, wRd, Kq, Kd, qimg, dbimg, outimg):
+
+    print 'Drawing homography verified sift matches...'
+
+    def scaledown(image, max_height):
+        scale = 1.0
+        hs = float(image.size[1]) / max_height
+        if hs > 1:
+            w,h = image.size[0]/hs, image.size[1]/hs
+            scale /= hs
+            image = image.resize((int(w), int(h)), Image.ANTIALIAS)
+        return image, scale
+
+    assert os.path.exists(dbimg)
+    assert os.path.exists(qimg)
+    a = Image.open(qimg)
+    b = Image.open(dbimg)
+    if a.mode != 'RGB':
+        a = a.convert('RGB')
+    if b.mode != 'RGB':
+        b = b.convert('RGB')
+    height = b.size[1]
+    a, scale = scaledown(a, height)
+    assert a.mode == 'RGB'
+    off = a.size[0]
+    target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+
+    def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0, width=1):
+        start = [start[0] + off, start[1]]
+        stop = [stop[0] + off, stop[1]]
+        draw.line(start + stop, fill=color, width=width)
+
+    def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
+        r = 3
+        draw.ellipse((y-r+off, x-r, y+r+off, x+r), outline=col)
+
+    draw = ImageDraw.Draw(target)
+    target.paste(a, (0,0))
+    target.paste(b, (off,0))
+
+    # draw matches
+    match_idx = np.nonzero(matches['imask'])[0]
+    #match_idx = np.nonzero( np.zeros(matches['nmat'] ) )[0]
+    print 'Number of inliers / total correspondences : %d / %d' % (matches['numi'],matches['nmat'])
+    for idx in match_idx:
+        start = scale*matches['q2d'][idx,:]
+        stop = matches['d2d'][idx,:]
+        stop[0] += off
+        xdrawcircle(start,'red')
+        xdrawline((start,stop),'green',width=3)
+        xdrawcircle(stop,'red')
+
+    ### draw homography boxes ###
+
+    # compute box center and corners
+    pd = matches['iprm'][-1]
+    tw = pose[5]*pose[:3]
+    cd, xd = np.array([.4,-.1,1]), geom.normalrows(np.array([.5,-.2,1]))
+    cw, xw = np.dot(wRd,cd), np.dot(wRd,xd)
+    nw = -np.array([np.sin(pose[4]*np.pi/180),0,np.cos(pose[4]*np.pi/180)])
+    cw, xw = pd/np.dot(nw,cw)*cw, pd/np.dot(nw,xw)*xw
+    trw, brw, tlw, blw = xw.copy(), xw.copy(), 2*cw-xw, 2*cw-xw
+    brw[1], tlw[1] = blw[1], trw[1]
+    trq, brq, tlq, blq = np.dot(tp(wRq),trw-tw), np.dot(tp(wRq),brw-tw), np.dot(tp(wRq),tlw-tw), np.dot(tp(wRq),blw-tw)
+    trd, brd, tld, bld = np.dot(tp(wRd),trw), np.dot(tp(wRd),brw), np.dot(tp(wRd),tlw), np.dot(tp(wRd),blw)
+    # draw query box
+    trp, brp, tlp, blp = np.dot(Kq,trq), np.dot(Kq,brq), np.dot(Kq,tlq), np.dot(Kq,blq)
+    trp, brp, tlp, blp = (trp/trp[2])[:2], (brp/brp[2])[:2], (tlp/tlp[2])[:2], (blp/blp[2])[:2]
+    xdrawline((scale*trp,scale*brp),'green',off=0,width=10)
+    xdrawline((scale*brp,scale*blp),'green',off=0,width=10)
+    xdrawline((scale*blp,scale*tlp),'green',off=0,width=10)
+    xdrawline((scale*tlp,scale*trp),'green',off=0,width=10)
+    # draw database box
+    trp, brp, tlp, blp = np.dot(Kd,trd), np.dot(Kd,brd), np.dot(Kd,tld), np.dot(Kd,bld)
+    trp, brp, tlp, blp = (trp/trp[2])[:2], (brp/brp[2])[:2], (tlp/tlp[2])[:2], (blp/blp[2])[:2]
+    xdrawline((trp,brp),'green',off=off,width=10)
+    xdrawline((brp,blp),'green',off=off,width=10)
+    xdrawline((blp,tlp),'green',off=off,width=10)
+    xdrawline((tlp,trp),'green',off=off,width=10)
+
+    target.save(outimg, 'jpeg', quality=90)
+
+
 def draw_matches(matches, qimg, dbimg, outimg):
 
     print 'Drawing homography verified sift matches...'
@@ -205,7 +289,7 @@ def draw_matches(matches, qimg, dbimg, outimg):
     def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0):
         start = [start[0] + off, start[1]]
         stop = [stop[0] + off, stop[1]]
-        draw.line(start + stop, fill=color, width=1)
+        draw.line(start + stop, fill=color, width=2)
 
     def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
         r = 3
@@ -216,14 +300,14 @@ def draw_matches(matches, qimg, dbimg, outimg):
     target.paste(b, (off,0))
 
     match_idx = np.nonzero(matches['imask'])[0]
-    #match_idx = np.nonzero( np.zeros(matches['nmat'] ) )[0]
+#    match_idx = np.nonzero( np.ones(matches['nmat'] ) )[0]
     print 'Number of inliers / total correspondences : %d / %d' % (matches['numi'],matches['nmat'])
     for idx in match_idx:
         start = scale*matches['q2d'][idx,:]
         stop = matches['d2d'][idx,:]
         stop[0] += off
         xdrawcircle(start,'red')
-        xdrawline((start,stop),'orange')
+        xdrawline((start,stop),'green')
         xdrawcircle(stop,'red')
 
     target.save(outimg, 'jpeg', quality=90)
@@ -623,6 +707,8 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
         + ';yawPerf_' + str(yawclose) + ';nplanes_' + str(len(pyaws)) + ';plane_' + str(planes[planechose]) + ';try_' + str(ntry) \
         + ';tAng=%.0f' % (tyaw_error) + ';qAng=%.0f' % (qyaw_error) + ';nAng=%.0f' % (nyaw_error) + ';' + dbmatch + '.jpg')
     draw_matches(matches, qimg, dbimg, imgpath)
+#    imgpath = os.path.join( param['resultsdir'] , 'homography;' + qname + ';' + dbmatch + '.jpg')
+#    draw_hom(matches, pose, wRq, wRd, Kq, Kd, qimg, dbimg, imgpath)
 
     print 'Computed yaw / ground truth yaw        : %.0f / %.0f' % (comp_yaw,tyaw)
     if runflag < 10: print 'Computed normal bearing / ground truth : %.0f / %.0f' % (comp_pyaw,tnorm)

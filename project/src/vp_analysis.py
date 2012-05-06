@@ -268,6 +268,11 @@ def VPfromSeeds(midpts, lineqs, lengths, Rot, tol):
         vlens[minidx] += length/total_len
 
     # Pick true vanishing points from seeds
+#    if True:
+#        file = '/media/DATAPART2/ah/pose_runs/tmp.txt'
+#        open(file,'w').close()
+#        with open(file,'a') as f:
+#            for tmp in vlens: print >>f, '%.3f' % tmp
     seedlens = vlens
     neighbors = np.amax([np.roll(vlens,-3),np.roll(vlens,-2),np.roll(vlens,-1), \
                          np.roll(vlens,1),np.roll(vlens,2),np.roll(vlens,3)],0)

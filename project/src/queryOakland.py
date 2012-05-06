@@ -65,11 +65,13 @@ C.pose_param = {
     'use_weight'    : True,
     'solve_bad'     : False,
     'maxratio'      : 0.8,
-    'ransac_iter'   : 10**5,
+    'ransac_iter'   : 10**7,
     'inlier_error'  : 0.01 }
 
 # SUBSELECTIONS
-C.selection = ['2011-10-28_13-00-41_047','2011-10-28_11-59-08_593']
+#C.selection = ['2011-10-28_13-00-41_047','2011-10-28_11-59-08_593']
+#C.selection = ['2011-10-28_12-51-25_790']
+#C.selection = ['2011-10-28_12-52-56_242']
 
 debug = True
 try: print 'Query selection size: %d' % len(C.selection)

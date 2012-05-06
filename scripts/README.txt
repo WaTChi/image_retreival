@@ -1,0 +1,1 @@
+This directory contains batch files that convert jpgs to pgm files which are then used to extract SIFT features. The code works only in a Windows environment. A Python alternative exists in ../project/src.
