@@ -1,1 +1,0 @@
-for %%b IN (%1\*-0003.pgm) do "..\..\..\siftDemoV4\siftWin32.exe" <%%b >%1\%%~nbsift.txt
