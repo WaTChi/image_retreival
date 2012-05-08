@@ -41,6 +41,12 @@ PARAMS_DEFAULT = {
 
 
 class Tree3D:
+  """
+  Example of a 3d tree on features in a cell.
+  Used to search through 3d space for nearest features for example
+  to find the approximate closest points to a location.
+  Not used in the query pipeline at all - only for tag drawing.
+  """
   def __init__(self, map3d, C, cellid):
     self.map3d = map3d
     self.flann = pyflann.FLANN()
@@ -174,6 +180,7 @@ class Query(threading.Thread):
     self.flann = None
 
   def vote(self, queryset, dataset, mapping, results, dists):
+    """Chooses the right voting method based on the parameter file"""
     INFO('voting with method %s' % self.params['vote_method'])
     if config.hsv_enabled:
       INFO("HSV enabled - reading extra depth and color data")
@@ -183,7 +190,6 @@ class Query(threading.Thread):
       'top_n': self._vote_top_n\
         if self.params['num_neighbors'] > 1\
         else self._vote_matchonce,
-      'top_n2': self._vote_top_n2,
       'ratio': self._vote_spatial_ratio,
       'ransac': self._vote_ransac,
     }[self.params['vote_method']](queryset, dataset, mapping, results, dists)
@@ -193,6 +199,10 @@ class Query(threading.Thread):
     """Like vote_matchonce, but with a spatially aware ratio test.
        Votes must exceed meet ratio with all matches outside of a
        bubble around the original vote location. This requires nn >> 1.
+
+       Doesn't seem to work very well, which is odd since ratio test
+       works for other people.
+
        Params to tweak: ratio threshold, bubble radius"""
     assert self.params['num_neighbors'] > 1
     map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
@@ -234,48 +244,15 @@ class Query(threading.Thread):
     sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
     return sorted_counts
 
-  def _vote_top_n2(self, queryset, dataset, mapping, results, dists):
-    """
-    Like vote_top_n, but with 2 refinements:
-       1. reject matches with large distance ratio from top1 match
-       2. filter
-    """
-    assert self.params['num_neighbors'] > 1
-    results2, contest = self.false_search(queryset)
-    accept, reject, matchonce = 0, 0, 0
-    counts = {} # map from img to counts
-    closed = set()
-    for i, dist_array in enumerate(dists):
-      marked = set()
-      for j, dist in enumerate(dist_array):
-        if results[i][j] in closed:
-          matchonce += 1
-          reject += 1
-        elif dist > contest[i][j]:
-          reject += 1
-        elif dist < self.params['dist_threshold']:
-          closed.add(results[i][j])
-          image = mapping[dataset[results[i][j]]['index']]
-          if image not in marked:
-            if image not in counts:
-              counts[image] = []
-            counts[image].append({'db': dataset[results[i][j]]['geom'].copy(),
-                                'query': queryset[i]['geom'].copy()})
-            marked.add(image)
-          accept += 1
-        else:
-          reject += 1
-    INFO('accepted %d/%d votes' % (accept, accept + reject))
-    if matchonce:
-      INFO('discarded %d vote collisions' % matchonce)
-    sorted_counts = sorted(counts.iteritems(), key=lambda x: len(x[1]), reverse=True)
-    return sorted_counts
-
 
   def _vote_top_n(self, queryset, dataset, mapping, results, dists):
     """Like vote_matchonce, but up to nn db images per query feature.
        requires more than 1 nearest neighbor for results.
-       Note that each image gets 1 vote max."""
+       Note that each image gets 1 vote max.
+
+       This is the most robust method if querying a small number of cells.
+       (say, 3 cells or less. Otherwise we overwhelm RANSAC with too many matches)
+     """
     assert self.params['num_neighbors'] > 1
     accept, reject, matchonce = 0, 0, 0
     counts = {} # map from img to counts
@@ -305,6 +282,10 @@ class Query(threading.Thread):
     return sorted_counts
 
   def false_search(self, queryset):
+    """Runs the query on a "dummy cell" with all false matches
+       This lets us apply a heuristic to discard indeterminate features
+       based on if they matched the "dummy cell" more strongly that the
+       true cells"""
     self.flann = None # release memory
     # TODO eliminate duplicated build index code
     # TODO eliminate hardcoded path
@@ -329,7 +310,7 @@ class Query(threading.Thread):
     return r, dists
 
   def _vote_filter(self, queryset, dataset, mapping, results, dists):
-    """Votes must beat false votes in another cell."""
+    """Votes must beat false votes in another cell. See false_search docstring."""
     assert self.params['num_neighbors'] == 1
     #map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir) if config.hsv_enabled else None
@@ -375,7 +356,8 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
-    """Like vote highest, but each db feature is matchonceed to 1 match"""
+    """Like vote highest, but each db feature is matchonceed to 1 match.
+       This is the best method when running the pipeline normally."""
     assert self.params['num_neighbors'] == 1
 #    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)
     hsv = self.reader.load_hsv_for_cell(self.cellpath, dataset, mapping, self.infodir) if config.hsv_enabled else None
@@ -407,6 +389,13 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_highest(self, queryset, dataset, mapping, results, dists):
+    """
+    The simplest method of voting, but suffers from degeneracies in the
+    database index where many query features like to matches to a particular
+    database feature (which is obviously physically impossible).
+
+    You probably want to use vote_matchonce instead.
+    """
     assert self.params['num_neighbors'] == 1
     counts = {} # map from img to counts
     accept, reject = 0, 0
@@ -426,7 +415,13 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_ransac(self, queryset, dataset, mapping, results, dists):
-    INFO('DEPRECATED method: may mess up aarons training')
+    """
+    Applies RANSAC to database features and then votes with them.
+    Note that normally we RANSAC *after* all the cells are combined,
+    not on the cells individually. Experimentally this approach
+    works poorly, but it might be useful as an example.
+    """
+
     if self.params['num_neighbors'] > 1:
       sorted_counts = self._vote_top_n(queryset, dataset, mapping, results, dists)
     else:
@@ -455,10 +450,16 @@ class Query(threading.Thread):
     return rsorted_counts
 
   def _build_index(self):
+    """
+    Makes sure all FLANN indexes and cells are loaded for a cell setup
+    """
     dataset, mapping = self.reader.load_cell(self.cellpath, self, self.criteria)
     return self.flann_setup_index(self.flann, dataset, mapping, self.criteria)
 
   def flann_setup_index(self, flann, dataset, mapping, criteria):
+    """
+    Helper function called by _build_index.
+    """
     start = time.time()
     iname = '%s%s-%s.%s.index' % (getcellid(self.cellpath), '-' + criteria if criteria is not None else '', indextype(self.params), np.dtype(self.reader.dtype)['vec'].subdtype[0].name)
     index = getfile(self.cellpath, iname)

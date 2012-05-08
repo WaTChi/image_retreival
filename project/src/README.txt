@@ -1,16 +1,21 @@
 This directory contains ALL Python code for image retrieval and pose estimation. While it should be cleaned up into subdirectories, no one has yet had the time to do that, so this documentation splits the functions into categories.
 
+*** See Documentation Folder for details ***
 
-QUERY WRAPPER FILES: These files call the image retrieval and pose estimation system.
-### NOT SURE IF ANY OTHERS ARE USED, THIS IS WHAT I USE ###
+
+QUERY WRAPPER FILES: These files call the image retrieval and pose estimation system. They look very similar. The procedure for running a new experiment is typically to copy one of the files and modify it.
 	queryBerkeley
 	queryBerkeleyCheat
 	queryOakland
 	queryOaklandCheat
+    queryOakland
+    querySystem
+    querySystemCopy
+    querySystemCory
 
 	
 IMAGE RETRIEVAL:
-### HAVE NOT FILLED THIS IN ###
+    See Documentation folder for details.
 
 POSE ESTIMATION:
 	computePose : 
@@ -24,7 +29,8 @@ POSE ESTIMATION:
 	
 
 UTILITY:
-### MAY BE INCOMPLETE ###
+    See Documentation folder for details.
+
 	extract_oakland:
 		contains code which sets up the oakland database, including converting panoramas to rectilinear images.
 	geom : 
@@ -34,6 +40,9 @@ UTILITY:
 		
 		
 GROUND TRUTH FILES: 
-### NOT SURE WHICH OF THESE ARE OUT OF DATE AND UNUSED, IF ANY ###
-	oakland1GroundTruth :
-		ground truth for Oakland query set 1
+    Oakland:
+        oakland1GroundTruth :
+    Berkeley:
+        groundtruth*.py
+        query*GroundTruth.py
+

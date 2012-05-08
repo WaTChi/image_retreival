@@ -10,7 +10,7 @@ def run():
     C.params.update({
       'checks': 1024,
       'trees': 1,
-      'vote_method': 'filter',
+      'vote_method': 'matchonce',
       'num_neighbors': 1,
       'dist_threshold': 70000,
       'confstring': '',
