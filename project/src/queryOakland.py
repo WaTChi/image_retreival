@@ -64,6 +64,7 @@ C.pose_param = {
     'remove_ground' : True,
     'use_weight'    : True,
     'solve_bad'     : False,
+    'draw_tags'     : False,
     'maxratio'      : 0.8,
     'ransac_iter'   : 10**7,
     'inlier_error'  : 0.01 }

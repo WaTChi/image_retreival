@@ -92,6 +92,17 @@ def constrainedHomography(matches, wRd, wRq, qYaw=np.nan, nYaw=np.nan, runflag=0
             prm, numi, imask, iconf = new_prm, new_numi, new_imask, new_iconf
             break
 
+    # calculate and store homography matrix
+    if runflag == 7:
+        wRq, wRd, qYaw, nYaw = constants
+        dRq = np.dot(tp(wRd),wRq)
+        td = np.dot(tp(wRd),prm[:3])
+        nd = -np.dot(tp(wRd),[np.sin(nYaw*np.pi/180),0,np.cos(nYaw*np.pi/180)])
+        H = np.dot(tp(dRq),np.eye(3,3)-np.outer(td,nd))
+        matches['estH'] = H
+        matches['wRd'] = wRd
+        matches['wRq'] = wRq
+
     # Set output parameters
     matches['constants'] = constants
     matches['niter'] = niter

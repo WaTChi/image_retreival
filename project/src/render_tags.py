@@ -232,11 +232,12 @@ class TaggedImage:
     cell = util.getclosestcell(self.lat, self.lon, C.dbdir)[0]
     cellpath = os.path.join(C.dbdir, cell)
     tree3d = reader.get_reader(C.params['descriptor']).load_tree3d(cellpath, C)
-    for (tag, (_, pixel)) in outside:
-      if tag.isVisible2(self.source, tree3d, elat, elon):
-        accepted.append((tag, (_, pixel)))
-      else:
-        bad.append((tag, (15, pixel)))
+    for (tag, (d, pixel)) in outside:
+#      if tag.isVisible2(self.source, tree3d, elat, elon):
+#        accepted.append((tag, (_, pixel)))
+#      else:
+#        bad.append((tag, (15, pixel)))
+        accepted.append((tag, (d, pixel)))
 
     return accepted + bad
 

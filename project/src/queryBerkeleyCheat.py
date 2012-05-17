@@ -76,7 +76,7 @@ C.pose_param = {
     'remove_ground' : False,
     'use_weight'    : True,
     'solve_bad'     : False,
-    'maxmatch'      : 1,
+    'draw_tags'     : True,
     'maxratio'      : 0.8,
     'maxdist'       : 10**7,
     'ransac_iter'   : 10**7,

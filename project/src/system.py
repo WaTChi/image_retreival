@@ -18,7 +18,7 @@ import subprocess
 import multiprocessing
 import homographyDecomposition
 import computePose
-import computePose2
+#import computePose2
 
 def get_free_mem_gb():
   txt = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).communicate()[0]

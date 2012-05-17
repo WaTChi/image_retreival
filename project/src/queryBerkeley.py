@@ -75,7 +75,8 @@ C.pose_param = {
     'runflag'       : 11,
     'remove_ground' : False,
     'use_weight'    : True,
-    'solve_bad'     : True,
+    'solve_bad'     : False,
+    'draw_tags'     : True,
     'maxratio'      : 0.8,
     'ransac_iter'   : 10**5,
     'inlier_error'  : 0.01 }
@@ -83,6 +84,7 @@ C.pose_param = {
 
 # SUBSELECTIONS
 #C.selection = ['2011-04-04_15-32-28_500','2011-04-04_15-20-49_89']
+#C.selection = ['2011-04-04_15-44-07_263'] # testing tag transfer
 
 # Run in debug mode or parallel
 debug = True

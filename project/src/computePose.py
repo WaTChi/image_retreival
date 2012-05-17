@@ -128,6 +128,131 @@ def highresSift(C, Q, dbmatch):
     return matches
 
 
+def draw_tags(C, Q, matches, pose, dname, dlat, dlon, Kd, Kq):
+
+
+    print 'Drawing homography and tags...'
+
+    qname = Q.name
+    dbimg = os.path.join(C.hiresdir,dname+'.jpg')
+    qimg = os.path.join(C.querydir,'hires',qname+'.jpg')
+    outimg = os.path.join(C.pose_param['resultsdir'],'tags;'+qname+';'+dname+'.jpg')
+    H = matches['estH']
+
+    def scaledown(image, max_height):
+        scale = 1.0
+        hs = float(image.size[1]) / max_height
+        if hs > 1:
+            w,h = image.size[0]/hs, image.size[1]/hs
+            scale /= hs
+            image = image.resize((int(w), int(h)), Image.ANTIALIAS)
+        return image, scale
+
+    assert os.path.exists(dbimg)
+    assert os.path.exists(qimg)
+    a = Image.open(qimg)
+    b = Image.open(dbimg)
+    if a.mode != 'RGB':
+        a = a.convert('RGB')
+    if b.mode != 'RGB':
+        b = b.convert('RGB')
+    height = b.size[1]
+    a, scale = scaledown(a, height)
+    assert a.mode == 'RGB'
+    off = a.size[0]
+    target = Image.new('RGBA', (a.size[0] + b.size[0], height))
+
+    def xdrawline((start,stop), color='hsl(20,100%,50%)', off=0, width=1):
+        start = [start[0] + off, start[1]]
+        stop = [stop[0] + off, stop[1]]
+        draw.line(start + stop, fill=color, width=width)
+
+    def xdrawcircle((y,x), col='hsl(20,100%,50%)', off=0):
+        r = 3
+        draw.ellipse((y-r+off, x-r, y+r+off, x+r), outline=col)
+
+    draw = ImageDraw.Draw(target)
+    target.paste(a, (0,0))
+    target.paste(b, (off,0))
+
+#    ### draw homography boxes ###
+#
+#    # compute box center and corners
+#    pd = matches['iprm'][-1]
+#    tw = pose[5]*pose[:3]
+#    cd, xd = np.array([0,0,1]), geom.normalrows(np.array([.2,-.1,1]))
+#    cw, xw = np.dot(wRd,cd), np.dot(wRd,xd)
+#    nw = -np.array([np.sin(pose[4]*np.pi/180),0,np.cos(pose[4]*np.pi/180)])
+#    cw, xw = pd/np.dot(nw,cw)*cw, pd/np.dot(nw,xw)*xw
+#    trw, brw, tlw, blw = xw.copy(), xw.copy(), 2*cw-xw, 2*cw-xw
+#    brw[1], tlw[1] = blw[1], trw[1]
+#    trq, brq, tlq, blq = np.dot(tp(wRq),trw-tw), np.dot(tp(wRq),brw-tw), np.dot(tp(wRq),tlw-tw), np.dot(tp(wRq),blw-tw)
+#    trd, brd, tld, bld = np.dot(tp(wRd),trw), np.dot(tp(wRd),brw), np.dot(tp(wRd),tlw), np.dot(tp(wRd),blw)
+#    # draw query box
+#    trp, brp, tlp, blp = np.dot(Kq,trq), np.dot(Kq,brq), np.dot(Kq,tlq), np.dot(Kq,blq)
+#    trp, brp, tlp, blp = (trp/trp[2])[:2], (brp/brp[2])[:2], (tlp/tlp[2])[:2], (blp/blp[2])[:2]
+#    xdrawline((scale*trp,scale*brp),'green',off=0,width=10)
+#    xdrawline((scale*brp,scale*blp),'green',off=0,width=10)
+#    xdrawline((scale*blp,scale*tlp),'green',off=0,width=10)
+#    xdrawline((scale*tlp,scale*trp),'green',off=0,width=10)
+#    # draw database box
+#    trp, brp, tlp, blp = np.dot(Kd,trd), np.dot(Kd,brd), np.dot(Kd,tld), np.dot(Kd,bld)
+#    trp, brp, tlp, blp = (trp/trp[2])[:2], (brp/brp[2])[:2], (tlp/tlp[2])[:2], (blp/blp[2])[:2]
+#    xdrawline((trp,brp),'green',off=off,width=10)
+#    xdrawline((brp,blp),'green',off=off,width=10)
+#    xdrawline((blp,tlp),'green',off=off,width=10)
+#    xdrawline((tlp,trp),'green',off=off,width=10)
+
+    source = render_tags.get_image_info(dbimg)
+    tagimg = render_tags.TaggedImage(dbimg, source, C.tags)
+    tagpts = tagimg.map_tags_camera() # to db camera frame
+    tagpts = tagimg.map_tags_hybrid(C.pixelmap.open(dbimg[:-4] + 'sift.txt'), C, dlat, dlon) # filters
+    tagmatches = []
+    qtagpts = []
+
+
+    # transfer using H matrix
+    # confusing geometry. x and y switch between the reprs.
+    for (tag, (dist, pixel)) in tagpts:
+        y, x = pixel # backwards
+        x2 = x+5
+        dest = np.dot(Kq,np.dot(H,np.dot(alg.inv(Kd),[x,y,1])))
+        dest2 = np.dot(Kq,np.dot(H,np.dot(alg.inv(Kd),[x2,y,1])))
+        dest = tuple( map( int, (dest[0]/dest[2], dest[1]/dest[2]) ) )
+        dest2 = tuple( map( int, (dest2[0]/dest2[2], dest2[1]/dest2[2]) ) )
+        tagmatches.append({'db': [x, y, 10], 'query': [dest[0], dest[1], 10]})
+        correction = min(15, max(.1, abs(dest[0]-dest2[0])/5.0))
+        dest = (dest[1]*scale, dest[0]*scale)
+        dest2 = (dest2[1]*scale, dest2[0]*scale)
+        qtagpts.append((tag, (dist, dest), correction))
+#        print '-----------'
+#        print (x,y)
+#        print (dest[0],dest[1])
+#    print '-----------'
+
+    def colorize(theta):
+        if theta < .1: return 'green'
+        elif theta < .2: return 'blue'
+        elif theta < .5: return 'purple'
+        elif theta < 1.5: return 'orange'
+        else: return 'red'
+
+    # paste tags on query and database images
+    a2 = tagimg.taggedcopy(qtagpts, a, correction=True)
+    b2 = tagimg.taggedcopy(tagpts, b)
+    a = Image.new('RGBA', (a.size[0], height))
+    b = Image.new('RGBA', (b.size[0], height))
+    a = tagimg.taggedcopy(qtagpts, a, correction=True)
+    b = tagimg.taggedcopy(tagpts, b)
+    tags = Image.new('RGBA', (a.size[0] + b.size[0], height))
+    tagfilled = Image.new('RGBA', (a.size[0] + b.size[0], height))
+    tags.paste(a, (0,0))
+    tags.paste(b, (a.size[0],0))
+    tagfilled.paste(a2, (0,0))
+    tagfilled.paste(b2, (a.size[0],0))
+    target.paste(tagfilled, mask=tags)
+    target.save(outimg, 'jpeg', quality=90)
+
 def draw_dbimage(C, Q, matchedimg, match):
 
     print 'Drawing query and database images side by side...'
@@ -709,6 +834,8 @@ def estimate_pose(C, Q, dbmatch, gtStatus=None):
     draw_matches(matches, qimg, dbimg, imgpath)
 #    imgpath = os.path.join( param['resultsdir'] , 'homography;' + qname + ';' + dbmatch + '.jpg')
 #    draw_hom(matches, pose, wRq, wRd, Kq, Kd, qimg, dbimg, imgpath)
+    if C.QUERY == 'oakland1': C.pose_param['draw_tags'] = False
+    if C.pose_param['draw_tags']: draw_tags(C, Q, matches, pose, dbmatch, olat, olon, Kd, Kq)
 
     print 'Computed yaw / ground truth yaw        : %.0f / %.0f' % (comp_yaw,tyaw)
     if runflag < 10: print 'Computed normal bearing / ground truth : %.0f / %.0f' % (comp_pyaw,tnorm)
