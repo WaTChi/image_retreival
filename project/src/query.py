@@ -158,6 +158,8 @@ class Query(threading.Thread):
     timer_start('vote+query')
     timer_start('query')
     results, dists = self.flann.nn_index(queryset['vec'], **self.params)
+#    for element in zip(results, dists):
+#        print element
     timer_end('query')
     INFO_TIMING("query took %f seconds" % (time.time() - qtime))
     vtime = time.time()
@@ -356,7 +358,7 @@ class Query(threading.Thread):
     return sorted_counts
 
   def _vote_matchonce(self, queryset, dataset, mapping, results, dists):
-    """Like vote highest, but each db feature is matchonceed to 1 match.
+    """Like vote highest, but each db feature is match onced to 1 match.
        This is the best method when running the pipeline normally."""
     assert self.params['num_neighbors'] == 1
 #    map3d = self.reader.load_3dmap_for_cell(self.cellpath, dataset, mapping, self.infodir)

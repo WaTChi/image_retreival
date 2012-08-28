@@ -96,9 +96,9 @@ class _Context(object):
     # amount of distance outside which image matches are flat out rejected
     self.amb_padding = 50
 
-    self.maindir = os.path.expanduser('/media/DATAPART2')
-    self.resultsdir = os.path.expanduser('~/topmatches')
-    self.reproj_file = os.path.expanduser('~/topmatches/reproj')
+    self.maindir = os.path.expanduser('~/Desktop/query')
+    self.resultsdir = os.path.expanduser('~/Desktop/query/project/src/topmatches')
+    self.reproj_file = os.path.expanduser('~/Desktop/query/project/src/topmatches/reproj')
 
 
     self.ncells = 10 # if ambiguity<100, 9 is max possible by geometry

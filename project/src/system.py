@@ -18,6 +18,7 @@ import subprocess
 import multiprocessing
 import homographyDecomposition
 import computePose
+import lexiconrank
 #import computePose2
 
 def get_free_mem_gb():
@@ -220,6 +221,7 @@ def distance_sort(C, Q, matches):
   return sorted(matches, key=extract_key, reverse=True)
 
 cache = {}
+
 def match(C, Q):
     if C.shuffle_cells:
       C._dbdir = None
@@ -259,9 +261,11 @@ def match(C, Q):
     # compute output file paths for the cells
 
     cellpath = [c for c,d in cells_in_range]
+    listofimages = []
     if C.one_big_cell:
       INFO('Using 1 big cell (%d union)' % len(cells_in_range))
       outputFilePaths = [os.path.join(C.matchdir, Q.siftname + ',' + getcellid(cellpath) + ".res")]
+      listofimages = lexiconrank.addImagetoList(listofimages, C.dbdir + cellpath)
       cellpath = [cellpath]
     else:
       outputFilePaths = []
@@ -275,14 +279,17 @@ def match(C, Q):
           actualdist = info.distance(Q.query_lat, Q.query_lon, latcell, loncell)
           outputFilePath = os.path.join(C.matchdir, Q.siftname + ',' + cell + ',' + str(actualdist)  + ".res")
           outputFilePaths.append(outputFilePath)
+          listofimages = lexiconrank.addImagetoList(listofimages, C.dbdir + cell)
 
     # start query
     query.run_parallel(C, Q, cellpath, outputFilePaths, estimate_threads_avail())
+    d, lexiconmatchedimg = lexiconrank.returnTopMatch_random(C.dbdump, listofimages, Q.jpgpath)
 
     # combine results
     if C.spatial_comb:
       comb_matches = corr.combine_spatial(outputFilePaths)
     else:
+      print outputFilePaths
       comb_matches = corr.combine_matches(outputFilePaths)
 
     #geometric consistency reranking
@@ -293,10 +300,13 @@ def match(C, Q):
       imm, rsc_ok = rerank_ransac(comb_matches, C, Q)
 
     if C.weight_by_coverage:
+      #print 1
       ranked = weight_by_coverage(C, Q, imm)
     elif C.weight_by_distance:
+      #print 2
       ranked = weight_by_distance(C, Q, imm)
     else:
+      #print 3
       ranked = distance_sort(C, Q, imm)
 
     # top 1
@@ -311,22 +321,22 @@ def match(C, Q):
         C.match_callback(C, Q, stats, matchedimg, ranked, cells_in_range, rsc_ok)
 
     # compute homography and draw images maybe
-    if MultiprocessExecution.pool:
-      MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
-    else:
-      compute_hom(C, Q, ranked, comb_matches)
-
-    ### Query Pose Estimation ###
-    match = any(check_img(C, Q, ranked[0]))
-    if (C.solve_pose and match and Q.name not in C.pose_remove) or C.pose_param['solve_bad']:
-        #computePose.draw_dbimage(C, Q, matchedimg, match)
-        if MultiprocessExecution.pool:
-            MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
-        else:
-            computePose.estimate_pose(C, Q, matchedimg, match)
+#    if MultiprocessExecution.pool:
+#      MultiprocessExecution.pool.apply_async(compute_hom, [C.pickleable(), Q, ranked, comb_matches])
+#    else:
+#      compute_hom(C, Q, ranked, comb_matches)
+#
+#    ### Query Pose Estimation ###
+#    match = any(check_img(C, Q, ranked[0]))
+#    if (C.solve_pose and match and Q.name not in C.pose_remove) or C.pose_param['solve_bad']:
+#        #computePose.draw_dbimage(C, Q, matchedimg, match)
+#        if MultiprocessExecution.pool:
+#            MultiprocessExecution.pool.apply_async(computePose.estimate_pose, [C.pickleable(), Q, matchedimg, match])
+#        else:
+#            computePose.estimate_pose(C, Q, matchedimg, match)
 
     # done
-    return stats, matchedimg, matches, ranked
+    return stats, matchedimg, matches, ranked, lexiconmatchedimg, d
 
 def getlatlonfromdbimagename(C, dbimg):
     if C.QUERY == 'emeryville' or C.QUERY == 'cory-25' or C.QUERY == 'cory-2' or C.QUERY == 'cory-5':

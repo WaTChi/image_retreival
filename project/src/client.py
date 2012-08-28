@@ -18,7 +18,7 @@ import query
 #matchdir = '/tmp/client/%s' % query.searchtype(context.params)
 #if not os.path.exists(matchdir):
 #    os.makedirs(matchdir)
-SIFTEXEC = os.path.join('/media/DATAPART2/Research/app/siftDemoV4/sift')
+SIFTEXEC = os.path.join('/home/jason/Desktop/query/project/src/siftDemoV4/sift')
 #context.vars_init()
 
 def preprocess_image(inputfile, outputfile=None, width=768, height=512, fill=False):
@@ -39,11 +39,37 @@ def preprocess_image(inputfile, outputfile=None, width=768, height=512, fill=Fal
     INFO("--> Image conversion: " + str(time.time()-timer) + "s")
     return outputfile
 
+def extract_lexicon(inputfile, thresholds=[130], outputfile=None):
+    timer = time.time()
+    imagename = inputfile.rsplit(".",1)[0]
+    realname = imagename.split('/')[-1]
+#    imagepath = imagename.split('/')[:-1]
+    if outputfile == None:
+        outputfile = imagename + ".tess"
+    print outputfile
+    if os.path.lexists(outputfile) == True:
+        return outputfile
+    maxsize = -1
+    for threshold in thresholds:
+        temp = "./read_text " + inputfile + ' 1 ' + str(threshold) + ' 0'
+        print temp
+        os.system(temp)
+        if os.path.getsize('detected_text.txt') > maxsize:
+            maxsize = os.path.getsize('detected_text.txt')
+            os.system("cp detected_text.txt final_text.txt")
+    os.system("mkdir " + imagename)
+    os.system("mv correctedpatch* patch* result" + realname + ".jpg " + imagename)
+    os.system("mv final_text.txt " + imagename + ".tess")
+    INFO("--> Lexicon extraction: " + str(time.time()-timer) + "s")
+    return outputfile
+
 def extract_features(inputfile, outputfile=None, siftexec=SIFTEXEC):
     """Call the sift utility to extract sift features."""
     timer = time.time()
     if outputfile == None:
         outputfile = inputfile.rsplit(".",1)[0] + "sift.txt"
+    if os.path.lexists(outputfile) == True:
+        return outputfile
     os.system("{0} <{1} >{2}".format(siftexec, inputfile, outputfile))
     INFO("--> Feature extraction: " + str(time.time()-timer) + "s")
     return outputfile

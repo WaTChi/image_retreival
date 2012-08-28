@@ -22,7 +22,7 @@ from numpy import transpose as tp
 from numpy import dot
 import geom
 import util_cs188
-import cv
+import cv2.cv as cv
 import os
 import client
 import bundlerWrapper
@@ -440,7 +440,8 @@ def draw_matches(C, Q, matches, rsc_matches, H, inliers, db_img, out_img, matchs
   v = os.path.basename(db_img)[:-4]
   known_bad = k in fail and v in fail[k]
 #  print k,v
-  fail_img = os.path.join(os.path.expanduser('~/fail'), Q.name + ';' + os.path.basename(db_img))
+  #fail_img = os.path.join(os.path.expanduser('~/fail'), Q.name + ';' + os.path.basename(db_img))
+  fail_img = os.path.join('/home/jason/Desktop/query/project/src/fail', Q.name + '_' + os.path.basename(db_img))
   if (known_bad or os.path.exists(fail_img)) and not C.drawtopcorr:
       return
   assert os.path.exists(db_img)

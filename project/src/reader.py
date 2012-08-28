@@ -513,6 +513,7 @@ class SIFTReader(FeatureReader):
     return 'sift.txt' in filename
 
   def count_features_in_file(self, siftfile):
+    print siftfile
     with open(siftfile) as f:
       return int(f.readline().split()[0])
 
