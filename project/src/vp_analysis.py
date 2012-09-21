@@ -419,7 +419,8 @@ def loadLines(path):
 
 
 def callLSD(path, img):
-    matlab_path = 'cd(\'/media/DATAPART1/oakland/app/dev-ah/matlab/lsd\'); '
+    #matlab_path = 'cd(\'/media/DATAPART1/oakland/app/dev-ah/matlab/lsd\'); '
+    matlab_path = 'cd(\'/home/jason/Desktop/query/matlab/lsd\'); '
     matlab_lsd  = 'call_lsd(\'' + img + '\',\'' + path + '\'); '
     matlab_call = 'matlab -r \"' + matlab_path + matlab_lsd + 'quit;\"'
     os.system(matlab_call)

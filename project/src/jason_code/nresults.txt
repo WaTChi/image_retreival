@@ -1,0 +1,36 @@
+N: 1
+SiftScore: 70
+Lmscore: 66
+Combined Score: 74
+Agree Score: 58
+Total Num Images: 84
+N: 3
+SiftScore: 76
+Lmscore: 67
+Combined Score: 80
+Agree Score: 63
+Total Num Images: 84
+N: 5
+SiftScore: 76
+Lmscore: 67
+Combined Score: 80
+Agree Score: 63
+Total Num Images: 84
+N: 7
+SiftScore: 78
+Lmscore: 67
+Combined Score: 81
+Agree Score: 64
+Total Num Images: 84
+N: 9
+SiftScore: 79
+Lmscore: 67
+Combined Score: 81
+Agree Score: 65
+Total Num Images: 84
+N: 1
+SiftScore: 70
+Lmscore: 66
+Combined Score: 74
+Agree Score: 58
+Total Num Images: 84

@@ -21,15 +21,15 @@ def preprocesslexicon(dbname, imagetype, cannylist):
 		client.extract_lexicon(path, cannylist)
 		
 	
-def fullprep(dbname, imagetype, queryname):
+def fullprep(dbname, imagetype, queryname, cannylist):
 #	os.system('rm -rf ' + dbname)
 #	os.system('mkdir ' + dbname)
 #	os.system('cp tutorial/'+dbname+'/*.jpg ' + dbname)
 #
 	preprocesssift(dbname, imagetype)
 	preprocesssift(queryname, imagetype)
-	preprocesslexicon(dbname, imagetype)
-	preprocesslexicon(queryname, imagetype)
+	preprocesslexicon(dbname, imagetype, cannylist)
+	preprocesslexicon(queryname, imagetype, cannylist)
 	os.system('mkdir ' + dbname + '/cells-100')
 	makecells(dbname)
 	
@@ -49,13 +49,13 @@ def cleantessfiles(dir):
 	os.system('rm ' + dir + '/*.tess')
 	
 if __name__ == '__main__':
-	option = int(sys.argv[1])
-	dbname = 'mall_db'
+	dbname = 'corydb2'
 	imagetype = 'jpg'
-	queryname = 'tutorial/mall_query'
-#	cleantessfiles(dbname)
-#	cleantessfiles(queryname)
-	lexiconprep(dbname, imagetype, queryname, [50], option)
+	queryname = 'tutorial/cory_2nd_nexus'
+
+	#cleantessfiles(dbname)
+	#cleantessfiles(queryname)
+	lexiconprep(dbname, imagetype, queryname, [50, 100, 150], 2)
 #	client.extract_lexicon('mall_db/0,0-0003.jpg')
 #	client.extract_lexicon('mall_db/0,0-0080.jpg')
 	#siftprepsingle('mall_db/0,0-0081.jpg')
